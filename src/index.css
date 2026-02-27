@@ -790,3 +790,48 @@ span.flatpickr-weekday,
 .simplebar-scrollbar.simplebar-visible:before {
   @apply opacity-100;
 }
+
+
+.btn-button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition-property: background-color, color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.btn-button:hover {
+  background-color: #f9fafb;
+  color: #1f2937;
+}
+
+/* Dark mode styles */
+.dark .btn-button {
+  border-color: #374151;
+  background-color: #1f2937;
+  color: #9ca3af;
+}
+
+.dark .btn-button:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+  color: #e5e7eb; 
+}
+
+/* Responsive styles */
+@media (min-width: 1024px) {
+  .btn-button {
+    display: inline-flex;
+    width: auto;
+  }
+}
