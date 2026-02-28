@@ -19,7 +19,6 @@ export default function AcceptInvitationForm() {
   const [searchParams] = useSearchParams();
 
   const inviteToken = searchParams.get("key");
-  const nextPath = searchParams.get("next") || "/default-path"; // fallback if missing
 
   const [form, setForm] = useState<AcceptInvitationFormState>({
     password: "",
@@ -254,7 +253,7 @@ export default function AcceptInvitationForm() {
               </div>
             )}
 
-            <Button type="submit" className="w-full mt-6" disabled={loading}>
+            <Button className="w-full mt-6" disabled={loading}>
               {loading ? (
                 <>
                   Accepting Invitation...

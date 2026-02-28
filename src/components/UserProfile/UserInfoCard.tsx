@@ -6,8 +6,13 @@ import Label from "../form/Label";
 import { getUser } from "../../config/constants";
 
 export default function UserInfoCard() {
-  const { isOpen, openModal, closeModal } = useModal();
+  const { isOpen, closeModal } = useModal();
   const user = getUser();
+
+  if (!user) {
+    return null;
+  }
+
   const handleSave = () => {
     // Handle save logic here
     console.log("Saving changes...");
@@ -27,7 +32,7 @@ export default function UserInfoCard() {
                 First Name
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {user.first_name}
+                {user?.first_name}
               </p>
             </div>
 
@@ -36,7 +41,7 @@ export default function UserInfoCard() {
                 Last Name
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {user.last_name}
+                {user?.last_name}
               </p>
             </div>
 
@@ -45,7 +50,7 @@ export default function UserInfoCard() {
                 Email address
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {user.email}
+                {user?.email}
               </p>
             </div>
 
@@ -54,7 +59,7 @@ export default function UserInfoCard() {
                 Phone
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {user.phone}
+                {user?.phone}
               </p>
             </div>
           </div>

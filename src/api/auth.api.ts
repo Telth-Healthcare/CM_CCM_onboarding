@@ -1,4 +1,4 @@
-import { client, otpClient, logoutClient } from "./client";
+import { client } from "./client";
 
 export interface SignInRequest {
   phone: string;

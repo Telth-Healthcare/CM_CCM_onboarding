@@ -11,7 +11,9 @@ interface sendInvitationRequest {
   last_name: string;
   email: string;
   phone: string;
-  role: string; // single selected role, will be sent as [role]
+  region: string;
+  role: string[]; // Change from 'roles' to 'role'
+  mnpData?: string;
 }
 
 export const getAllUsers = () => {
@@ -24,7 +26,7 @@ export const getApplicationsApi = () => {
         .then(res => res.data);
 } 
 
-export const updateApplicationStatusApi = (applicationId: number, updateStatus: string) => {
+export const updateApplicationStatusApi = (applicationId: number, updateStatus: any) => {
     return client.patch(`applications/${applicationId}/update/`,  updateStatus)
         .then(res => res.data);
 }

@@ -7,7 +7,11 @@ import { getUser } from "../../config/constants";
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-  const user = getUser()
+  const user = getUser();
+
+   if (!user) {
+    return null;
+  }
 
   const handleLogout = () => {
     localStorage.clear();

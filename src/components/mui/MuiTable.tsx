@@ -7,7 +7,7 @@ import {
 } from "material-react-table";
 import { MRT_Localization_EN } from "material-react-table/locales/en";
 import { useTheme } from "../../context/ThemeContext";
-
+import type { OnChangeFn } from "@tanstack/react-table";
 interface TableAction {
   label: string;
   className?: string;
@@ -25,12 +25,14 @@ interface CommonTableProps<T extends MRT_RowData> {
   data: T[];
   loading?: boolean;
   pagination: MRT_PaginationState;
-  onPaginationChange: (pagination: MRT_PaginationState) => void;
+  onPaginationChange: OnChangeFn<MRT_PaginationState>;
   toolbarActions?: ToolbarAction[];
   rowActions?: TableAction[];
   enableRowSelection?: boolean;
   enableGrouping?: boolean;
   enablePinning?: boolean;
+  enableEditing?: boolean;        // ✅ ADD
+  enableRowActions?: boolean;     // ✅ ADD
   maxHeight?: string | number;
 }
 

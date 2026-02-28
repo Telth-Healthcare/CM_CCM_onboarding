@@ -1,5 +1,4 @@
-// applications/index.tsx
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { type MRT_ColumnDef } from "material-react-table";
 import { toast } from "react-toastify";
 import { ThemeProvider } from "@mui/material/styles";
@@ -10,7 +9,6 @@ import { PencilIcon } from "../../icons";
 import CommonTable from "../mui/MuiTable";
 import { getUserRole } from "../../config/constants";
 import useMuiTheme from "../mui/muiTheme";
-
 
 interface Application {
   assigned_incubator: null | number | string;
@@ -27,7 +25,8 @@ interface Application {
 
 const Applications = () => {
   const muiTheme = useMuiTheme();
-  const user = getUserRole();
+
+  const userRole = getUserRole() as string | null;
 
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,12 +48,13 @@ const Applications = () => {
     try {
       setLoading(true);
       const response = await getApplicationsApi();
-      setApplications(
-        Array.isArray(response) ? response : [response],
-      );
+      setApplications(Array.isArray(response) ? response : [response]);
     } catch (err) {
-      const errorMessage = handleAxiosError(err, "Failed to fetch applications");
-     toast.error(errorMessage);
+      const errorMessage = handleAxiosError(
+        err,
+        "Failed to fetch applications",
+      );
+      toast.error(errorMessage);
       setApplications([]);
     } finally {
       setLoading(false);
@@ -63,15 +63,17 @@ const Applications = () => {
 
   const handleEdit = useCallback(async (row: Application) => {
     try {
-      // const fullApplicationData = await getshgsIdApi(row.id);
-      // setSelectedApplication({
-      //   id: row.id,
-      //   data: fullApplicationData,
-      // });
+      setSelectedApplication({
+        id: row.id,
+        data: row,
+      });
       setIsViewModalOpen(true);
     } catch (err) {
-     const errorMessage = handleAxiosError(err, "Failed to fetch application details");
-     toast.error(errorMessage);
+      const errorMessage = handleAxiosError(
+        err,
+        "Failed to fetch application details",
+      );
+      toast.error(errorMessage);
     }
   }, []);
 
@@ -84,22 +86,23 @@ const Applications = () => {
     fetchApplications();
   }, []);
 
+  // ✅ FIX: role is string, not object
   const isAdminOrSuperAdmin =
-    user.role === "admin" || user.role === "super_admin";
+    userRole === "admin" || userRole === "super_admin";
 
   const rowActionsList = useMemo(() => {
     if (isAdminOrSuperAdmin) {
       return [
         {
           label: "Edit",
-          className: "text-brand-700 hover:text-brand-900 dark:text-brand-600",
+          className:
+            "text-brand-700 hover:text-brand-900 dark:text-brand-600",
           icon: <PencilIcon className="w-4 h-4 fill-current" />,
           onClick: handleEdit,
         },
       ];
-    } else {
-      return [];
     }
+    return [];
   }, [handleEdit, isAdminOrSuperAdmin]);
 
   const columns = useMemo<MRT_ColumnDef<Application>[]>(
@@ -108,15 +111,17 @@ const Applications = () => {
         accessorKey: "id",
         header: "S.No",
         size: 80,
-        Cell: ({ row }) =>
-          row.index + 1,
+        Cell: ({ row }) => row.index + 1,
         enableColumnFilter: false,
       },
       {
         accessorKey: "reference_number",
         header: "Reference No.",
         size: 120,
-        Cell: ({ cell }) => cell.getValue() || "-",
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+          return value ?? "-";
+        },
       },
       {
         accessorKey: "shg",
@@ -128,17 +133,18 @@ const Applications = () => {
         header: "Status",
         size: 120,
         Cell: ({ cell }) => {
-          const status = cell.getValue() as string;
+          const status = cell.getValue<string>() ?? "";
+
           return (
             <span
               className={`px-2 py-1 rounded-full text-xs font-medium ${
                 status === "submitted"
                   ? "bg-info-50 text-info-700 dark:bg-info-500/20 dark:text-info-400"
                   : status === "approved"
-                    ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                    : status === "rejected"
-                      ? "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
-                      : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
+                  ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                  : status === "rejected"
+                  ? "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
+                  : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
               }`}
             >
               {status}
@@ -150,20 +156,30 @@ const Applications = () => {
         accessorKey: "assigned_trainer",
         header: "Trainer",
         size: 120,
-        Cell: ({ cell }) => cell.getValue() || "-",
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string | number | null>();
+          return value ?? "-";
+        },
       },
       {
         accessorKey: "assigned_incubator",
         header: "Incubator",
         size: 120,
-        Cell: ({ cell }) => cell.getValue() || "-",
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string | number | null>();
+          return value ?? "-";
+        },
       },
       {
         accessorKey: "created_at",
         header: "Created Date",
         size: 150,
-        Cell: ({ cell }) =>
-          new Date(cell.getValue() as string).toLocaleDateString(),
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+          return value
+            ? new Date(value).toLocaleDateString()
+            : "-";
+        },
       },
     ],
     [pagination.pageIndex, pagination.pageSize],
@@ -189,13 +205,14 @@ const Applications = () => {
             pagination={pagination}
             enableRowSelection={false}
             onPaginationChange={setPagination}
-            toolbarActions={[{ label: "Refresh", onClick: fetchApplications }]}
+            toolbarActions={[
+              { label: "Refresh", onClick: fetchApplications },
+            ]}
             rowActions={rowActionsList}
           />
         </ThemeProvider>
       </div>
 
-      {/* View/Edit Modal */}
       {selectedApplication && (
         <ViewEditApplication
           isOpen={isViewModalOpen}

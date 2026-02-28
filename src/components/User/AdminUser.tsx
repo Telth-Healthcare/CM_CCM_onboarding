@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { type MRT_ColumnDef } from "material-react-table";
+import {
+  type MRT_ColumnDef,
+  type MRT_Cell,
+  type MRT_Row,
+} from "material-react-table";
 import { toast } from "react-toastify";
 import PageMeta from "../common/PageMeta";
-import useMuiTheme from "../mui/muiTheme";
 import {
   contactApi,
   getAllRegionsApi,
@@ -10,7 +13,6 @@ import {
   sendInvitationApi,
 } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
-import { ThemeProvider } from "../../context/ThemeContext";
 import CommonTable from "../mui/MuiTable";
 import { RightSideModal } from "../mui/RightSideModal";
 import Input from "../form/input/InputField";
@@ -46,13 +48,28 @@ interface NewUserForm {
   mnpData: string;
 }
 
+interface sendInvitationRequest {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  region: string;
+  role: string[]; 
+  mnpData?: string;
+}
+
 type OptionType = {
   value: string;
   label: string;
 };
 
+interface ToolbarAction {
+  label: string;
+  onClick: () => void;
+  icon?: React.ReactNode;
+}
+
 const AdminUser = () => {
-  const muiTheme = useMuiTheme();
   const userRole = getUserRole();
   const currentUser = getUser(); // Get current logged-in user details
   const [users, setUsers] = useState<User[]>([]);
@@ -103,7 +120,6 @@ const AdminUser = () => {
   }, [roles, isSuperAdmin, isAdmin]);
 
   const showMnpField = useMemo(() => {
-
     return formData.role === "trainer" || formData.role === "financier";
   }, [formData.role]);
 
@@ -222,7 +238,7 @@ const AdminUser = () => {
         accessorKey: "id",
         header: "S.No",
         size: 80,
-        Cell: ({ row }) =>
+        Cell: ({ row }: { row: MRT_Row<User> }) =>
           row.index + 1 + pagination.pageIndex * pagination.pageSize,
         enableColumnFilter: false,
       },
@@ -230,13 +246,19 @@ const AdminUser = () => {
         accessorKey: "first_name",
         header: "First Name",
         size: 120,
-        Cell: ({ cell }) => cell.getValue() || "-",
+        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+          const value = cell.getValue() as string | null;
+          return value || "-";
+        },
       },
       {
         accessorKey: "last_name",
         header: "Last Name",
         size: 120,
-        Cell: ({ cell }) => cell.getValue() || "-",
+        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+          const value = cell.getValue() as string | null;
+          return value || "-";
+        },
       },
       {
         accessorKey: "phone",
@@ -247,39 +269,48 @@ const AdminUser = () => {
         accessorKey: "email",
         header: "Email",
         size: 200,
-        Cell: ({ cell }) => cell.getValue() || "-",
+        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+          const value = cell.getValue() as string | null;
+          return value || "-";
+        },
       },
       {
         accessorKey: "is_active",
         header: "Status",
         size: 100,
-        Cell: ({ cell }) => (
-          <span
-            className={`px-2 py-1 rounded-full text-xs font-medium ${
-              cell.getValue()
-                ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
-            }`}
-          >
-            {cell.getValue() ? "Active" : "Inactive"}
-          </span>
-        ),
+        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+          const value = cell.getValue() as boolean;
+          return (
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                value
+                  ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                  : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
+              }`}
+            >
+              {value ? "Active" : "Inactive"}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "is_approved",
         header: "Approval",
         size: 100,
-        Cell: ({ cell }) => (
-          <span
-            className={`px-2 py-1 rounded-full text-xs font-medium ${
-              cell.getValue()
-                ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
-            }`}
-          >
-            {cell.getValue() ? "Approved" : "Pending"}
-          </span>
-        ),
+        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+          const value = cell.getValue() as boolean;
+          return (
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                value
+                  ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                  : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
+              }`}
+            >
+              {value ? "Approved" : "Pending"}
+            </span>
+          );
+        },
       },
     ],
     [pagination.pageIndex, pagination.pageSize],
@@ -314,6 +345,10 @@ const AdminUser = () => {
       "region",
     ];
 
+    // Add mnpData to required fields only if role is trainer or financier
+    if (showMnpField) {
+      requiredFields.push("mnpData");
+    }
 
     for (const field of requiredFields) {
       if (!formData[field] || formData[field].trim() === "") {
@@ -340,48 +375,47 @@ const AdminUser = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    // Additional validation for admin role restriction
-    if (isAdmin && formData.role === "admin") {
-      toast.error("You don't have permission to create admin users");
-      return;
+  if (isAdmin && formData.role === "admin") {
+    toast.error("You don't have permission to create admin users");
+    return;
+  }
+
+  setSubmitting(true);
+  try {
+    const payload: sendInvitationRequest = {
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      email: formData.email,
+      phone: formData.phone,
+      region: formData.region,
+      role: [formData.role], // Change from 'roles' to 'role'
+    };
+
+    // Only include mnpData if role is trainer or financier
+    if (showMnpField) {
+      payload.mnpData = formData.mnpData;
     }
 
-    setSubmitting(true);
-    try {
-      const payload: any = {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        phone: formData.phone,
-        region: formData.region,
-        roles: [formData.role],
-      };
+    await sendInvitationApi(payload);
+    toast.success("User invitation sent successfully");
+    handleCloseModal();
+    fetchUsers();
+  } catch (error) {
+    const errorMessage = handleAxiosError(
+      error,
+      "Failed to send user invitation",
+    );
+    toast.error(errorMessage);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
-      // Only include mnpData if role is trainer or financier
-      if (showMnpField) {
-        payload.mnpData = formData.mnpData;
-      }
-
-      await sendInvitationApi([payload]);
-      toast.success("User invitation sent successfully");
-      handleCloseModal();
-      fetchUsers();
-    } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        "Failed to send user invitation",
-      );
-      toast.error(errorMessage);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const toolbarActions = [
+  const toolbarActions: ToolbarAction[] = [
     ...(canAddUsers
       ? [
           {
@@ -446,19 +480,15 @@ const AdminUser = () => {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
-        <ThemeProvider theme={muiTheme}>
-          <CommonTable
-            columns={columns}
-            data={users}
-            loading={loading}
-            pagination={pagination}
-            enableRowSelection={false}
-            onPaginationChange={setPagination}
-            toolbarActions={toolbarActions}
-            enableEditing={isSuperAdmin || isAdmin}
-            enableRowActions={isSuperAdmin || isAdmin}
-          />
-        </ThemeProvider>
+        <CommonTable
+          columns={columns}
+          data={users}
+          loading={loading}
+          pagination={pagination}
+          enableRowSelection={false}
+          onPaginationChange={setPagination}
+          toolbarActions={toolbarActions}
+        />
       </div>
 
       {/* Right Side Modal for Adding User - Only accessible by super_admin or admin */}
@@ -486,7 +516,6 @@ const AdminUser = () => {
                     value={formData.first_name}
                     onChange={handleInputChange}
                     placeholder="Enter first name"
-                    required
                     className="w-full"
                     error={!!errors.first_name}
                   />
@@ -508,7 +537,6 @@ const AdminUser = () => {
                     value={formData.last_name}
                     onChange={handleInputChange}
                     placeholder="Enter last name"
-                    required
                     className="w-full"
                     error={!!errors.last_name}
                   />
@@ -530,7 +558,6 @@ const AdminUser = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     placeholder="Enter email address"
-                    required
                     className="w-full"
                     error={!!errors.email}
                   />
@@ -552,7 +579,6 @@ const AdminUser = () => {
                     value={formData.phone}
                     onChange={handleInputChange}
                     placeholder="+1 (123) 456-7890"
-                    required
                     className="w-full"
                     error={!!errors.phone}
                   />
@@ -628,7 +654,7 @@ const AdminUser = () => {
                 </div>
 
                 {/* MNP Select - Only shown for trainer and financier roles */}
-                {showMnpField && userRole !== "admin" && (
+                {showMnpField && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       MNP Admin User <span className="text-red-500">*</span>
@@ -663,7 +689,9 @@ const AdminUser = () => {
                       </select>
                     ) : (
                       <div className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                        No admin users available in the system
+                        {isSuperAdmin
+                          ? "No admin users available in the system"
+                          : "Your admin account is not active or approved"}
                       </div>
                     )}
                     {errors.mnpData && (
@@ -678,14 +706,12 @@ const AdminUser = () => {
               {/* Form Actions */}
               <div className="mt-6 flex justify-end space-x-3">
                 <Button
-                  type="button"
                   onClick={handleCloseModal}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                 >
                   Cancel
                 </Button>
                 <Button
-                  type="submit"
                   disabled={submitting}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
                 >
