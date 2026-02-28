@@ -12,7 +12,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
   const userRole = getUserRole();
 
   if (!access) {
-    return <Navigate to="/signin" replace />;
+    return <Navigate to="/" replace />;
   }
 
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {

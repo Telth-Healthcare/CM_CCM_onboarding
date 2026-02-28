@@ -18,7 +18,7 @@ export default function App() {
       <Router>
         <Routes>
           {/* Public Route */}
-          <Route path="/signin" element={<SignIn />} />
+          <Route path="/" element={<SignIn />} />
           <Route path="/invite/accept/" element={<AcceptInvitationPage />} />
 
           {/* Protected Routes */}
