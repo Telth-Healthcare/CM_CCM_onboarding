@@ -1,13 +1,19 @@
 import GridShape from "../../components/common/GridShape";
 import { Link } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
+import { useEffect } from "react";
 
 export default function NotFound() {
+
+  useEffect(() => {
+    localStorage.clear();
+  })
+  
   return (
     <>
       <PageMeta
-        title="React.js 404 Dashboard | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js 404 Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="CM_CCM - 404 Not Found"
+        description="The page you are looking for does not exist. Please check the URL or return to the home page."
       />
       <div className="relative flex flex-col items-center justify-center min-h-screen p-6 overflow-hidden z-1">
         <GridShape />
@@ -28,7 +34,7 @@ export default function NotFound() {
           </p>
 
           <Link
-            to="/"
+            to="/signin"
             className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3.5 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
           >
             Back to Home Page

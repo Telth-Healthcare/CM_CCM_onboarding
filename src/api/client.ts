@@ -41,7 +41,7 @@ client.interceptors.response.use(
       const hasPendingFlow = flows && flows.length > 0;
       if (!hasPendingFlow) {
         // clearToken();
-        window.location.href = "/control-center/signin";
+        window.location.href = "/signin";
       }
     }
     return Promise.reject(error);

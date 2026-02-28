@@ -38,3 +38,18 @@ export const acceptInvitationApi = (invitationReseponse: invitationReseponse) =>
     return client.post("accounts/invite/accept/", invitationReseponse)
         .then(res => res.data);
 }
+
+export const contactApi = () => {
+    return client.get("app/meta/constants/")
+        .then(res => res.data);
+}
+
+export const createRegionsApi = (payload: any) => {
+    return client.post("accounts/regions/", payload) 
+    .then(res => res.data); 
+}
+
+export const getAllRegionsApi = () => {
+    return client.get("accounts/regions/") 
+    .then(res => res.data); 
+}

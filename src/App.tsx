@@ -9,6 +9,8 @@ import Blank from "./pages/Blank";
 import NotFound from "./pages/OtherPage/NotFound";
 import AdminUser from "./components/User/AdminUser";
 import Applications from "./components/User/Applications";
+import AcceptInvitationPage from "./pages/AuthPages/AcceptInvitationPage";
+import Region from "./components/User/Region";
 
 export default function App() {
   return (
@@ -17,6 +19,7 @@ export default function App() {
         <Routes>
           {/* Public Route */}
           <Route path="/signin" element={<SignIn />} />
+          <Route path="/invite/accept/" element={<AcceptInvitationPage />} />
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
@@ -24,7 +27,17 @@ export default function App() {
               <Route path="/dashboard" element={<Home />} />
               <Route path="/profile" element={<UserProfiles />} />
               <Route path="/blank" element={<Blank />} />
-              <Route path="/users" element={<AdminUser />} />
+              
+              {/* Wrap the routes that need role-based protection */}
+              <Route 
+                path="/users" 
+                element={
+                  <ProtectedRoute allowedRoles={["super_admin", "admin"]}>
+                    <AdminUser />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="/regions" element={<Region />} />
               <Route path="/applications" element={<Applications />} />
             </Route>
           </Route>
@@ -49,3 +62,4 @@ export default function App() {
     </div>
   );
 }
+

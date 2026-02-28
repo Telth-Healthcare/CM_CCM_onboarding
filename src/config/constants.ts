@@ -29,12 +29,12 @@ const TOKEN_KEYS = {
     role: 'user_role',
 }
 
-const setToken = ({access, refresh, user}) => {
+const setToken = ({ access, refresh, user }) => {
     localStorage.setItem(TOKEN_KEYS.access, access);
     localStorage.setItem(TOKEN_KEYS.refresh, refresh);
     localStorage.setItem(TOKEN_KEYS.is_authenticated, JSON.stringify(user));
-    localStorage.setItem(TOKEN_KEYS.role, user?.role);
-}
+    localStorage.setItem(TOKEN_KEYS.role, user?.role?.name || user?.role);
+};
 
 const getToken = () => {
     return {
@@ -50,9 +50,7 @@ const getUser = () => {
 }
 
 const getUserRole = () => {
-    return {
-        role: localStorage.getItem(TOKEN_KEYS.role),
-    } 
+    return localStorage.getItem(TOKEN_KEYS.role);
 }
 
 const setUrl = (url: string) => {
