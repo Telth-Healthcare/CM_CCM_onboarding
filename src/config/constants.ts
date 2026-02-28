@@ -65,14 +65,12 @@ export const setToken = ({ access, refresh, user }: TokenPayload): void => {
     TOKEN_KEYS.isAuthenticated,
     JSON.stringify(user)
   );
+
   localStorage.setItem(
     TOKEN_KEYS.role,
-    typeof user?.role === "string"
-      ? user.role
-      : user?.role?.name || ""
+    Array.isArray(user?.role) ? user.role[0] : ""
   );
 };
-
 export const getToken = (): TokenResponse => {
   return {
     access: localStorage.getItem(TOKEN_KEYS.access),

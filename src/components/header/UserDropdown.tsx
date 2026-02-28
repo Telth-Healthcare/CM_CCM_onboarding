@@ -16,7 +16,7 @@ export default function UserDropdown() {
   const handleLogout = () => {
     localStorage.clear();
     closeDropdown(); 
-    navigate("/signin"); 
+    navigate("/"); 
   };
 
 
