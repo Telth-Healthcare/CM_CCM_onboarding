@@ -42,6 +42,18 @@ export interface AuthResponse {
 export const signinApi = (payload: SignInRequest): Promise<AuthResponse> =>
   client.post("_allauth/app/v1/auth/login", payload).then((r) => r.data);
 
+/** Resend OTP to phone */
+export const resendPhoneOtpApi = (
+  payload: OtpVerifyRequest,
+): Promise<AuthResponse> =>
+  otpClient
+    .post("_allauth/app/v1/auth/phone/verify/resend", payload)
+    .then((r) => r.data);
+
+/** Register a new user */
+export const signupApi = (payload: SignUpRequest): Promise<AuthResponse> =>
+  client.post("_allauth/app/v1/auth/signup", payload).then((r) => r.data);
+
 
 
 

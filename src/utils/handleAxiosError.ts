@@ -29,29 +29,17 @@ export const handleAxiosError = (
       return data.errors[0].message || fallback;
     }
 
-    // 5️⃣ Field-level errors (object with arrays or strings)
+    // 5️⃣ Field-level errors (object with arrays)
     if (typeof data === "object") {
       const firstKey = Object.keys(data)[0];
       const firstValue = data[firstKey];
 
-      // Handle array of error messages
       if (Array.isArray(firstValue) && firstValue.length > 0) {
-        const errorMsg = firstValue[0];
-        return typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg);
+        return firstValue[0];
       }
 
-      // Handle string error messages
       if (typeof firstValue === "string") {
         return firstValue;
-      }
-
-      // Handle nested object errors (e.g., field validation with nested structure)
-      if (typeof firstValue === "object" && firstValue !== null) {
-        const nestedKey = Object.keys(firstValue)[0];
-        const nestedValue = firstValue[nestedKey];
-        if (Array.isArray(nestedValue) && nestedValue.length > 0) {
-          return nestedValue[0];
-        }
       }
     }
 
