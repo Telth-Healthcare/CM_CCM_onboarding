@@ -1,26 +1,36 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { getToken, getUserRole } from "../config/constants";
 
 interface ProtectedRouteProps {
+  authType: "admin" | "ccm";
   allowedRoles?: string[];
-  children?: React.ReactNode;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children }) => {
-  const { access } = getToken();
-  const userRole = getUserRole();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  authType,
+  allowedRoles,
+}) => {
+  const token =
+    authType === "admin"
+      ? localStorage.getItem("admin_token")
+      : localStorage.getItem("ccm_token");
 
-  if (!access) {
-    return <Navigate to="/" replace />;
+  const userRole = localStorage.getItem("user_role");
+
+  if (!token) {
+    return (
+      <Navigate
+        to={authType === "admin" ? "/" : "/ccm-auth/signin"}
+        replace
+      />
+    );
   }
 
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // If there are children, render them, otherwise render Outlet
-  return children ? <>{children}</> : <Outlet />;
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

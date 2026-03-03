@@ -55,3 +55,8 @@ export const getAllRegionsApi = () => {
     return client.get("accounts/regions/") 
     .then(res => res.data); 
 }
+
+export const getSHGUserByIdApi = (userId: number) => {
+    return client.get(`shg/${userId}/`)
+    .then(res => res.data)
+}  
