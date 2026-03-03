@@ -75,14 +75,15 @@ export const setToken = (
   localStorage.setItem(keys.user, JSON.stringify(user));
 
   // Handle role properly
-  const role =
-    typeof user?.role === "object"
-      ? user.role?.name
-      : user?.role;
+const role = Array.isArray(user?.role)
+  ? user.role[0]
+  : typeof user?.role === "object" && user?.role !== null
+  ? user.role.name
+  : user?.role;
 
-  if (role) {
-    localStorage.setItem(keys.role, role);
-  }
+if (role) {
+  localStorage.setItem(keys.role, role);
+}
 };
 
 export const getToken = (type: AuthType): TokenResponse => {

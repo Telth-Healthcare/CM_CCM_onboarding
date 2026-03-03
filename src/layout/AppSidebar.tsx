@@ -50,7 +50,7 @@ const othersItems: NavItem[] = [];
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
-  const userRole = localStorage.getItem("user_role");
+  const userRole = localStorage.getItem("admin_role");
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
