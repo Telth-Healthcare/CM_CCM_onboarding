@@ -28,7 +28,6 @@ const Applications = lazy(() => import("./components/User/Applications"));
 const Region = lazy(() => import("./components/User/Region"));
 const NotFound = lazy(() => import("./pages/OtherPage/NotFound"));
 
-
 export default function App() {
   return (
     <Router>
@@ -51,9 +50,11 @@ export default function App() {
       >
         <Routes>
 
+          {/* Admin Auth */}
           <Route path="/" element={<SignIn />} />
-          <Route path="/invite/accept/" element={<AcceptInvitationPage />} />
+          <Route path="/invite/accept" element={<AcceptInvitationPage />} />
 
+          {/* CCM Auth */}
           <Route path="/ccm-auth/signin" element={<CCMSignInPage />} />
           <Route path="/ccm-auth/signup" element={<CCMSignUpPage />} />
 
@@ -69,8 +70,8 @@ export default function App() {
               <Route path="/regions" element={<Region />} />
               <Route path="/applications" element={<Applications />} />
 
+              {/* Role-based route */}
               <Route
-                path="/users"
                 element={
                   <ProtectedRoute
                     authType="admin"
@@ -78,11 +79,12 @@ export default function App() {
                   />
                 }
               >
-                <Route index element={<AdminUser />} />
+                <Route path="/users" element={<AdminUser />} />
               </Route>
             </Route>
           </Route>
 
+          {/* ================= FALLBACK ================= */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

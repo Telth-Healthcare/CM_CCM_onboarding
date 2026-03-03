@@ -20,7 +20,6 @@ export interface TokenPayload {
 interface TokenResponse {
   access: string | null;
   refresh: string | null;
-  sessionId: string | null;
 }
 
 // ================= CONSTANTS =================
@@ -57,25 +56,41 @@ export const headerJson = () => {
 };
 
 // ================= TOKEN FUNCTIONS =================
+export type AuthType = "admin" | "ccm";
+const getTokenKeys = (type: AuthType) => ({
+  access: `${type}_access_token`,
+  refresh: `${type}_refresh_token`,
+  user: `${type}_user`,
+  role: `${type}_role`,
+});
 
-export const setToken = ({ access, refresh, user }: TokenPayload): void => {
-  localStorage.setItem(TOKEN_KEYS.access, access);
-  localStorage.setItem(TOKEN_KEYS.refresh, refresh);
-  localStorage.setItem(
-    TOKEN_KEYS.isAuthenticated,
-    JSON.stringify(user)
-  );
+export const setToken = (
+  type: AuthType,
+  { access, refresh, user }: TokenPayload
+): void => {
+  const keys = getTokenKeys(type);
 
-  localStorage.setItem(
-    TOKEN_KEYS.role,
-    Array.isArray(user?.role) ? user.role[0] : ""
-  );
+  localStorage.setItem(keys.access, access);
+  localStorage.setItem(keys.refresh, refresh);
+  localStorage.setItem(keys.user, JSON.stringify(user));
+
+  // Handle role properly
+  const role =
+    typeof user?.role === "object"
+      ? user.role?.name
+      : user?.role;
+
+  if (role) {
+    localStorage.setItem(keys.role, role);
+  }
 };
-export const getToken = (): TokenResponse => {
+
+export const getToken = (type: AuthType): TokenResponse => {
+  const keys = getTokenKeys(type);
+
   return {
-    access: localStorage.getItem(TOKEN_KEYS.access),
-    refresh: localStorage.getItem(TOKEN_KEYS.refresh),
-    sessionId: localStorage.getItem(TOKEN_KEYS.sessionId),
+    access: localStorage.getItem(keys.access),
+    refresh: localStorage.getItem(keys.refresh),
   };
 };
 
@@ -84,10 +99,10 @@ export const getUser = (): User | null => {
   return userString ? JSON.parse(userString) as User : null;
 };
 
-export const getUserRole = (): string | null => {
-  return localStorage.getItem(TOKEN_KEYS.role);
+export const getUserRole = (type: AuthType): string | null => {
+  const keys = getTokenKeys(type);
+  return localStorage.getItem(keys.role);
 };
-
 // ================= URL STORAGE =================
 
 export const setUrl = (url: string): void => {

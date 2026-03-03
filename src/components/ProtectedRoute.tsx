@@ -1,8 +1,11 @@
+// components/ProtectedRoute.tsx
+
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
+import { getToken, getUserRole } from "../config/constants";
 
 interface ProtectedRouteProps {
-  authType: "admin" | "ccm";
+  authType: AuthType;
   allowedRoles?: string[];
 }
 
@@ -10,14 +13,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   authType,
   allowedRoles,
 }) => {
-  const token =
-    authType === "admin"
-      ? localStorage.getItem("admin_token")
-      : localStorage.getItem("ccm_token");
+  const { access } = getToken(authType);
+  const userRole = getUserRole(authType);
 
-  const userRole = localStorage.getItem("user_role");
-
-  if (!token) {
+  if (!access) {
     return (
       <Navigate
         to={authType === "admin" ? "/" : "/ccm-auth/signin"}

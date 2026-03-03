@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import {  useNavigate } from "react-router";
-import {  EyeCloseIcon, EyeIcon } from "../../icons";
+import { useNavigate } from "react-router";
+import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Button from "../ui/button/Button";
@@ -32,11 +32,11 @@ export default function SignInForm() {
   const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
-  const token = localStorage.getItem("access_token");
-  if (token) {
-    navigate("/dashboard");
-  }
-}, []);
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      navigate("/dashboard");
+    }
+  }, []);
 
   const validateForm = () => {
     const newErrors: FormErrors = {};
@@ -73,7 +73,7 @@ export default function SignInForm() {
       const user = response?.data?.user;
 
       if (accessToken && refreshToken && user) {
-        setToken({
+        setToken("admin", {
           access: accessToken,
           refresh: refreshToken,
           user: user,
