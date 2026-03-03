@@ -1,11 +1,10 @@
 // components/applications/ViewEditApplication.tsx
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { updateApplicationStatusApi } from "../../api";
+import { getSHGUserByIdApi, updateApplicationStatusApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { Modal } from "../ui/modal";
 import { PencilIcon } from "../../icons";
-
 
 interface ViewEditApplicationProps {
   isOpen: boolean;
@@ -20,6 +19,37 @@ interface ProductInterest {
   name: string;
 }
 
+interface SHGUserData {
+  user: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    is_active: boolean;
+    is_approved: boolean;
+    region: number | null;
+  };
+  profile: {
+    id: number;
+    year_of_formation: number | null;
+    dob: string | null;
+    language: string;
+    marital_status: string;
+    gender: string;
+    blood_group: string;
+    address_line_1: string;
+    address_line_2: string;
+    district: string;
+    village: string;
+    state: string;
+    country: string;
+    pin_code: string;
+    registration_status: string;
+    is_submitted: boolean;
+  };
+}
+
 const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
   isOpen,
   onClose,
@@ -29,6 +59,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [shgUserData, setShgUserData] = useState<SHGUserData | null>(null);
   const [trainers, setTrainers] = useState<any[]>([]);
   const [incubators, setIncubators] = useState<any[]>([]);
   const [productInterests, setProductInterests] = useState<ProductInterest[]>(
@@ -44,7 +75,9 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
 
   useEffect(() => {
     if (isOpen && applicationData) {
-      // Fetch trainers and incubators for dropdowns
+      if (applicationData.shg) {
+        getSHGUserData(applicationData.shg);
+      }
       fetchTrainersAndIncubators();
       fetchProductInterests();
 
@@ -60,16 +93,18 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
     }
   }, [isOpen, applicationData]);
 
+  const getSHGUserData = async (userId: number) => {
+    try {
+      const response = await getSHGUserByIdApi(userId);
+      setShgUserData(response);
+    } catch (error) {
+      const errorMessage = handleAxiosError(error, "fetching user data");
+      toast.error(errorMessage);
+    }
+  };
+
   const fetchTrainersAndIncubators = async () => {
     try {
-      // Uncomment these when APIs are ready
-      // const [trainersData, incubatorsData] = await Promise.all([
-      //     getTrainers(),
-      //     getIncubators()
-      // ])
-      // setTrainers(Array.isArray(trainersData) ? trainersData : [])
-      // setIncubators(Array.isArray(incubatorsData) ? incubatorsData : [])
-
       // Mock data for now
       setTrainers([
         { id: 1, name: "Trainer 1" },
@@ -86,10 +121,6 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
 
   const fetchProductInterests = async () => {
     try {
-      // Fetch product interests if you have an API
-      // const products = await getProducts()
-      // setProductInterests(products)
-
       // Mock data
       setProductInterests([
         { id: 1, name: "Product 1" },
@@ -116,8 +147,10 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
     try {
       const updatedData = {
         status: formData.status,
-        assigned_trainer: null,
-        assigned_incubator: null,
+        assigned_trainer: formData.assigned_trainer || null,
+        assigned_incubator: formData.assigned_incubator || null,
+        public_notes: formData.public_notes,
+        private_notes: formData.private_notes,
       };
       await updateApplicationStatusApi(applicationId, updatedData);
       toast.success("Application updated successfully");
@@ -125,8 +158,8 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
       onUpdate();
       onClose();
     } catch (err) {
-        const erorMessage = handleAxiosError(err, "Failed to update application");
-        toast.error(erorMessage);
+      const errorMessage = handleAxiosError(err, "Failed to update application");
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -142,6 +175,28 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
         return product?.name || `Product ${id}`;
       })
       .join(", ");
+  };
+
+  // Format full name
+  const getFullName = () => {
+    if (!shgUserData) return "-";
+    return `${shgUserData.user.first_name || ""} ${shgUserData.user.last_name || ""}`.trim() || "-";
+  };
+
+  // Format full address
+  const getFullAddress = () => {
+    if (!shgUserData) return "-";
+    const { profile } = shgUserData;
+    return [
+      profile.address_line_1,
+      profile.address_line_2,
+      profile.village,
+      profile.district,
+      profile.state,
+      profile.pin_code,
+    ]
+      .filter(Boolean)
+      .join(", ") || "-";
   };
 
   if (!isOpen) return null;
@@ -191,18 +246,10 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      SHG Name
+                      SHG Name / Contact Person
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {applicationData?.name || "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Contact Person
-                    </label>
-                    <p className="text-gray-900 dark:text-white">
-                      {applicationData?.contact_name || "-"}
+                      {getFullName()}
                     </p>
                   </div>
                   <div>
@@ -210,7 +257,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       Contact Mobile
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {applicationData?.contact_mobile || "-"}
+                      {shgUserData?.user.phone || "-"}
                     </p>
                   </div>
                   <div>
@@ -218,15 +265,41 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       Contact Email
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {applicationData?.contact_email || "-"}
+                      {shgUserData?.user.email || "-"}
                     </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Registration Status
+                      Date of Birth
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {applicationData?.registration_status || "-"}
+                      {shgUserData?.profile.dob 
+                        ? new Date(shgUserData.profile.dob).toLocaleDateString() 
+                        : "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Gender
+                    </label>
+                    <p className="text-gray-900 dark:text-white">
+                      {shgUserData?.profile.gender || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Marital Status
+                    </label>
+                    <p className="text-gray-900 dark:text-white">
+                      {shgUserData?.profile.marital_status || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Blood Group
+                    </label>
+                    <p className="text-gray-900 dark:text-white">
+                      {shgUserData?.profile.blood_group || "-"}
                     </p>
                   </div>
                 </div>
@@ -235,33 +308,34 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Language
+                    </label>
+                    <p className="text-gray-900 dark:text-white">
+                      {shgUserData?.profile.language || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Year of Formation
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {applicationData?.year_of_formation || "-"}
+                      {shgUserData?.profile.year_of_formation || "-"}
                     </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Number of Members
+                      Registration Status
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {applicationData?.number_of_members || "-"}
+                      {shgUserData?.profile.registration_status || "-"}
                     </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Location
+                      Address
                     </label>
-                    <p className="text-gray-900 dark:text-white">
-                      {[
-                        applicationData?.village,
-                        applicationData?.district,
-                        applicationData?.state,
-                        applicationData?.pin_code,
-                      ]
-                        .filter(Boolean)
-                        .join(", ") || "-"}
+                    <p className="text-gray-900 dark:text-white whitespace-pre-line">
+                      {getFullAddress()}
                     </p>
                   </div>
                   <div>
@@ -294,21 +368,51 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                 </div>
               </div>
 
-              {/* Submission Status */}
+              {/* User Status */}
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Application Status:
-                  </span>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      applicationData?.is_submitted
-                        ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                        : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
-                    }`}
-                  >
-                    {applicationData?.is_submitted ? "Submitted" : "Draft"}
-                  </span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      User Status:
+                    </span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        shgUserData?.user.is_active
+                          ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                          : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
+                      }`}
+                    >
+                      {shgUserData?.user.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Approval Status:
+                    </span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        shgUserData?.user.is_approved
+                          ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                          : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
+                      }`}
+                    >
+                      {shgUserData?.user.is_approved ? "Approved" : "Pending"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Profile Status:
+                    </span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        shgUserData?.profile.is_submitted
+                          ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                          : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
+                      }`}
+                    >
+                      {shgUserData?.profile.is_submitted ? "Submitted" : "Draft"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

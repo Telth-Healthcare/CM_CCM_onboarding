@@ -29,7 +29,6 @@ export const TOKEN_KEYS = {
   refresh: "refresh_token",
   isAuthenticated: "authenticate",
   sessionId: "sessionId",
-  role: "user_role",
 } as const;
 
 // ================= HEADERS =================
@@ -58,8 +57,8 @@ export const headerJson = () => {
 // ================= TOKEN FUNCTIONS =================
 export type AuthType = "admin" | "ccm";
 const getTokenKeys = (type: AuthType) => ({
-  access: `${type}_access_token`,
-  refresh: `${type}_refresh_token`,
+  access: "access_token",
+  refresh: "refresh_token",
   user: `${type}_user`,
   role: `${type}_role`,
 });
@@ -75,14 +74,12 @@ export const setToken = (
   localStorage.setItem(keys.user, JSON.stringify(user));
 
   // Handle role properly
-const role = Array.isArray(user?.role)
-  ? user.role[0]
-  : typeof user?.role === "object" && user?.role !== null
-  ? user.role.name
-  : user?.role;
+const role = Array.isArray(user?.user?.roles)
+  ? user?.user.roles[0]
+  : user?.user?.roles;
 
 if (role) {
-  localStorage.setItem(keys.role, role);
+  localStorage.setItem(keys.role, role); 
 }
 };
 

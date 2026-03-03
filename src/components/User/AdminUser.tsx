@@ -33,7 +33,7 @@ interface User {
   last_login: string | null;
   created_at: string;
   groups: any[];
-  roles: any[];
+  roles: string[];
   user_permissions: any[];
 }
 
@@ -54,7 +54,7 @@ interface sendInvitationRequest {
   email: string;
   phone: string;
   region: string;
-  role: string[]; 
+  role: string[];
   mnpData?: string;
 }
 
@@ -70,7 +70,7 @@ interface ToolbarAction {
 }
 
 const AdminUser = () => {
-  const userRole = getUserRole();
+  const userRole = getUserRole("admin");
   const currentUser = getUser(); // Get current logged-in user details
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -275,6 +275,18 @@ const AdminUser = () => {
         },
       },
       {
+        accessorKey: "roles",
+        header: "Role",
+        size: 150,
+        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+          const roles = cell.getValue() as string[] | undefined;
+
+          if (!roles || roles.length === 0) return "-";
+
+          return roles[0];
+        },
+      },
+      {
         accessorKey: "is_active",
         header: "Status",
         size: 100,
@@ -375,45 +387,45 @@ const AdminUser = () => {
     return Object.keys(newErrors).length === 0;
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!validateForm()) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
 
-  if (isAdmin && formData.role === "admin") {
-    toast.error("You don't have permission to create admin users");
-    return;
-  }
-
-  setSubmitting(true);
-  try {
-    const payload: sendInvitationRequest = {
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      email: formData.email,
-      phone: formData.phone,
-      region: formData.region,
-      role: [formData.role], // Change from 'roles' to 'role'
-    };
-
-    // Only include mnpData if role is trainer or financier
-    if (showMnpField) {
-      payload.mnpData = formData.mnpData;
+    if (isAdmin && formData.role === "admin") {
+      toast.error("You don't have permission to create admin users");
+      return;
     }
 
-    await sendInvitationApi(payload);
-    toast.success("User invitation sent successfully");
-    handleCloseModal();
-    fetchUsers();
-  } catch (error) {
-    const errorMessage = handleAxiosError(
-      error,
-      "Failed to send user invitation",
-    );
-    toast.error(errorMessage);
-  } finally {
-    setSubmitting(false);
-  }
-};
+    setSubmitting(true);
+    try {
+      const payload: sendInvitationRequest = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        phone: formData.phone,
+        region: formData.region,
+        role: [formData.role], // Change from 'roles' to 'role'
+      };
+
+      // Only include mnpData if role is trainer or financier
+      if (showMnpField) {
+        payload.mnpData = formData.mnpData;
+      }
+
+      await sendInvitationApi(payload);
+      toast.success("User invitation sent successfully");
+      handleCloseModal();
+      fetchUsers();
+    } catch (error) {
+      const errorMessage = handleAxiosError(
+        error,
+        "Failed to send user invitation",
+      );
+      toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const toolbarActions: ToolbarAction[] = [
     ...(canAddUsers

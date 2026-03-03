@@ -17,7 +17,7 @@ interface sendInvitationRequest {
 }
 
 export const getAllUsers = () => {
-    return client.get("_admin/users/")
+    return client.get("admin/users/")
         .then(res => res.data);
 }
 

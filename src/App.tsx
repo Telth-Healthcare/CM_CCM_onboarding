@@ -1,14 +1,13 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { ToastContainer } from "react-toastify";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./config/ProtectedRoute";
 import { ScrollToTop } from "./components/common/ScrollToTop";
-
 
 // Admin Auth
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
 const AcceptInvitationPage = lazy(
-  () => import("./pages/AuthPages/AcceptInvitationPage")
+  () => import("./pages/AuthPages/AcceptInvitationPage"),
 );
 
 // CCM Auth
@@ -49,15 +48,12 @@ export default function App() {
         }
       >
         <Routes>
-
           {/* Admin Auth */}
           <Route path="/" element={<SignIn />} />
           <Route path="/invite/accept" element={<AcceptInvitationPage />} />
-
           {/* CCM Auth */}
           <Route path="/ccm-auth/signin" element={<CCMSignInPage />} />
           <Route path="/ccm-auth/signup" element={<CCMSignUpPage />} />
-
           <Route element={<ProtectedRoute authType="ccm" />}>
             <Route path="/ccmonboard/*" element={<OnboardLayout />} />
           </Route>
@@ -69,21 +65,19 @@ export default function App() {
               <Route path="/blank" element={<Blank />} />
               <Route path="/regions" element={<Region />} />
               <Route path="/applications" element={<Applications />} />
-
-              {/* Role-based route */}
               <Route
+                path="/users"
                 element={
                   <ProtectedRoute
                     authType="admin"
                     allowedRoles={["super_admin", "admin"]}
-                  />
+                  >
+                    <AdminUser />
+                  </ProtectedRoute>
                 }
-              >
-                <Route path="/users" element={<AdminUser />} />
-              </Route>
+              />
             </Route>
           </Route>
-
           {/* ================= FALLBACK ================= */}
           <Route path="*" element={<NotFound />} />
         </Routes>

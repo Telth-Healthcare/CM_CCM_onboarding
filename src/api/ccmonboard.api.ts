@@ -20,7 +20,7 @@ const getApplicationApi = (pk: number) =>
   client.get(`shg/${pk}/`).then(res => res.data)
 
 const getApplicationsApi = () =>
-  client.get('_admin/applications/').then(res => res.data)
+  client.get('admin/applications/').then(res => res.data)
 
 const productInterestApi = () =>
   client.get('shg/product-category/all/').then(res => res.data)

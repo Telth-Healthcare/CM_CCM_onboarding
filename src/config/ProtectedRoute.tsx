@@ -1,17 +1,19 @@
 // components/ProtectedRoute.tsx
-
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { getToken, getUserRole } from "../config/constants";
+import { AuthType, getToken, getUserRole } from "../config/constants";
+
 
 interface ProtectedRouteProps {
   authType: AuthType;
   allowedRoles?: string[];
+  children?: React.ReactNode;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   authType,
   allowedRoles,
+  children,
 }) => {
   const { access } = getToken(authType);
   const userRole = getUserRole(authType);
@@ -29,6 +31,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/dashboard" replace />;
   }
 
+
+  if (children) {
+    return <>{children}</>;
+  }
+  
   return <Outlet />;
 };
 
