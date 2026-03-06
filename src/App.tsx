@@ -49,7 +49,7 @@ export default function App() {
       >
         <Routes>
           {/* Admin Auth */}
-          <Route path="/" element={<SignIn />} />
+          <Route path="/admin/signin" element={<SignIn />} />
           <Route path="/invite/accept" element={<AcceptInvitationPage />} />
           {/* CCM Auth */}
           <Route path="/ccm-auth/signin" element={<CCMSignInPage />} />

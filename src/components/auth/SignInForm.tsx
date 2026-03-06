@@ -7,6 +7,7 @@ import Button from "../ui/button/Button";
 import { signinApi } from "../../api";
 import { setToken } from "../../config/constants";
 import { toast } from "react-toastify";
+import { handleAxiosError } from "../../utils/handleAxiosError";
 
 interface FormState {
   phone: string;
@@ -82,11 +83,8 @@ export default function SignInForm() {
       toast.success("Signed in successfully!");
       navigate("/dashboard");
     } catch (error: any) {
-      setErrors({
-        general:
-          error?.response?.data?.message ||
-          "Something went wrong. Please try again.",
-      });
+      const errorMessage = handleAxiosError(error, "Something went wrong. Please try again.")
+      toast.error(errorMessage)
     } finally {
       setLoading(false);
     }

@@ -40,7 +40,7 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "Users", path: "/users", roles: ["super_admin", "admin"] },
       { name: "Applications", path: "/applications" },
-      {name: "Regions", path: "/regions"}
+      {name: "Regions", path: "/regions", roles: ["super_admin"]}
     ],
   },
 ];

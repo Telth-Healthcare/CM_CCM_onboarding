@@ -11,6 +11,7 @@ import {
   getAllRegionsApi,
   getAllUsers,
   sendInvitationApi,
+  SendInvitationRequest,
 } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import CommonTable from "../mui/MuiTable";
@@ -46,16 +47,6 @@ interface NewUserForm {
   region: string;
   role: string; // single selected role, will be sent as [role]
   mnpData: string;
-}
-
-interface sendInvitationRequest {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  region: string;
-  role: string[];
-  mnpData?: string;
 }
 
 type OptionType = {
@@ -123,6 +114,14 @@ const AdminUser = () => {
     return formData.role === "trainer" || formData.role === "financier";
   }, [formData.role]);
 
+  const showRegionFiled = useMemo(() => {
+    if(formData.role === "admin"){
+      return true;
+    } else if (formData.role === "trainer" || formData.role === "financier"){
+      return false;
+    }
+  }, [formData?.role]);
+
   // Reset form and errors when modal closes
   useEffect(() => {
     if (!isAddModalOpen) {
@@ -142,7 +141,9 @@ const AdminUser = () => {
   useEffect(() => {
     fetchUsers();
     fetchRoleInfo();
-    fetchRegions();
+    if(!isAdmin){
+      fetchRegions();
+    }
   }, []);
 
   const fetchRoleInfo = async () => {
@@ -192,22 +193,15 @@ const AdminUser = () => {
           (r: any) =>
             r === "admin" || r?.name === "admin" || r?.value === "admin",
         );
-
         if (isSuperAdmin) {
-          return user.is_active && hasAdminRole;
+          return hasAdminRole;
         } else if (isAdmin) {
           const isCurrentUser = user.id === currentUser?.id;
-          return (
-            user.is_active && user.is_approved && hasAdminRole && isCurrentUser
-          );
+          return hasAdminRole && isCurrentUser;
         }
 
         return false;
       });
-
-      console.log("Admin users for MNP dropdown:", adminUsers); // Debug log
-
-      // Convert to dropdown format
       const formattedMnpList = adminUsers.map((user: User) => ({
         value: String(user.id),
         label:
@@ -216,7 +210,6 @@ const AdminUser = () => {
 
       setMnpList(formattedMnpList);
 
-      // Auto-select the current admin if they are the only option
       if (isAdmin && formattedMnpList.length === 1) {
         setFormData((prev) => ({
           ...prev,
@@ -354,13 +347,15 @@ const AdminUser = () => {
       "email",
       "phone",
       "role",
-      "region",
+      // "region",
     ];
 
-    // Add mnpData to required fields only if role is trainer or financier
-    if (showMnpField) {
-      requiredFields.push("mnpData");
-    }
+    // if (showMnpField) {
+    //   requiredFields.push("mnpData");
+    // }
+    // if( showRegionFiled) {
+    //   requiredFields.push("region")
+    // }
 
     for (const field of requiredFields) {
       if (!formData[field] || formData[field].trim() === "") {
@@ -398,21 +393,20 @@ const AdminUser = () => {
 
     setSubmitting(true);
     try {
-      const payload: sendInvitationRequest = {
+      const payload: SendInvitationRequest = {
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
         phone: formData.phone,
         region: formData.region,
-        role: [formData.role], // Change from 'roles' to 'role'
+        roles: [formData.role],
       };
 
-      // Only include mnpData if role is trainer or financier
       if (showMnpField) {
-        payload.mnpData = formData.mnpData;
+        payload.manager = formData.mnpData;
       }
 
-      await sendInvitationApi(payload);
+      await sendInvitationApi([payload]);
       toast.success("User invitation sent successfully");
       handleCloseModal();
       fetchUsers();
@@ -634,49 +628,42 @@ const AdminUser = () => {
                 </div>
 
                 {/* Region Select */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Region <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="region"
-                    value={formData.region}
-                    onChange={handleInputChange}
-                    required
-                    className={`w-full px-3 py-2 border ${
-                      errors.region
-                        ? "border-red-500 dark:border-red-500"
-                        : "border-gray-300 dark:border-gray-600"
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
-                  >
-                    <option value="" disabled>
-                      Select a region
-                    </option>
-                    {regions.map((region) => (
-                      <option key={region.value} value={region.value}>
-                        {region.label}
+                {(!isAdmin && showRegionFiled) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Region <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="region"
+                      value={formData.region}
+                      onChange={handleInputChange}
+                      required
+                      className={`w-full px-3 py-2 border ${
+                        errors.region
+                          ? "border-red-500 dark:border-red-500"
+                          : "border-gray-300 dark:border-gray-600"
+                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
+                    >
+                      <option value="" disabled>
+                        Select a region
                       </option>
-                    ))}
-                  </select>
-                  {errors.region && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {errors.region}
-                    </p>
-                  )}
-                </div>
-
-                {/* MNP Select - Only shown for trainer and financier roles */}
-                {showMnpField && (
+                      {regions.map((region) => (
+                        <option key={region.value} value={region.value}>
+                          {region.label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.region && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {errors.region}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {!isAdmin && showMnpField && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       MNP Admin User <span className="text-red-500">*</span>
-                      <span className="text-xs text-gray-500 ml-2">
-                        {isSuperAdmin
-                          ? "(Select any Admin user to map)"
-                          : isAdmin && mnpList.length === 1
-                            ? "(You will be the MNP Admin - auto-selected)"
-                            : "(Select yourself as MNP Admin)"}
-                      </span>
                     </label>
                     {mnpList.length > 0 ? (
                       <select
@@ -703,7 +690,7 @@ const AdminUser = () => {
                       <div className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
                         {isSuperAdmin
                           ? "No admin users available in the system"
-                          : "Your admin account is not active or approved"}
+                          : ""}
                       </div>
                     )}
                     {errors.mnpData && (

@@ -2,18 +2,19 @@ import { client } from "./client"
 
 
 interface invitationReseponse {
-  key: string;
+  token: string;
   password: string;
 }
 
-interface sendInvitationRequest {
+export type SendInvitationRequestArray = SendInvitationRequest[];
+export interface SendInvitationRequest {
   first_name: string;
   last_name: string;
   email: string;
   phone: string;
   region: string;
-  role: string[]; // Change from 'roles' to 'role'
-  mnpData?: string;
+  roles: string[];
+  manager?: string;
 }
 
 export const getAllUsers = () => {
@@ -22,16 +23,16 @@ export const getAllUsers = () => {
 }
 
 export const getApplicationsApi = () => {
-    return client.get("applications/all/")
+    return client.get("applications/app/")
         .then(res => res.data);
 } 
 
 export const updateApplicationStatusApi = (applicationId: number, updateStatus: any) => {
-    return client.patch(`applications/${applicationId}/update/`,  updateStatus)
+    return client.patch(`applications/app/${applicationId}/`,  updateStatus)
         .then(res => res.data);
 }
 
-export const sendInvitationApi = (userData: sendInvitationRequest) => {
+export const sendInvitationApi = (userData: SendInvitationRequestArray) => {
     return client.post("accounts/invite/send/", userData)
         .then(res => res.data);
 }
@@ -57,6 +58,6 @@ export const getAllRegionsApi = () => {
 }
 
 export const getSHGUserByIdApi = (userId: number) => {
-    return client.get(`shg/${userId}/`)
+    return client.get(`shg/app/${userId}/`)
     .then(res => res.data)
 }  

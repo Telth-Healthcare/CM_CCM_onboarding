@@ -29,14 +29,18 @@ export const handleAxiosError = (
       return data.errors[0].message || fallback;
     }
 
+    
     // 5️⃣ Field-level errors (object with arrays)
     if (typeof data === "object") {
       const firstKey = Object.keys(data)[0];
       const firstValue = data[firstKey];
-
+      
       if (Array.isArray(firstValue) && firstValue.length > 0) {
         return firstValue[0];
       }
+    if(Array.isArray(firstValue.non_field_errors)){
+      return firstValue.non_field_errors[0];
+    }
 
       if (typeof firstValue === "string") {
         return firstValue;

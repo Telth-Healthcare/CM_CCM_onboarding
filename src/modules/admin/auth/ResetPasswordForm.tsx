@@ -206,7 +206,7 @@ export default function ResetPasswordForm() {
                 className="w-full"
                 size="sm"
                 variant="outline"
-                onClick={() => navigate("/signin")}
+                onClick={() => navigate("/admin/signin")}
               >
                 Back to Sign In
               </Button>

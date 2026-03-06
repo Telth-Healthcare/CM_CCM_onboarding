@@ -1,10 +1,11 @@
-// components/applications/ViewEditApplication.tsx
+// ViewEditApplication.tsx
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { getSHGUserByIdApi, updateApplicationStatusApi } from "../../api";
+import { contactApi, getAllUsers, getSHGUserByIdApi, updateApplicationStatusApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { Modal } from "../ui/modal";
 import { PencilIcon } from "../../icons";
+import { baseUrl } from "../../config/env";
 
 interface ViewEditApplicationProps {
   isOpen: boolean;
@@ -14,7 +15,17 @@ interface ViewEditApplicationProps {
   onUpdate: () => void;
 }
 
-interface ProductInterest {
+interface StatusOption {
+  value: string;
+  label: string;
+}
+
+interface Trainer {
+  value: number;
+  label: string;
+}
+
+interface Financier {
   id: number;
   name: string;
 }
@@ -60,15 +71,14 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [shgUserData, setShgUserData] = useState<SHGUserData | null>(null);
-  const [trainers, setTrainers] = useState<any[]>([]);
-  const [incubators, setIncubators] = useState<any[]>([]);
-  const [productInterests, setProductInterests] = useState<ProductInterest[]>(
-    [],
-  );
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [financiers, setFinanciers] = useState<Financier[]>([]);
+  const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
+
   const [formData, setFormData] = useState({
     status: "",
     assigned_trainer: "",
-    assigned_incubator: "",
+    assigned_financier: "",
     public_notes: "",
     private_notes: "",
   });
@@ -77,16 +87,15 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
     if (isOpen && applicationData) {
       if (applicationData.shg) {
         getSHGUserData(applicationData.shg);
+        fetchUsers();
       }
-      fetchTrainersAndIncubators();
-      fetchProductInterests();
-
+      fetchStatusOptions();
+      
       // Initialize form data
       setFormData({
         status: applicationData.status || "",
         assigned_trainer: applicationData.assigned_trainer?.toString() || "",
-        assigned_incubator:
-          applicationData.assigned_incubator?.toString() || "",
+        assigned_financier: applicationData.assigned_financier?.toString() || "",
         public_notes: applicationData.public_notes || "",
         private_notes: applicationData.private_notes || "",
       });
@@ -103,39 +112,61 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
     }
   };
 
-  const fetchTrainersAndIncubators = async () => {
+  const fetchStatusOptions = async () => {
     try {
-      // Mock data for now
-      setTrainers([
-        { id: 1, name: "Trainer 1" },
-        { id: 2, name: "Trainer 2" },
-      ]);
-      setIncubators([
-        { id: 1, name: "Incubator 1" },
-        { id: 2, name: "Incubator 2" },
-      ]);
-    } catch (err) {
-      toast.error("Failed to fetch trainers and incubators");
+      const response = await contactApi();
+      
+      // Get application_status from response
+      const statusList = response?.application_status || [];
+      setStatusOptions(statusList);
+      
+    } catch (error) {
+      const errorMessage = handleAxiosError(error, "Failed to fetch status options");
+      toast.error(errorMessage);
     }
   };
 
-  const fetchProductInterests = async () => {
+  const fetchUsers = async () => {
     try {
-      // Mock data
-      setProductInterests([
-        { id: 1, name: "Product 1" },
-        { id: 2, name: "Product 2" },
-        { id: 4, name: "Product 4" },
-      ]);
-    } catch (err) {
-      console.error("Failed to fetch product interests");
+      setLoading(true);
+      const response = await getAllUsers();
+      const userData = response?.data || response || [];
+
+      const trainersList: Trainer[] = [];
+      const financiersList: Financier[] = [];
+
+      // Ensure userData is an array
+      const usersArray = Array.isArray(userData) ? userData : [];
+
+      usersArray.forEach((item: any) => {
+        if (item?.roles && Array.isArray(item.roles)) {
+          if (item.roles.includes("trainer") || item.roles[0] === "trainer") {
+            trainersList.push({
+              value: item.id,
+              label: `${item.first_name || ""} ${item.last_name || ""}`.trim() || `Trainer ${item.id}`
+            });
+          }
+          if (item.roles.includes("financier") || item.roles[0] === "financier") {
+            financiersList.push({
+              id: item.id,
+              name: `${item.first_name || ""} ${item.last_name || ""}`.trim() || `Financier ${item.id}`
+            });
+          }
+        }
+      });
+
+      setTrainers(trainersList);
+      setFinanciers(financiersList);
+    } catch (error) {
+      const errorMessage = handleAxiosError(error, "Failed to fetch users");
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -148,7 +179,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
       const updatedData = {
         status: formData.status,
         assigned_trainer: formData.assigned_trainer || null,
-        assigned_incubator: formData.assigned_incubator || null,
+        assigned_financier: formData.assigned_financier || null,
         public_notes: formData.public_notes,
         private_notes: formData.private_notes,
       };
@@ -165,18 +196,6 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
     }
   };
 
-  // Get product names from IDs
-  const getProductNames = () => {
-    if (!applicationData?.products_interests || !productInterests.length)
-      return "-";
-    return applicationData.products_interests
-      .map((id: number) => {
-        const product = productInterests.find((p) => p.id === id);
-        return product?.name || `Product ${id}`;
-      })
-      .join(", ");
-  };
-
   // Format full name
   const getFullName = () => {
     if (!shgUserData) return "-";
@@ -188,15 +207,36 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
     if (!shgUserData) return "-";
     const { profile } = shgUserData;
     return [
-      profile.address_line_1,
-      profile.address_line_2,
-      profile.village,
-      profile.district,
-      profile.state,
-      profile.pin_code,
+      profile?.address_line_1,
+      profile?.address_line_2,
+      profile?.village,
+      profile?.district,
+      profile?.state,
+      profile?.pin_code,
     ]
       .filter(Boolean)
       .join(", ") || "-";
+  };
+
+  // Get trainer name for display
+  const getTrainerName = () => {
+    if (!applicationData?.assigned_trainer) return "Not Assigned";
+    const trainer = trainers.find(t => t.value === Number(applicationData.assigned_trainer));
+    return trainer?.label || applicationData?.trainer_details || "Not Assigned";
+  };
+
+  // Get financier name for display
+  const getFinancierName = () => {
+    if (!applicationData?.assigned_financier) return "Not Assigned";
+    const financier = financiers.find(f => f.id === Number(applicationData.assigned_financier));
+    return financier?.name || applicationData?.assigned_financier_details || "Not Assigned";
+  };
+
+  // Get status label for display
+  const getStatusLabel = () => {
+    if (!applicationData?.status) return "-";
+    const statusOption = statusOptions.find(s => s.value === applicationData.status);
+    return statusOption?.label || applicationData.status;
   };
 
   if (!isOpen) return null;
@@ -228,7 +268,9 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-              {/* <XMarkIcon className="w-5 h-5" /> */}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         </div>
@@ -273,7 +315,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       Date of Birth
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {shgUserData?.profile.dob 
+                      {shgUserData?.profile?.dob 
                         ? new Date(shgUserData.profile.dob).toLocaleDateString() 
                         : "-"}
                     </p>
@@ -283,7 +325,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       Gender
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {shgUserData?.profile.gender || "-"}
+                      {shgUserData?.profile?.gender || "-"}
                     </p>
                   </div>
                   <div>
@@ -291,7 +333,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       Marital Status
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {shgUserData?.profile.marital_status || "-"}
+                      {shgUserData?.profile?.marital_status || "-"}
                     </p>
                   </div>
                   <div>
@@ -299,7 +341,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       Blood Group
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {shgUserData?.profile.blood_group || "-"}
+                      {shgUserData?.profile?.blood_group || "-"}
                     </p>
                   </div>
                 </div>
@@ -311,7 +353,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       Language
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {shgUserData?.profile.language || "-"}
+                      {shgUserData?.profile?.language || "-"}
                     </p>
                   </div>
                   <div>
@@ -319,7 +361,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       Year of Formation
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {shgUserData?.profile.year_of_formation || "-"}
+                      {shgUserData?.profile?.year_of_formation || "-"}
                     </p>
                   </div>
                   <div>
@@ -327,7 +369,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       Registration Status
                     </label>
                     <p className="text-gray-900 dark:text-white">
-                      {shgUserData?.profile.registration_status || "-"}
+                      {shgUserData?.profile?.registration_status || "-"}
                     </p>
                   </div>
                   <div>
@@ -336,14 +378,6 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                     </label>
                     <p className="text-gray-900 dark:text-white whitespace-pre-line">
                       {getFullAddress()}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Product Interests
-                    </label>
-                    <p className="text-gray-900 dark:text-white">
-                      {getProductNames()}
                     </p>
                   </div>
                   <div>
@@ -370,7 +404,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
 
               {/* User Status */}
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       User Status:
@@ -405,12 +439,12 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                     </span>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        shgUserData?.profile.is_submitted
+                        shgUserData?.profile?.is_submitted
                           ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
                           : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
                       }`}
                     >
-                      {shgUserData?.profile.is_submitted ? "Submitted" : "Draft"}
+                      {shgUserData?.profile?.is_submitted ? "Submitted" : "Draft"}
                     </span>
                   </div>
                 </div>
@@ -433,17 +467,18 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                       value={formData.status}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      required
                     >
-                      <option value="SUBMITTED">Submitted</option>
-                      <option value="UNDER_REVIEW">Under Review</option>
-                      <option value="ASSIGNED">Assigned</option>
-                      <option value="TRAINING">Training</option>
-                      <option value="PRODUCTION">Production</option>
-                      <option value="REJECTED">Rejected</option>
+                      <option value="">Select Status</option>
+                      {statusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   ) : (
                     <p className="text-gray-900 dark:text-white">
-                      {applicationData?.status || "-"}
+                      {getStatusLabel()}
                     </p>
                   )}
                 </div>
@@ -461,50 +496,39 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                     >
                       <option value="">Select Trainer</option>
                       {trainers.map((trainer) => (
-                        <option key={trainer.id} value={trainer.id}>
-                          {trainer.name}
+                        <option key={trainer.value} value={trainer.value}>
+                          {trainer.label}
                         </option>
                       ))}
                     </select>
                   ) : (
                     <p className="text-gray-900 dark:text-white">
-                      {applicationData?.assigned_trainer
-                        ? trainers.find(
-                            (t) =>
-                              t.id === Number(applicationData.assigned_trainer),
-                          )?.name
-                        : "Not Assigned"}
+                      {getTrainerName()}
                     </p>
                   )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Assign Incubator
+                    Assign Financier
                   </label>
                   {isEditing ? (
                     <select
-                      name="assigned_incubator"
-                      value={formData.assigned_incubator}
+                      name="assigned_financier"
+                      value={formData.assigned_financier}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     >
-                      <option value="">Select Incubator</option>
-                      {incubators.map((incubator) => (
-                        <option key={incubator.id} value={incubator.id}>
-                          {incubator.name}
+                      <option value="">Select Financier</option>
+                      {financiers.map((financier) => (
+                        <option key={financier.id} value={financier.id}>
+                          {financier.name}
                         </option>
                       ))}
                     </select>
                   ) : (
                     <p className="text-gray-900 dark:text-white">
-                      {applicationData?.assigned_incubator
-                        ? incubators.find(
-                            (i) =>
-                              i.id ===
-                              Number(applicationData.assigned_incubator),
-                          )?.name
-                        : "Not Assigned"}
+                      {getFinancierName()}
                     </p>
                   )}
                 </div>
@@ -551,6 +575,32 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
               </div>
             </div>
 
+            {/* Documents Section - Add if available */}
+            {applicationData?.documents && applicationData.documents.length > 0 && (
+              <div className="mb-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  Documents
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {applicationData.documents.map((doc: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {doc.document_type?.replace(/_/g, ' ') || 'Document'}
+                      </span>
+                      <a
+                        href={`${baseUrl}${doc.file}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-medium"
+                      >
+                        View
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Metadata Section */}
             <div className="mb-8 pt-6 border-t border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -593,7 +643,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? "Saving..." : "Save Changes"}
                 </button>

@@ -21,7 +21,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!access) {
     return (
       <Navigate
-        to={authType === "admin" ? "/" : "/ccm-auth/signin"}
+        to={authType === "admin" ? "/admin/signin" : "/ccm-auth/signin"}
         replace
       />
     );

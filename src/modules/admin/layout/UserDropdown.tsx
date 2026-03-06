@@ -29,7 +29,7 @@ export default function UserDropdown() {
         localStorage.clear();
         toast.success("Logout successfully");
         closeDropdown();
-        navigate("/signin");
+        navigate("/admin/signin");
       }
     }
   }

@@ -98,7 +98,7 @@ export default function AcceptInvitationForm() {
 
     try {
       const response = {
-        key: inviteToken,
+        token: inviteToken,
         password: form.password,
       };
       const result = await acceptInvitationApi(response);

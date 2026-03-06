@@ -25,7 +25,7 @@ interface NewRegionForm {
 
 const Region = () => {
   const muiTheme = useMuiTheme();
-  const userRole = getUserRole();
+  const userRole = getUserRole("admin");
 
   const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
