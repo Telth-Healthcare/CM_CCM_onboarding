@@ -25,8 +25,8 @@ export interface CCMFormData {
   country:      string
 
   // ── Step 4: Document Upload – Personal Identification ─────────────
-  aadhaarFront: File | null   // Mandatory
-  aadhaarBack:  File | null   // Mandatory
+  aadharFront: File | null   // Mandatory
+  aadharBack:  File | null   // Mandatory
   pan:          File | null   // Mandatory
 
   // ── Step 5: Document Upload – Education Details ───────────────────

@@ -4,19 +4,19 @@ import Label from '../../../components/form/Label'
 import { Trash2Icon, UploadCloudIcon, Upload } from 'lucide-react'
 import { StepProps } from './types'
 
-type DocField = 'aadhaarFront' | 'aadhaarBack' | 'pan'
+type DocField = 'aadharFront' | 'aadharBack' | 'pan'
 
 const DOC_FIELDS: { field: DocField; label: string; accept: string; hint: string; required: boolean }[] = [
   {
-    field: 'aadhaarFront',
-    label: 'Aadhaar – Front Side',
+    field: 'aadharFront',
+    label: 'aadhar – Front Side',
     accept: '.pdf,.jpg,.jpeg,.png',
     hint: 'PDF or image, max 5MB',
     required: true,
   },
   {
-    field: 'aadhaarBack',
-    label: 'Aadhaar – Back Side',
+    field: 'aadharBack',
+    label: 'aadhar – Back Side',
     accept: '.pdf,.jpg,.jpeg,.png',
     hint: 'PDF or image, max 5MB',
     required: true,
@@ -34,8 +34,8 @@ const PersonalDocuments: React.FC<StepProps> = ({ formData, updateFormData, erro
   const [dragActive, setDragActive] = useState<Record<string, boolean>>({})
 
   const refs = {
-    aadhaarFront: useRef<HTMLInputElement>(null),
-    aadhaarBack:  useRef<HTMLInputElement>(null),
+    aadharFront: useRef<HTMLInputElement>(null),
+    aadharBack:  useRef<HTMLInputElement>(null),
     pan:          useRef<HTMLInputElement>(null),
   }
 
@@ -66,7 +66,7 @@ const PersonalDocuments: React.FC<StepProps> = ({ formData, updateFormData, erro
     <div>
       <h2 className="text-2xl font-bold mb-1 text-gray-900 dark:text-white">Document Upload</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Personal Identification</p>
-      <p className="text-xs text-gray-400 mb-6">Upload clear scans or photos (PDF / JPG / PNG, max 5MB each). Aadhaar (front & back) and PAN are mandatory.</p>
+      <p className="text-xs text-gray-400 mb-6">Upload clear scans or photos (PDF / JPG / PNG, max 5MB each). aadhar (front & back) and PAN are mandatory.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {DOC_FIELDS.map(({ field, label, accept, hint, required }) => {

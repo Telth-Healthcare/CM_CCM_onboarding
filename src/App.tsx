@@ -3,6 +3,7 @@ import { Suspense, lazy } from "react";
 import { ToastContainer } from "react-toastify";
 import ProtectedRoute from "./config/ProtectedRoute";
 import { ScrollToTop } from "./components/common/ScrollToTop";
+import CCMDashboardRoutes from "./ccm/dashboard/DashboardRoutes";
 
 // Admin Auth
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
@@ -31,7 +32,6 @@ export default function App() {
   return (
     <Router>
       <ScrollToTop />
-
       <Suspense
         fallback={
           <div
@@ -56,6 +56,8 @@ export default function App() {
           <Route path="/ccm-auth/signup" element={<CCMSignUpPage />} />
           <Route element={<ProtectedRoute authType="ccm" />}>
             <Route path="/ccmonboard/*" element={<OnboardLayout />} />
+            <Route path="/ccm-dashboard/*" element={<CCMDashboardRoutes />} />
+
           </Route>
 
           <Route element={<ProtectedRoute authType="admin" />}>

@@ -26,7 +26,6 @@ export default function CCMSignInForm() {
     setOtpModalOpen(true);
   };
 
-  // Called after Firebase verifies OTP — call backend signin
   const handleFirebaseSuccess = async (idToken: string) => {
     setLoading(true);
     try {
@@ -34,8 +33,8 @@ export default function CCMSignInForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token:          idToken,   // Firebase JWT
-          phone_verified: phone,     // +91XXXXXXXXXX
+          token:          idToken,
+          phone_verified: phone,
         }),
       });
 
@@ -46,21 +45,45 @@ export default function CCMSignInForm() {
 
       const data = await response.json();
 
-      setToken({
-        access:    data.meta?.access_token ?? data.access_token,
+      const user    = data.user;
+      const roles   = Array.isArray(user?.user?.roles) ? user.user.roles : [];
+
+      // role: ["admin"] → admin login, else → ccm login
+      const isAdmin = roles.includes("admin");
+      const type    = isAdmin ? "admin" : "ccm";
+
+      setToken(type, {
+        access:    data.meta?.access_token  ?? data.access_token,
         refresh:   data.meta?.refresh_token ?? data.refresh_token,
-        user:      data.user,
+        user,
         sessionId: data.meta?.session_token ?? data.session_token,
       });
 
-      toast.success("Signed in successfully!");
-     const appStatus = data.user?.application_status?.status;
+      // profile_id is the CCM application id (id:3) returned by login response
+      // Store it immediately so Onboard.tsx can fetch the application on page load
+      const profileId = user?.profile_id ?? null;
+      if (profileId) {
+        const ccmInnerUser = user?.user ?? user;
+        const draftKey = `ccm_draft_pk_${ccmInnerUser?.id}`;
+        localStorage.setItem(draftKey, String(profileId));
+      }
 
-if (appStatus === "SUBMITTED") {
-  navigate("/dashboard", { replace: true });
-} else {
-  navigate("/ccmonboard", { replace: true });
-}
+      toast.success("Signed in successfully!");
+
+      if (isAdmin) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        const appStatus = user?.application_status?.status;
+        if (appStatus === "SUBMITTED") {
+          navigate("/ccm-dashboard", { replace: true });
+        } else if (profileId) {
+          // profile_id exists → step 1 already done → go straight to step 2
+          navigate("/ccmonboard/contact-info", { replace: true });
+        } else {
+          // no application yet → show step 1
+          navigate("/ccmonboard/personal-info", { replace: true });
+        }
+      }
 
     } catch (err) {
       const error = err as Error;
@@ -112,7 +135,7 @@ if (appStatus === "SUBMITTED") {
         onClose={() => setOtpModalOpen(false)}
         phone={formattedPhone}
         mode="signin"
-        onFirebaseSuccess={handleFirebaseSuccess}   // ✅ receives idToken after OTP verified
+        onFirebaseSuccess={handleFirebaseSuccess}
       />
     </div>
   );

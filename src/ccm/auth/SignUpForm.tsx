@@ -20,6 +20,7 @@ export default function CCMSignUpForm() {
     email:     "",
     phone:     "",
     password:  "",
+    ccm:"ccm"
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked,    setIsChecked]    = useState(false);
@@ -80,22 +81,45 @@ export default function CCMSignUpForm() {
           email:      state.email,
           password:   state.password,
           token:      idToken,               // ✅ Firebase JWT
+          roles:["ccm"]
         }),
       });
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || "Signup failed");
-      }
+    if (!response.ok) {
+  const errorData = await response.json();
+
+  if (response.status === 401) {
+    const backendMessage =
+      errorData?.message ||
+      errorData?.errors?.[0]?.message ||
+      "Unauthorized. Please sign in.";
+
+    toast.error(backendMessage);
+
+    setOtpModalOpen(false);
+
+    setTimeout(() => {
+      navigate("/ccm-auth/signin");
+    }, 800);
+
+    return;
+  }
+
+  throw new Error(
+    errorData?.message ||
+    errorData?.errors?.[0]?.message ||
+    "Signup failed"
+  );
+}
+
 
       const data = await response.json();
 
       // Save tokens
-      setToken({
+      setToken("ccm",{
         access:    data.meta?.access_token ?? data.access_token,
         refresh:   data.meta?.refresh_token ?? data.refresh_token,
         user:      data.user,
-        sessionId: data.meta?.session_token ?? data.session_token,
       });
 
       toast.success("Account created! Starting onboarding...");

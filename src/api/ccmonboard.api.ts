@@ -7,20 +7,29 @@ import { client } from './client'
 
 const createApplicationApi = (data: Omit<CCMFormData, 'members' | 'id'>) =>
   // POST without members — members posted separately after SHG pk is known
-  client.post('shg/create/', data).then(res => res.data)
+  client.post('shg/app/', data).then(res => res.data)
 
 const updateApplicationApi = (pk: number, data: Omit<CCMFormData, 'members' | 'id'>) =>
   // PATCH — members excluded, never sent in main form update
-  client.patch(`shg/${pk}/update/`, data).then(res => res.data)
+  client.patch(`shg/app/${pk}/`, data).then(res => res.data)
 
 const submitApplicationApi = (pk: number) =>
   client.post(`shg/${pk}/submit/`).then(res => res.data)
 
 const getApplicationApi = (pk: number) =>
-  client.get(`shg/${pk}/`).then(res => res.data)
+  client.get(`shg/app/${pk}/`).then(res => res.data)
 
 const getApplicationsApi = () =>
   client.get('admin/applications/').then(res => res.data)
+
+// ccmonboard.api.ts — replace your postDocumentsApi with this:
+export const uploadDocumentApi = (file: File, docType: string, appId: number) => {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('document_type', docType)
+  form.append('shg', String(appId))
+  return client.post('shg/documents/', form).then(res => res.data)
+}
 
 const productInterestApi = () =>
   client.get('shg/product-category/all/').then(res => res.data)

@@ -58,8 +58,8 @@ const Preview: React.FC<StepProps> = ({ formData }) => {
 
       {/* Step 4 */}
       <Section title="Personal Identification Documents">
-        <Row label="Aadhaar Front" value={formData.aadhaarFront ? formData.aadhaarFront.name : 'Not uploaded'} />
-        <Row label="Aadhaar Back"  value={formData.aadhaarBack  ? formData.aadhaarBack.name  : 'Not uploaded'} />
+        <Row label="aadhar Front" value={formData.aadharFront ? formData.aadharFront.name : 'Not uploaded'} />
+        <Row label="aadhar Back"  value={formData.aadharBack  ? formData.aadharBack.name  : 'Not uploaded'} />
         <Row label="PAN Card"      value={formData.pan          ? formData.pan.name          : 'Not uploaded'} />
       </Section>
 

@@ -17,9 +17,9 @@ import {
   updateApplicationApi,
   submitApplicationApi,
   getApplicationApi,
+  uploadDocumentApi,
 } from '../../api/ccmonboard.api'
 import { handleAxiosError } from '../../utils/handleAxiosError'
-import { getUser } from '../../config/constants'
 
 // ── Steps — id matches URL segment ───────────────────────────────────────────
 const STEPS = [
@@ -31,10 +31,11 @@ const STEPS = [
   { id: 'preview',             name: 'Preview',        icon: '👁️', step: 6 },
 ]
 
-// Per-user draft key so two users on same browser don't conflict
+// Per-user draft key — prevents two users on same browser from conflicting
 const getDraftKey = () => {
-  const user = getUser()
-  return user?.id ? `ccm_draft_pk_${user.id}` : 'ccm_draft_pk'
+  const ccmUser = JSON.parse(localStorage.getItem('ccm_user') || 'null')
+  const currentUser = ccmUser?.user ?? ccmUser
+  return currentUser?.id ? `ccm_draft_pk_${currentUser.id}` : 'ccm_draft_pk'
 }
 
 const INITIAL_FORM: CCMFormData = {
@@ -43,7 +44,7 @@ const INITIAL_FORM: CCMFormData = {
   language:         '', maritalStatus: '', gender: '', bloodGroup: '',
   mobile:           '+91', email: '',
   addressLine1:     '', addressLine2: '', city: '', state: '', zipcode: '', country: 'IN',
-  aadhaarFront:     null, aadhaarBack: null, pan: null,
+  aadharFront:     null, aadharBack: null, pan: null,
   bachelorDegreeType: '', bachelorDoc: null,
   masterDegreeType:   '', masterDoc: null,
   experienceCertType: '', experienceCertDoc: null,
@@ -54,7 +55,7 @@ const validate = (stepId: string, data: CCMFormData) => {
   if (stepId === 'personal-info') {
     if (!data.firstName.trim())  errs.firstName   = 'First name required'
     if (!data.lastName.trim())   errs.lastName    = 'Last name required'
-    if (!data.dob)       errs.dob = 'Date of birth required'
+    if (!data.dob)               errs.dob         = 'Date of birth required'
     if (!data.language)          errs.language    = 'Language required'
     if (!data.gender)            errs.gender      = 'Gender required'
     if (!data.bloodGroup)        errs.bloodGroup  = 'Blood group required'
@@ -70,8 +71,8 @@ const validate = (stepId: string, data: CCMFormData) => {
     if (!/^\d{4,10}$/.test(data.zipcode)) errs.zipcode = 'Enter valid zipcode'
   }
   if (stepId === 'personal-documents') {
-    if (!data.aadhaarFront) errs.aadhaarFront = 'Aadhaar front required'
-    if (!data.aadhaarBack)  errs.aadhaarBack  = 'Aadhaar back required'
+    if (!data.aadharFront) errs.aadharFront = 'Aadhar front required'
+    if (!data.aadharBack)  errs.aadharBack  = 'Aadhar back required'
     if (!data.pan)          errs.pan          = 'PAN card required'
   }
   if (stepId === 'education-documents') {
@@ -94,7 +95,7 @@ export default function CCMOnboard() {
   const [formData,  setFormData]  = useState<CCMFormData>(INITIAL_FORM)
   const [errors,    setErrors]    = useState<Partial<Record<keyof CCMFormData, string>>>({})
   const [saving,    setSaving]    = useState(false)
-  const [appId,     setAppId]     = useState<number | null>(null)   // pk from backend
+  const [appId,     setAppId]     = useState<number | null>(null)  // pk from backend
   const [refNumber, setRefNumber] = useState('')
 
   const updateFormData = useCallback((field: keyof CCMFormData, value: any) => {
@@ -102,81 +103,134 @@ export default function CCMOnboard() {
     setErrors(prev  => ({ ...prev, [field]: undefined }))
   }, [])
 
-useEffect(() => {
-  const saved = localStorage.getItem(getDraftKey())
-  if (!saved) return
+  useEffect(() => {
+    const ccmUser     = JSON.parse(localStorage.getItem('ccm_user') || 'null')
+    const currentUser = ccmUser?.user ?? ccmUser   // inner user object (id:7)
 
-  const pk = parseInt(saved)
-  setAppId(pk)
-
-  // fetch and restore form data
-  getApplicationApi(pk)
-    .then(data => {
+    // ── Step 1: Pre-fill from signup/login user data (id:7) ─────────────────
+    // These fields are always available from the login response
+    if (currentUser) {
       setFormData(prev => ({
         ...prev,
-        firstName:     data.first_name      ?? prev.firstName,
-        lastName:      data.last_name       ?? prev.lastName,
-        dob:           data.dob             ?? prev.dob,
-        gender:        data.gender          ?? prev.gender,
-        bloodGroup:    data.blood_group     ?? prev.bloodGroup,
-        language:      data.language        ?? prev.language,
-        maritalStatus: data.marital_status  ?? prev.maritalStatus,
-        mobile:        data.mobile          ?? prev.mobile,
-        email:         data.email           ?? prev.email,
-        addressLine1:  data.address_line1   ?? prev.addressLine1,
-        addressLine2:  data.address_line2   ?? prev.addressLine2,
-        city:          data.city            ?? prev.city,
-        state:         data.state           ?? prev.state,
-        zipcode:       data.zipcode         ?? prev.zipcode,
-        country:       data.country         ?? prev.country,
+        firstName: currentUser.first_name ?? prev.firstName,
+        lastName:  currentUser.last_name  ?? prev.lastName,
+        email:     currentUser.email      ?? prev.email,
+        mobile:    currentUser.phone      ?? prev.mobile,
       }))
-    })
-    .catch(() => {
-      localStorage.removeItem(getDraftKey())  // stale pk — wipe it
-      toast.error('Could not restore draft. Starting fresh.')
-    })
-}, [])
+    }
 
-  // ── Save: POST first time, PATCH after ───────────────────────────────────
+    // ── Step 2: Check if CCM application exists (id:3 = profile_id) ─────────
+    // SignInForm stores profile_id into draftKey immediately on login.
+    // If it's there → application exists → fetch full data + skip step 1.
+    // If not → brand new user, no application yet → stay on step 1.
+    const savedPk = localStorage.getItem(getDraftKey())
+    if (!savedPk) return   // no application yet — show step 1 normally
+
+    const pk = parseInt(savedPk)
+    setAppId(pk)   // sync React state so submit button works
+
+    getApplicationApi(pk)
+      .then(data => {
+        if (data.is_submitted) {
+          toast.info('Your application is already submitted!')
+          navigate('/ccm-dashboard', { replace: true })
+          return
+        }
+
+        // Fill all form fields from the fetched application
+        setFormData(prev => ({
+          ...prev,
+          firstName:     data.first_name      ?? prev.firstName,
+          lastName:      data.last_name       ?? prev.lastName,
+          dob:           data.dob             ?? prev.dob,
+          gender:        ['Male','Female','Other','Prefer_not_say'].find(
+                           v => v.toLowerCase() === (data.gender ?? '').toLowerCase()
+                         ) ?? prev.gender,
+          bloodGroup:    ['A+','A-','B+','B-','AB+','AB-','O+','O-'].find(
+                           v => v.toLowerCase() === (data.blood_group ?? '').toLowerCase()
+                         ) ?? prev.bloodGroup,
+          language:      ['english','hindi','tamil','telugu','kannada','malayalam','marathi','bengali','gujarati','punjabi'].find(
+                           v => v.toLowerCase() === (data.language ?? '').toLowerCase()
+                         ) ?? prev.language,
+          maritalStatus: ['Single','Married','Divorced','Widowed'].find(
+                           v => v.toLowerCase() === (data.marital_status ?? '').toLowerCase()
+                         ) ?? prev.maritalStatus,
+          mobile:        data.mobile          ?? prev.mobile,
+          email:         data.email           ?? prev.email,
+          addressLine1:  data.address_line_1  ?? prev.addressLine1,
+          addressLine2:  data.address_line_2  ?? prev.addressLine2,
+          city:          data.district        ?? prev.city,
+          state:         data.state           ?? prev.state,
+          zipcode:       data.pin_code        ?? prev.zipcode,
+          country:       data.country        ?? prev.country,
+        }))
+
+        // Application already exists → step 1 is done → skip to step 2
+        if (currentId === 'personal-info') {
+          navigate('/ccmonboard/contact-info', { replace: true })
+        }
+      })
+      .catch(() => {
+        // profile_id was stale/invalid — clear it so next visit starts fresh
+        localStorage.removeItem(getDraftKey())
+        toast.error('Could not restore draft. Starting fresh.')
+      })
+  }, [])  // runs once on mount
+
+  // ── Save: POST first time, PATCH after ────────────────────────────────────
   const saveProgress = async (data: CCMFormData): Promise<number | null> => {
-    const { aadhaarFront, aadhaarBack, pan, bachelorDoc, masterDoc, experienceCertDoc, id, ...rest } = data
- const currentUser = getUser()
+    const { aadharFront, aadharBack, pan, bachelorDoc, masterDoc, experienceCertDoc, id, ...rest } = data
 
-const cleanPayload = {
-  first_name:     rest.firstName,
-  last_name:      rest.lastName,
-  dob:            rest.dob,
-  gender:         rest.gender,
-  blood_group:    rest.bloodGroup,
-  language:       rest.language,
-  marital_status: rest.maritalStatus,
-  mobile:         rest.mobile,
-  email:          rest.email,
-  address_line1:  rest.addressLine1,
-  address_line2:  rest.addressLine2,
-  city:           rest.city,
-  state:          rest.state,
-  zipcode:        rest.zipcode,
-  country:        rest.country,
-  user:           currentUser?.id,
-}
+    const ccmUser     = JSON.parse(localStorage.getItem('ccm_user') || 'null')
+    const currentUser = ccmUser?.user ?? ccmUser
 
-// remove empty values
-Object.keys(cleanPayload).forEach(k => {
-  const key = k as keyof typeof cleanPayload
-  if (!cleanPayload[key]) delete cleanPayload[key]
-})
+    const cleanPayload: Record<string, any> = {
+      first_name:     rest.firstName,
+      last_name:      rest.lastName,
+      dob:            rest.dob,
+      gender:         rest.gender,
+      blood_group:    rest.bloodGroup,
+      language:       rest.language,
+      marital_status: rest.maritalStatus,
+      mobile:         rest.mobile,
+      email:          rest.email,
+      address_line1:  rest.addressLine1,
+      address_line2:  rest.addressLine2,
+      city:           rest.city,
+      state:          rest.state,
+      zipcode:        rest.zipcode,
+      country:        rest.country,
+      user:           currentUser?.id,   // required by backend
+    }
+
+    // Strip empty values but always keep `user`
+    Object.keys(cleanPayload).forEach(k => {
+      const val = cleanPayload[k]
+      if (k !== 'user' && (val === undefined || val === null || val === '')) {
+        delete cleanPayload[k]
+      }
+    })
+
     setSaving(true)
     try {
-      if (!appId) {
-        const res = await createApplicationApi(cleanPayload)   // POST shg/create/
+      // ── BUG 2 FIX: read draft from localStorage, not React state ──────────
+      // appId state can be null when user skipped step 1 (state never got set),
+      // but localStorage is written before navigate — always reliable.
+      const existingPkStr = localStorage.getItem(getDraftKey())
+      const existingPk    = existingPkStr ? parseInt(existingPkStr) : null
+
+      if (!existingPk) {
+        // No draft anywhere → first ever save → POST
+        const res = await createApplicationApi(cleanPayload)
         const pk: number = res.id ?? res.pk
         setAppId(pk)
-        localStorage.setItem(getDraftKey(), String(pk))        // persist for resume
+        localStorage.setItem(getDraftKey(), String(pk))  // write BEFORE navigate
         return pk
       } else {
-        await updateApplicationApi(appId, cleanPayload)        // PATCH shg/{pk}/update/
-        return appId
+        // Draft exists → always PATCH regardless of which step we're on
+        await updateApplicationApi(existingPk, cleanPayload)
+        setAppId(existingPk)   // sync React state in case skip caused it to lag
+        return existingPk
       }
     } catch (err: any) {
       if (err?.response?.status === 401) {
@@ -191,37 +245,92 @@ Object.keys(cleanPayload).forEach(k => {
     }
   }
 
-  // ── Next: validate → save → navigate to next URL ─────────────────────────
+  // ── Upload documents for current step ─────────────────────────────────────
+  const uploadDocuments = async (pk: number) => {
+    const uploads: { file: File; type: string }[] = []
+
+    if (currentId === 'personal-documents') {
+      if (formData.aadharFront) uploads.push({ file: formData.aadharFront, type: 'aadhar_front' })
+      if (formData.aadharBack)  uploads.push({ file: formData.aadharBack,  type: 'aadhar_back'  })
+      if (formData.pan)          uploads.push({ file: formData.pan,          type: 'pan'           })
+    }
+    if (currentId === 'education-documents') {
+      if (formData.bachelorDoc)       uploads.push({ file: formData.bachelorDoc,       type: 'bachelor_certificate'   })
+      if (formData.masterDoc)         uploads.push({ file: formData.masterDoc,         type: 'master_certificate'     })
+      if (formData.experienceCertDoc) uploads.push({ file: formData.experienceCertDoc, type: 'experience_certificate' })
+    }
+
+    if (uploads.length === 0) return true
+    try {
+      await Promise.all(uploads.map(u => uploadDocumentApi(u.file, u.type, pk)))
+      return true
+    } catch (err) {
+      toast.error('Document upload failed: ' + handleAxiosError(err))
+      return false
+    }
+  }
+
+  // ── Next: validate → save → navigate ──────────────────────────────────────
   const handleNext = async () => {
     const errs = validate(currentId, formData)
     if (Object.keys(errs).length) { setErrors(errs); return }
     setErrors({})
 
     const pk = await saveProgress(formData)
-    if (pk === null) return   // save failed — stay on current step
+    if (pk === null) return
 
-    // ✅ Navigate to next step URL
+    const docsOk = await uploadDocuments(pk)
+    if (!docsOk) return   // stay on step if upload failed
+
     navigate(`/ccmonboard/${STEPS[currentIndex + 1].id}`)
   }
 
-  // ── Prev: just go back in URL ────────────────────────────────────────────
+  // ── Skip: navigate to next step without validating ───────────────────────
+  // Steps 2-5: pk already in localStorage from step 1 — just navigate.
+  // Step 1 special case:
+  //   - If appId is set (login response had application_status.id) → app exists → just navigate
+  //   - If no pk anywhere → brand new user → silently POST to create pk first
+  const handleSkip = async () => {
+    if (isPreview) return
+
+    if (isFirst) {
+      const existingPkStr = localStorage.getItem(getDraftKey())
+      const hasPk = existingPkStr || appId   // appId set by useEffect from login response
+
+      if (!hasPk) {
+        // Brand new user — no application exists yet → silently POST to create one
+        const pk = await saveProgress(formData)
+        if (pk === null) return   // POST failed — block navigation
+      }
+      // hasPk → application already exists → skip safely, next step will PATCH
+    }
+
+    navigate(`/ccmonboard/${STEPS[currentIndex + 1].id}`)
+  }
+
+  // ── Prev: just go back in URL ──────────────────────────────────────────────
   const handlePrev = () => {
     if (!isFirst) navigate(`/ccmonboard/${STEPS[currentIndex - 1].id}`)
   }
 
-  // ── Submit ───────────────────────────────────────────────────────────────
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!appId) { toast.error('Application not saved. Please go back and retry.'); return }
+    // BUG 2 FIX: read from localStorage in case appId state lagged after skip
+    const pkStr = localStorage.getItem(getDraftKey())
+    const pk    = pkStr ? parseInt(pkStr) : appId
+
+    if (!pk) { toast.error('Application not saved. Please go back and retry.'); return }
+
     setSaving(true)
     try {
-      const response = await submitApplicationApi(appId)
+      const response = await submitApplicationApi(pk)
       const reference = response?.data?.reference_number ?? response?.reference_number
       if (reference) {
-        localStorage.removeItem(getDraftKey())   // clear draft
+        localStorage.removeItem(getDraftKey())   // clear draft after submit
         setRefNumber(reference)
       } else {
         toast.success('Application submitted!')
-        navigate('/dashboard')
+        navigate('/ccm-dashboard')
       }
     } catch (err) {
       toast.error(handleAxiosError(err))
@@ -232,7 +341,7 @@ Object.keys(cleanPayload).forEach(k => {
 
   const stepProps = { formData, updateFormData, errors }
 
-  // ── Success screen ────────────────────────────────────────────────────────
+  // ── Success screen ─────────────────────────────────────────────────────────
   if (refNumber) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-6">
@@ -248,7 +357,7 @@ Object.keys(cleanPayload).forEach(k => {
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Reference Number</p>
             <p className="text-3xl font-bold text-brand-600 tracking-widest">{refNumber}</p>
           </div>
-          <button onClick={() => navigate('/dashboard')}
+          <button onClick={() => navigate('/ccm-dashboard')}
             className="px-6 py-2.5 bg-brand-500 text-white rounded-lg hover:bg-brand-600 text-sm font-medium">
             Go to Dashboard
           </button>
@@ -257,7 +366,7 @@ Object.keys(cleanPayload).forEach(k => {
     )
   }
 
-  // ── Main layout ───────────────────────────────────────────────────────────
+  // ── Main layout ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
 
@@ -285,7 +394,7 @@ Object.keys(cleanPayload).forEach(k => {
           </div>
         </div>
 
-        {/* Step progress */}
+        {/* Step progress bar */}
         <div className="max-w-4xl mx-auto px-6 pb-4">
           <div className="flex items-start relative">
             <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 dark:bg-gray-700" />
@@ -321,11 +430,10 @@ Object.keys(cleanPayload).forEach(k => {
         </div>
       </header>
 
-      {/* Step content via nested Routes */}
+      {/* Step content */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 sm:p-8">
           <Routes>
-            {/* Default redirect to first step */}
             <Route index element={<Navigate to="personal-info" replace />} />
             <Route path="personal-info"       element={<PersonalInfo       {...stepProps} />} />
             <Route path="contact-info"        element={<ContactInfo        {...stepProps} />} />
@@ -354,8 +462,20 @@ Object.keys(cleanPayload).forEach(k => {
               Previous
             </button>
 
+            {/* Skip — shown on all steps except preview */}
+            {!isPreview && (
+              <button
+                onClick={handleSkip}
+                className="px-5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600
+                  text-sm font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900
+                  hover:bg-gray-50 transition-colors"
+              >
+                Skip
+              </button>
+            )}
+
             {isPreview ? (
-              <button onClick={handleSubmit} disabled={saving || !appId}
+              <button onClick={handleSubmit} disabled={saving}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-green-600 text-sm font-medium text-white
                   hover:bg-green-700 disabled:opacity-50 transition-colors">
                 {saving ? (

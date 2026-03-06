@@ -1,8 +1,7 @@
 // ✅ initializeApp comes from firebase/app (NOT firebase/auth)
 import { initializeApp, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
-import { getAnalytics, Analytics } from "firebase/analytics";
-import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+
 
 
 const firebaseConfig = {
@@ -19,15 +18,5 @@ const app: FirebaseApp = initializeApp(firebaseConfig);
 
 export const auth: Auth = getAuth(app);   // exported — used in OtpModal
 
-let analytics: Analytics | undefined;
-if (typeof window !== "undefined") {      // safe check — analytics only in browser
-  analytics = getAnalytics(app);
-}
-initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider(
-    import.meta.env.VITE_RECAPTCHA_SITE_KEY   // from .env
-  ),
-  isTokenAutoRefreshEnabled: true,
-});
-export { app, analytics };
 
+export { app};
