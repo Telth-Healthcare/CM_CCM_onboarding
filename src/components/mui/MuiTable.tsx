@@ -31,8 +31,8 @@ interface CommonTableProps<T extends MRT_RowData> {
   enableRowSelection?: boolean;
   enableGrouping?: boolean;
   enablePinning?: boolean;
-  enableEditing?: boolean;        // ✅ ADD
-  enableRowActions?: boolean;     // ✅ ADD
+  enableEditing?: boolean; // ✅ ADD
+  enableRowActions?: boolean; // ✅ ADD
   maxHeight?: string | number;
 }
 
@@ -69,6 +69,8 @@ const CommonTable = <T extends MRT_RowData>({
         enableRowActions={rowActions.length > 0}
         enableRowSelection={enableRowSelection}
         positionToolbarAlertBanner="bottom"
+        enableColumnFilters={false}
+        enableFullScreenToggle={false}
         localization={MRT_Localization_EN}
         paginationDisplayMode="pages"
         initialState={{
@@ -90,8 +92,8 @@ const CommonTable = <T extends MRT_RowData>({
         muiTableContainerProps={{
           sx: {
             flex: 1,
-            overflowX: "auto",        // horizontal scroll auto
-            overflowY: "scroll",       // force vertical scrollbar track
+            overflowX: "auto", // horizontal scroll auto
+            overflowY: "scroll", // force vertical scrollbar track
             minHeight: 0,
             maxHeight: maxHeight,
             "&::-webkit-scrollbar": { width: "8px", height: "8px" },
