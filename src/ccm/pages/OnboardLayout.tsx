@@ -1,5 +1,4 @@
 // ccm/pages/OnboardLayout.tsx
-import React from 'react'
 import CCMOnboard from './Onboard'
 
 export const OnboardLayout = () => {

@@ -23,7 +23,7 @@ interface OtpModalProps {
   onFirebaseSuccess: (idToken: string) => void;   // ✅ returns idToken to caller, caller handles backend
 }
 
-export function OtpModal({ isOpen, onClose, phone, mode, onFirebaseSuccess }: OtpModalProps) {
+export function OtpModal({ isOpen, onClose, phone, onFirebaseSuccess }: OtpModalProps) {
   const [otp,           setOtp]           = useState("");
   const [confirm,       setConfirm]       = useState<ConfirmationResult | null>(null);
   const [step,          setStep]          = useState<"send" | "verify">("send");

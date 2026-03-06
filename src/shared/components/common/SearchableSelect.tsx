@@ -8,13 +8,15 @@ interface Option {
 }
 
 interface Props {
-  options: Option[]
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  disabled?: boolean
-  error?: boolean
-  hint?: string
+  options: Option[];
+  placeholder?: string;
+  onChange: (value: string) => void;
+  className?: string;
+  defaultValue?: string;
+  value?: string;
+  error?: boolean;
+  hint?: string;
+  disabled?:boolean
 }
 
 const SearchableSelect: React.FC<Props> = ({

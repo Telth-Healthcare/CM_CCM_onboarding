@@ -52,7 +52,6 @@ interface SHGUserData {
 const ViewUserApplication: React.FC<ViewUserApplicationProps> = ({
   isOpen,
   onClose,
-  applicationId,
   applicationData,
 }) => {
   const [shgUserData, setShgUserData] = useState<SHGUserData | null>(null);

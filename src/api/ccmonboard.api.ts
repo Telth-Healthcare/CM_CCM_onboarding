@@ -1,15 +1,12 @@
 // api/shgonboard.api.ts
-
-import { CCMFormData } from '../ccm/pages/detailspage/types'
 import { client } from './client'
 
 // ── Application CRUD ──────────────────────────────────────────────────────────
-
-const createApplicationApi = (data: Omit<CCMFormData, 'members' | 'id'>) =>
+const createApplicationApi = (data: Record<string, any>) =>
   // POST without members — members posted separately after SHG pk is known
   client.post('shg/app/', data).then(res => res.data)
 
-const updateApplicationApi = (pk: number, data: Omit<CCMFormData, 'members' | 'id'>) =>
+const updateApplicationApi = (pk: number, data: Record<string, any>) =>
   // PATCH — members excluded, never sent in main form update
   client.patch(`shg/app/${pk}/`, data).then(res => res.data)
 

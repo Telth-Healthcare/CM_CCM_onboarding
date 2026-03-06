@@ -56,7 +56,6 @@ export default function CCMSignInForm() {
         access:    data.meta?.access_token  ?? data.access_token,
         refresh:   data.meta?.refresh_token ?? data.refresh_token,
         user,
-        sessionId: data.meta?.session_token ?? data.session_token,
       });
 
       // profile_id is the CCM application id (id:3) returned by login response

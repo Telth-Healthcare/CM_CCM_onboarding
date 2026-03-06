@@ -3,7 +3,6 @@ import { baseUrl } from "../config/env";
 import { handleAxiosError } from "../utils/handleAxiosError";
 
 const countriesdetails = "https://restcountries.com/v3.1/all/?fields=cioc,cca2,tld,idd,currencies,name,flags";
-const countryLatLag = "https://restcountries.com/v3.1/alpha/"
 
 export const getCountry = async () => {
   try {
@@ -24,14 +23,6 @@ const getCountryDetail = async () => {
     }
 };
  
-const getCountryLatLng = async(country) => {
-  try {
-      const response = await axios.get(`${countryLatLag}${country}`);
-        return response.data;
-  } catch (error) {
-    handleAxiosError(error)
-  }
-}
 
 const deleteCountry = (id: string) => {
     return axios.delete(`${baseUrl}countries/${id}/`)
@@ -53,6 +44,5 @@ export {
   deleteCountry,
   createCountry,
   updateCountry,
-  getCountryLatLng
 }
 
