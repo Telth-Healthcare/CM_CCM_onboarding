@@ -314,30 +314,31 @@ export default function CCMOnboard() {
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    // BUG 2 FIX: read from localStorage in case appId state lagged after skip
-    const pkStr = localStorage.getItem(getDraftKey())
-    const pk    = pkStr ? parseInt(pkStr) : appId
+ const handleSubmit = async () => {
+  // Get user id from localStorage
+  const ccmUser     = JSON.parse(localStorage.getItem('ccm_user') || 'null')
+  const currentUser = ccmUser?.user ?? ccmUser
+  const userId      = currentUser?.id
 
-    if (!pk) { toast.error('Application not saved. Please go back and retry.'); return }
+  if (!userId) { toast.error('User not found. Please sign in again.'); return }
 
-    setSaving(true)
-    try {
-      const response = await submitApplicationApi(pk)
-      const reference = response?.data?.reference_number ?? response?.reference_number
-      if (reference) {
-        localStorage.removeItem(getDraftKey())   // clear draft after submit
-        setRefNumber(reference)
-      } else {
-        toast.success('Application submitted!')
-        navigate('/ccm-dashboard')
-      }
-    } catch (err) {
-      toast.error(handleAxiosError(err))
-    } finally {
-      setSaving(false)
+  setSaving(true)
+  try {
+    const response = await submitApplicationApi(userId)          // pass userId, not pk
+    const reference = response?.data?.reference_number ?? response?.reference_number
+    if (reference) {
+      localStorage.removeItem(getDraftKey())                     // clear draft
+      setRefNumber(reference)
+    } else {
+      toast.success('Application submitted!')
+      navigate('/ccm-dashboard')
     }
+  } catch (err) {
+    toast.error(handleAxiosError(err))
+  } finally {
+    setSaving(false)
   }
+}
 
   const stepProps = { formData, updateFormData, errors }
 

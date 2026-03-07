@@ -10,8 +10,8 @@ const updateApplicationApi = (pk: number, data: Record<string, any>) =>
   // PATCH — members excluded, never sent in main form update
   client.patch(`shg/app/${pk}/`, data).then(res => res.data)
 
-const submitApplicationApi = (pk: number) =>
-  client.post(`shg/${pk}/submit/`).then(res => res.data)
+const submitApplicationApi = (userId: number) =>
+  client.post(`applications/app/`, { user: userId }).then(res => res.data)
 
 const getApplicationApi = (pk: number) =>
   client.get(`shg/app/${pk}/`).then(res => res.data)
