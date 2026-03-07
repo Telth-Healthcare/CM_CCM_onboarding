@@ -38,7 +38,7 @@ const Applications = () => {
 
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [viewApplication, setViewApplication] = useState<{
     id: number;
     data: Application | null;
@@ -47,10 +47,10 @@ const Applications = () => {
     id: number;
     data: Application | null;
   } | null>(null);
-  
+
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
@@ -64,7 +64,12 @@ const Applications = () => {
     try {
       setLoading(true);
       const response = await getApplicationsApi();
-      setApplications(Array.isArray(response.results) ? response?.results : [response.results]);
+      setApplications(
+        Array.isArray(response.results)
+          ? response?.results
+          : [response.results],
+      );
+      setTotalCount(response?.count || 0);
     } catch (err) {
       const errorMessage = handleAxiosError(
         err,
@@ -72,6 +77,7 @@ const Applications = () => {
       );
       toast.error(errorMessage);
       setApplications([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -128,14 +134,14 @@ const Applications = () => {
 
   const rowActionsList = useMemo(() => {
     const actions = [];
-    
+
     actions.push({
       label: "View",
       className: "text-brand-700 hover:text-brand-900 dark:text-brand-600",
       icon: <EyeIcon className="w-4 h-4 fill-current" />,
       onClick: handleView,
     });
-    
+
     if (isAdminOrSuperAdmin) {
       actions.push({
         label: "Edit",
@@ -144,7 +150,7 @@ const Applications = () => {
         onClick: handleEdit,
       });
     }
-    
+
     return actions;
   }, [handleEdit, handleView, isAdminOrSuperAdmin]);
 
@@ -181,7 +187,7 @@ const Applications = () => {
         size: 120,
         Cell: ({ cell }) => {
           const status = cell.getValue<string>() ?? "";
-             return status ?? "-"
+          return status ?? "-";
         },
       },
       {
@@ -199,9 +205,7 @@ const Applications = () => {
         size: 150,
         Cell: ({ cell }) => {
           const value = cell.getValue<string>();
-          return value
-            ? new Date(value).toLocaleDateString()
-            : "-";
+          return value ? new Date(value).toLocaleDateString() : "-";
         },
       },
       {
@@ -213,13 +217,13 @@ const Applications = () => {
           return value ?? "-";
         },
       },
-       {
+      {
         accessorKey: "payment_status",
         header: "Payment Status",
         size: 120,
         Cell: ({ cell }) => {
           const status = cell.getValue<string>() ?? "";
-             return status ?? "-"
+          return status ?? "-";
         },
       },
     ],
@@ -235,6 +239,11 @@ const Applications = () => {
         <p className="text-sm text-gray-500 dark:text-gray-400">
           View and manage all SHG applications
         </p>
+        {!loading && (
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+            Total Users: <span className="font-semibold">{totalCount}</span>
+          </p>
+        )}
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
@@ -246,9 +255,7 @@ const Applications = () => {
             pagination={pagination}
             enableRowSelection={false}
             onPaginationChange={setPagination}
-            toolbarActions={[
-              { label: "Refresh", onClick: fetchApplications },
-            ]}
+            toolbarActions={[{ label: "Refresh", onClick: fetchApplications }]}
             rowActions={rowActionsList}
           />
         </ThemeProvider>

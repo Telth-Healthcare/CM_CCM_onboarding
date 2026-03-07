@@ -74,9 +74,9 @@ export const setToken = (
   localStorage.setItem(keys.user, JSON.stringify(user));
 
   // Handle role properly
-const role = Array.isArray(user?.user?.roles)
-  ? user?.user.roles[0]
-  : user?.user?.roles;
+const role = Array.isArray(user?.roles)
+  ? user?.roles[0]
+  : user?.roles;
 
 if (role) {
   localStorage.setItem(keys.role, role); 

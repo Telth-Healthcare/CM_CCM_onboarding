@@ -130,7 +130,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
     try {
       setLoading(true);
       const response = await getAllUsers();
-      const userData = response?.data || response || [];
+      const userData = response?.results || response || [];
 
       const trainersList: Trainer[] = [];
       const financiersList: Financier[] = [];

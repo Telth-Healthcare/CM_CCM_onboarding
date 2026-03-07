@@ -60,10 +60,18 @@ interface ToolbarAction {
   icon?: React.ReactNode;
 }
 
+interface ApiResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: User[];
+}
+
 const AdminUser = () => {
   const userRole = getUserRole("admin");
   const currentUser = getUser(); // Get current logged-in user details
   const [users, setUsers] = useState<User[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -72,6 +80,7 @@ const AdminUser = () => {
   const [roles, setRoles] = useState<OptionType[]>([]);
   const [regions, setRegions] = useState<OptionType[]>([]);
   const [mnpList, setMnpList] = useState<OptionType[]>([]);
+  const [columnFilters, setColumnFilters] = useState<any[]>([]); // Add column filters state
 
   // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -120,6 +129,7 @@ const AdminUser = () => {
     } else if (formData.role === "trainer" || formData.role === "financier"){
       return false;
     }
+    return false;
   }, [formData?.role]);
 
   // Reset form and errors when modal closes
@@ -183,12 +193,12 @@ const AdminUser = () => {
     try {
       setLoading(true);
       const response = await getAllUsers();
-      const userData = response?.data || response || [];
+      const userData = response?.results || response || [];
       setUsers(userData);
+      setTotalCount(response?.count || 0);
 
       // Filter Admin users for MNP dropdown based on who is logged in
       const adminUsers = userData.filter((user: User) => {
-        // Check if user has admin role
         const hasAdminRole = user.roles?.some(
           (r: any) =>
             r === "admin" || r?.name === "admin" || r?.value === "admin",
@@ -199,9 +209,9 @@ const AdminUser = () => {
           const isCurrentUser = user.id === currentUser?.id;
           return hasAdminRole && isCurrentUser;
         }
-
         return false;
       });
+      
       const formattedMnpList = adminUsers.map((user: User) => ({
         value: String(user.id),
         label:
@@ -220,6 +230,7 @@ const AdminUser = () => {
       const errorMessage = handleAxiosError(error, "Failed to fetch users");
       toast.error(errorMessage);
       setUsers([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -232,7 +243,7 @@ const AdminUser = () => {
         header: "S.No",
         size: 80,
         Cell: ({ row }: { row: MRT_Row<User> }) =>
-          row.index + 1 + pagination.pageIndex * pagination.pageSize,
+          row.index + 1,
         enableColumnFilter: false,
       },
       {
@@ -243,6 +254,8 @@ const AdminUser = () => {
           const value = cell.getValue() as string | null;
           return value || "-";
         },
+        filterVariant: "text",
+        enableColumnFilter: true, // Explicitly enable filter
       },
       {
         accessorKey: "last_name",
@@ -252,11 +265,15 @@ const AdminUser = () => {
           const value = cell.getValue() as string | null;
           return value || "-";
         },
+        filterVariant: "text",
+        enableColumnFilter: true,
       },
       {
         accessorKey: "phone",
         header: "Phone Number",
         size: 150,
+        filterVariant: "text",
+        enableColumnFilter: true,
       },
       {
         accessorKey: "email",
@@ -266,25 +283,34 @@ const AdminUser = () => {
           const value = cell.getValue() as string | null;
           return value || "-";
         },
+        filterVariant: "text",
+        enableColumnFilter: true,
       },
       {
         accessorKey: "roles",
         header: "Role",
         size: 150,
+        accessorFn: (row) => row.roles?.[0] || "", // Transform for filtering
         Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
-          const roles = cell.getValue() as string[] | undefined;
-
+          const row = cell.row.original;
+          const roles = row.roles;
           if (!roles || roles.length === 0) return "-";
-
           return roles[0];
         },
+        filterVariant: "select",
+        filterSelectOptions: roles.map(role => ({
+          text: role.label,
+          value: role.value,
+        })),
+        enableColumnFilter: true,
       },
       {
         accessorKey: "is_active",
         header: "Status",
         size: 100,
+        accessorFn: (row) => row.is_active ? "active" : "inactive", // Transform for filtering
         Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
-          const value = cell.getValue() as boolean;
+          const value = cell.row.original.is_active;
           return (
             <span
               className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -297,13 +323,20 @@ const AdminUser = () => {
             </span>
           );
         },
+        filterVariant: "select",
+        filterSelectOptions: [
+          { text: "Active", value: "active" },
+          { text: "Inactive", value: "inactive" }
+        ],
+        enableColumnFilter: true,
       },
       {
         accessorKey: "is_approved",
         header: "Approval",
         size: 100,
+        accessorFn: (row) => row.is_approved ? "approved" : "pending", // Transform for filtering
         Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
-          const value = cell.getValue() as boolean;
+          const value = cell.row.original.is_approved;
           return (
             <span
               className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -316,9 +349,15 @@ const AdminUser = () => {
             </span>
           );
         },
+        filterVariant: "select",
+        filterSelectOptions: [
+          { text: "Approved", value: "approved" },
+          { text: "Pending", value: "pending" }
+        ],
+        enableColumnFilter: true,
       },
     ],
-    [pagination.pageIndex, pagination.pageSize],
+    [pagination.pageIndex, pagination.pageSize, roles],
   );
 
   const handleAddUser = () => setIsAddModalOpen(true);
@@ -340,22 +379,13 @@ const AdminUser = () => {
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof NewUserForm, string>> = {};
 
-    // Required fields check
     const requiredFields: (keyof NewUserForm)[] = [
       "first_name",
       "last_name",
       "email",
       "phone",
       "role",
-      // "region",
     ];
-
-    // if (showMnpField) {
-    //   requiredFields.push("mnpData");
-    // }
-    // if( showRegionFiled) {
-    //   requiredFields.push("region")
-    // }
 
     for (const field of requiredFields) {
       if (!formData[field] || formData[field].trim() === "") {
@@ -363,17 +393,14 @@ const AdminUser = () => {
       }
     }
 
-    // Email format
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address";
     }
 
-    // Phone format (basic)
     if (formData.phone && !/^\+?[0-9]{10,15}$/.test(formData.phone)) {
       newErrors.phone = "Please enter a valid phone number";
     }
 
-    // Additional validation for admin users
     if (isAdmin && formData.role === "admin") {
       newErrors.role = "You don't have permission to create admin users";
     }
@@ -483,6 +510,11 @@ const AdminUser = () => {
               ? "Manage and create Trainer & Financier users (You will be the MNP Admin)"
               : "View all users in the system"}
         </p>
+        {!loading && (
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+            Total Users: <span className="font-semibold">{totalCount}</span>
+          </p>
+        )}
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
@@ -492,6 +524,7 @@ const AdminUser = () => {
           loading={loading}
           pagination={pagination}
           enableRowSelection={false}
+          enableColumnFilters={true}
           onPaginationChange={setPagination}
           toolbarActions={toolbarActions}
         />
@@ -595,7 +628,7 @@ const AdminUser = () => {
                   )}
                 </div>
 
-                {/* Role Select - Shows different options based on user role */}
+                {/* Role Select */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Role <span className="text-red-500">*</span>
@@ -660,6 +693,7 @@ const AdminUser = () => {
                     )}
                   </div>
                 )}
+                
                 {!isAdmin && showMnpField && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -725,4 +759,4 @@ const AdminUser = () => {
   );
 };
 
-export default AdminUser;
+export default AdminUser; 

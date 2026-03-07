@@ -1,6 +1,7 @@
 import React from "react";
-import GridShape from "../../components/common/GridShape";
 import { Link } from "react-router";
+import GridShape from "../../components/common/GridShape";
+import logo from "../../assets/TELTH LOGO - Light.png";
 
 export default function AuthLayout({
   children,
@@ -17,17 +18,16 @@ export default function AuthLayout({
             <GridShape />
             <div className="flex flex-col items-center max-w-xs">
               <Link to="/" className="block mb-4">
-                {/* <img
+                <img
                   width={231}
                   height={48}
-                  src="/brand-logo-light.svg"
-                  alt=""
-                /> */}
+                  src={logo}
+                  alt="Logo"
+                />
               </Link>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

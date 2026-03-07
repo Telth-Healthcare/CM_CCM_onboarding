@@ -8,6 +8,7 @@ import {
 import { MRT_Localization_EN } from "material-react-table/locales/en";
 import { useTheme } from "../../context/ThemeContext";
 import type { OnChangeFn } from "@tanstack/react-table";
+
 interface TableAction {
   label: string;
   className?: string;
@@ -29,11 +30,12 @@ interface CommonTableProps<T extends MRT_RowData> {
   toolbarActions?: ToolbarAction[];
   rowActions?: TableAction[];
   enableRowSelection?: boolean;
-  enableGrouping?: boolean;
   enablePinning?: boolean;
-  enableEditing?: boolean; // ✅ ADD
-  enableRowActions?: boolean; // ✅ ADD
+  enableEditing?: boolean;
+  enableRowActions?: boolean;
   maxHeight?: string | number;
+  enableColumnFilters?: boolean;
+  enableColumnFilterModes?: boolean; // Add this prop
 }
 
 const CommonTable = <T extends MRT_RowData>({
@@ -45,7 +47,8 @@ const CommonTable = <T extends MRT_RowData>({
   toolbarActions = [],
   rowActions = [],
   enableRowSelection = true,
-  enableGrouping = true,
+  enableColumnFilters = true,
+  enableColumnFilterModes = false, // Default to false
   enablePinning = true,
   maxHeight,
 }: CommonTableProps<T>) => {
@@ -63,20 +66,26 @@ const CommonTable = <T extends MRT_RowData>({
           showSkeletons: loading,
         }}
         onPaginationChange={onPaginationChange}
-        enableColumnFilterModes
-        enableGrouping={enableGrouping}
+        // Only enable one of these at a time
+        enableColumnFilterModes={enableColumnFilterModes}
+        enableColumnFilters={!enableColumnFilterModes && enableColumnFilters}
         enablePinning={enablePinning}
         enableRowActions={rowActions.length > 0}
         enableRowSelection={enableRowSelection}
         positionToolbarAlertBanner="bottom"
-        enableColumnFilters={false}
         enableFullScreenToggle={false}
         localization={MRT_Localization_EN}
         paginationDisplayMode="pages"
         initialState={{
           columnPinning: { left: ["mrt-row-actions"] },
+          showColumnFilters: enableColumnFilters, // This is important!
         }}
-        defaultColumn={{ minSize: 150, size: 200 }}
+        defaultColumn={{ 
+          minSize: 150, 
+          size: 200,
+          // Enable filtering by default for all columns
+          enableColumnFilter: enableColumnFilters,
+        }}
         muiTablePaperProps={{
           sx: {
             display: "flex",
@@ -88,12 +97,11 @@ const CommonTable = <T extends MRT_RowData>({
             borderRadius: 0,
           },
         }}
-        // Fixed: always show vertical scrollbar track to maintain constant width
         muiTableContainerProps={{
           sx: {
             flex: 1,
-            overflowX: "auto", // horizontal scroll auto
-            overflowY: "scroll", // force vertical scrollbar track
+            overflowX: "auto",
+            overflowY: "scroll",
             minHeight: 0,
             maxHeight: maxHeight,
             "&::-webkit-scrollbar": { width: "8px", height: "8px" },

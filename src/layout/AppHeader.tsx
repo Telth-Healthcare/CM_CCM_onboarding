@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
+import logo from "../assets/TELTH LOGO.png"
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
@@ -59,15 +60,15 @@ const AppHeader: React.FC = () => {
           </button>
 
           {/* Center - Logo */}
-          <Link to="/" className="lg:hidden flex-1 flex items-center justify-center">
+          <Link to="/dashboard" className="lg:hidden flex-1 flex items-center justify-center">
             <img
               className="dark:hidden h-8 w-auto"
-              src="./images/logo/logo.svg"
+              src={logo}
               alt="Logo"
             />
             <img
               className="hidden dark:block h-8 w-auto"
-              src="./images/logo/logo-dark.svg"
+              src={logo}
               alt="Logo"
             />
           </Link>

@@ -83,8 +83,11 @@ export default function SignInForm() {
       toast.success("Signed in successfully!");
       navigate("/dashboard");
     } catch (error: any) {
-      const errorMessage = handleAxiosError(error, "Something went wrong. Please try again.")
-      toast.error(errorMessage)
+      const errorMessage = handleAxiosError(
+        error,
+        "Something went wrong. Please try again.",
+      );
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -98,7 +101,7 @@ export default function SignInForm() {
               Sign In
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Enter your email and password to sign in!
+              Enter your Phone and password to sign in!
             </p>
           </div>
           <div>
@@ -111,12 +114,13 @@ export default function SignInForm() {
                 {/* phone Number */}
                 <div>
                   <Label>
-                    phone Number <span className="text-error-500">*</span>
+                    Phone Number <span className="text-error-500">*</span>
                   </Label>
                   <Input
                     type="tel"
                     placeholder="9876543210"
                     value={state.phone}
+                    disabled={loading}
                     onChange={(e) =>
                       setState({ ...state, phone: e.target.value })
                     }
@@ -136,6 +140,7 @@ export default function SignInForm() {
                       type={showPassword ? "text" : "password"}
                       placeholder="Enter your password"
                       value={state.password}
+                      disabled={loading}
                       onChange={(e) =>
                         setState({ ...state, password: e.target.value })
                       }

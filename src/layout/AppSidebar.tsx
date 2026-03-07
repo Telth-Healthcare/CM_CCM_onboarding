@@ -10,6 +10,7 @@ import {
   AngleRightIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
+import logo from "../assets/TELTH LOGO.png"
 
 type NavItem = {
   name: string;
@@ -316,19 +317,19 @@ const AppSidebar: React.FC = () => {
             !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
           }`}
         >
-          <Link to="/">
+          <Link to="/dashboard">
             {isExpanded || isHovered || isMobileOpen ? (
               <>
                 <img
                   className="dark:hidden"
-                  src="/images/logo/logo.svg"
+                  src={logo}
                   alt="Logo"
                   width={150}
                   height={40}
                 />
                 <img
                   className="hidden dark:block"
-                  src="/images/logo/logo-dark.svg"
+                  src={logo}
                   alt="Logo"
                   width={150}
                   height={40}
@@ -336,7 +337,7 @@ const AppSidebar: React.FC = () => {
               </>
             ) : (
               <img
-                src="/images/logo/logo-icon.svg"
+                src={logo}
                 alt="Logo"
                 width={32}
                 height={32}

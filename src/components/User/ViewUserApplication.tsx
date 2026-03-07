@@ -5,6 +5,7 @@ import { getSHGUserByIdApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { Modal } from "../ui/modal";
 import { getUserRole } from "../../config/constants";
+import { baseUrl } from "../../config/env";
 
 interface ViewUserApplicationProps {
   isOpen: boolean;
@@ -347,7 +348,7 @@ const ViewUserApplication: React.FC<ViewUserApplicationProps> = ({
                               {doc.document_type.replace(/_/g, " ")}
                             </span>
                             <a
-                              href={doc.file}
+                              href={`${baseUrl}${doc.file}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-medium"
