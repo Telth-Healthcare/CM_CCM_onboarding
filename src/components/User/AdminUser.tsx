@@ -60,13 +60,6 @@ interface ToolbarAction {
   icon?: React.ReactNode;
 }
 
-interface ApiResponse {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: User[];
-}
-
 const AdminUser = () => {
   const userRole = getUserRole("admin");
   const currentUser = getUser(); // Get current logged-in user details
@@ -80,7 +73,6 @@ const AdminUser = () => {
   const [roles, setRoles] = useState<OptionType[]>([]);
   const [regions, setRegions] = useState<OptionType[]>([]);
   const [mnpList, setMnpList] = useState<OptionType[]>([]);
-  const [columnFilters, setColumnFilters] = useState<any[]>([]); // Add column filters state
 
   // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
