@@ -40,11 +40,11 @@ const CCMUserDropdown: React.FC = () => {
         <span className="mr-3 flex items-center justify-center rounded-full h-11 w-11 bg-brand-500 text-white font-bold text-sm flex-shrink-0">
           {initials}
         </span>
-        <span className="block mr-1 font-medium text-theme-sm capitalize">
+        <span className="hidden sm:block mr-1 font-medium text-theme-sm capitalize">
           {firstName}
         </span>
         <svg
-          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          className={`hidden stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
           width="18" height="20" viewBox="0 0 18 20" fill="none"
         >
           <path d="M4.3125 8.65625L9 13.3437L13.6875 8.65625" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

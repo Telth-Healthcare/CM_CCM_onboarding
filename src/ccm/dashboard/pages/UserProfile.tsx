@@ -88,8 +88,9 @@ const UserProfile = () => {
   // ── Derive display values ─────────────────────────────────────────────────
   // Prefer API data, fall back to localStorage user data
   const user      = app?.user ?? baseUser;
-  const firstName = user?.first_name ?? "";
-  const lastName  = user?.last_name  ?? "";
+  const cap = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase()); // capitalize each word
+  const firstName = cap(user?.first_name ?? "");
+  const lastName  = cap(user?.last_name  ?? "");
   const fullName  = `${firstName} ${lastName}`.trim() || "User";
   const initials  = getInitials(firstName, lastName);
   const email     = user?.email ?? "";
@@ -137,7 +138,7 @@ const UserProfile = () => {
 
       {/* ── Hero card ── */}
       <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden">
-        <div className="h-28 bg-gradient-to-r from-brand-500 via-brand-400 to-purple-500 relative">
+        <div className="h-28 bg-gradient-to-r from-brand-500 via-brand-400 to-purple-500">
           <div className="absolute inset-0 opacity-20"
             style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "40px 40px" }}
           />
@@ -155,7 +156,7 @@ const UserProfile = () => {
             </div>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white/90 capitalize">{fullName}</h2>
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white/90">{fullName}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Application ID: <span className="font-mono text-gray-700 dark:text-gray-300">#{appId}</span>
             </p>
@@ -191,7 +192,7 @@ const UserProfile = () => {
             <h3 className="text-sm font-semibold text-gray-700 dark:text-white/80">Contact Information</h3>
           </div>
           <div className="px-5 pb-3">
-            <InfoRow label="Full Name" value={<span className="capitalize">{fullName}</span>}
+            <InfoRow label="Full Name" value={fullName}
               icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
             />
             <InfoRow label="Email Address" value={email}
