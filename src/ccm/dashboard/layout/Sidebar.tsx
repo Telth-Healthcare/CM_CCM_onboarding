@@ -11,6 +11,8 @@ import {
   PieChartIcon,
 } from "../../../icons";
 import { useSidebar } from "../../../context/SidebarContext";
+import logo from "../assets/TELTH LOGO.png"
+
 
 type NavItem = {
   name: string;
@@ -230,14 +232,14 @@ const CCMSidebar: React.FC = () => {
             <>
               <img
                 className="dark:hidden"
-                src="/images/logo/logo.svg"
+                src={logo}
                 alt="CCM Logo"
                 width={150}
                 height={40}
               />
               <img
                 className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
+                src={logo}
                 alt="CCM Logo"
                 width={150}
                 height={40}
@@ -245,7 +247,7 @@ const CCMSidebar: React.FC = () => {
             </>
           ) : (
             <img
-              src="/images/logo/logo-icon.svg"
+              src={logo}
               alt="Logo"
               width={32}
               height={32}

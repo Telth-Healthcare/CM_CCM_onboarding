@@ -7,8 +7,8 @@ export default function CCMSignInPage() {
   return (
     <>
       <PageMeta
-        title="React.js SignIn Dashboard | T-store - Next.js Admin Dashboard Template"
-        description="This is React.js SignIn Tables Dashboard page for T-store - React.js Tailwind CSS Admin Dashboard Template"
+        title="CCM Dashboard Modal"
+        description="This is CCM Onboarding Layout Modal"
       />
       <AuthLayout>
         <CCMSignInForm />

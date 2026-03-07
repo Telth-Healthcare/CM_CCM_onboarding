@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import { ThemeToggleButton } from "../common/ThemeToggleButton";
 import UserDropdown from "./UserDropdown";
-import { Link } from "react-router";
+import logo from "../assets/TELTH LOGO.png"
 
 // Define the interface for the props
 interface HeaderProps {
@@ -80,12 +81,12 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
           <Link to="/" className="lg:hidden">
             <img
               className="dark:hidden"
-              src="./images/logo/logo.svg"
+              src={logo}
               alt="Logo"
             />
             <img
               className="hidden dark:block"
-              src="./images/logo/logo-dark.svg"
+              src={logo}
               alt="Logo"
             />
           </Link>
