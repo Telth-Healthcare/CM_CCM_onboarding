@@ -1,66 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getApplicationApi } from "../../../api/ccmonboard.api";
 
-// ─── Read CCM user from localStorage (set during sign-in) ────────────────────
-function getCCMUser() {
+// ── Get stored draft pk (application id = profile_id) ────────────────────────
+function getDraftKey() {
   try {
-    const raw = localStorage.getItem("ccm_user");
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+    const ccmUser    = JSON.parse(localStorage.getItem("ccm_user") || "null");
+    const innerUser  = ccmUser?.user ?? ccmUser;
+    return innerUser?.id ? `ccm_draft_pk_${innerUser.id}` : "ccm_draft_pk";
+  } catch { return "ccm_draft_pk"; }
 }
 
-// ─── Status config ────────────────────────────────────────────────────────────
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; dot: string; badge: string }
-> = {
-  SUBMITTED: {
-    label: "Submitted",
-    dot: "bg-blue-500",
-    badge: "bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800",
-  },
-  APPROVED: {
-    label: "Approved",
-    dot: "bg-green-500",
-    badge: "bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
-  },
-  PENDING: {
-    label: "Pending",
-    dot: "bg-yellow-500",
-    badge: "bg-yellow-50 text-yellow-600 border border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800",
-  },
-  REJECTED: {
-    label: "Rejected",
-    dot: "bg-red-500",
-    badge: "bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
-  },
+// ── Get base user info (id:7) from localStorage ───────────────────────────────
+function getBaseUser() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("ccm_user") || "null");
+    return raw?.user ?? raw;   // inner user object {id:7, first_name, ...}
+  } catch { return null; }
+}
+
+// ── Status badge config ───────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
+  SUBMITTED:    { label: "Submitted",    dot: "bg-blue-500",   badge: "bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800" },
+  APPROVED:     { label: "Approved",     dot: "bg-green-500",  badge: "bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800" },
+  PENDING:      { label: "Pending",      dot: "bg-yellow-500", badge: "bg-yellow-50 text-yellow-600 border border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800" },
+  REJECTED:     { label: "Rejected",     dot: "bg-red-500",    badge: "bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800" },
+  Unregistered: { label: "Unregistered", dot: "bg-gray-400",   badge: "bg-gray-100 text-gray-500 border border-gray-200" },
 };
+const getStatusConfig = (s: string) =>
+  STATUS_CONFIG[s] ?? { label: s, dot: "bg-gray-400", badge: "bg-gray-100 text-gray-500 border border-gray-200" };
 
-function getStatusConfig(status: string) {
-  return STATUS_CONFIG[status] ?? {
-    label: status,
-    dot: "bg-gray-400",
-    badge: "bg-gray-100 text-gray-500 border border-gray-200",
-  };
+function getInitials(first = "", last = "") {
+  return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase() || "?";
 }
 
-// ─── Avatar initials ──────────────────────────────────────────────────────────
-function getInitials(first: string, last: string) {
-  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
-}
-
-// ─── Info Row ─────────────────────────────────────────────────────────────────
-function InfoRow({
-  icon,
-  label,
-  value,
-  mono = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | React.ReactNode;
-  mono?: boolean;
+// ── Reusable components ───────────────────────────────────────────────────────
+function InfoRow({ icon, label, value, mono = false }: {
+  icon: React.ReactNode; label: string; value: string | React.ReactNode; mono?: boolean;
 }) {
   return (
     <div className="flex items-start gap-3 py-3.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
@@ -70,30 +45,19 @@ function InfoRow({
       <div className="flex-1 min-w-0">
         <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">{label}</p>
         <p className={`text-sm font-medium text-gray-800 dark:text-white/90 truncate ${mono ? "font-mono" : ""}`}>
-          {value}
+          {value || "—"}
         </p>
       </div>
     </div>
   );
 }
 
-// ─── Stat card ────────────────────────────────────────────────────────────────
-function StatCard({
-  label,
-  value,
-  color,
-  icon,
-}: {
-  label: string;
-  value: string;
-  color: string;
-  icon: React.ReactNode;
+function StatCard({ label, value, color, icon }: {
+  label: string; value: string; color: string; icon: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] p-4 flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
-        {icon}
-      </div>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>{icon}</div>
       <div>
         <p className="text-lg font-bold text-gray-800 dark:text-white/90 leading-tight">{value}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
@@ -102,75 +66,87 @@ function StatCard({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 const UserProfile = () => {
-  const user = getCCMUser();
+  const baseUser = getBaseUser();   // id:7 data from localStorage
 
-  // Fallback to demo data if localStorage is empty (for dev)
-  const data = user ?? {
-    id: 6,
-    email: "shanmugaraj@mytelth.com",
-    phone: "+919500536989",
-    first_name: "shanmugam",
-    last_name: "raJ",
-    role: [],
-    application_status: {
-      id: 2,
-      reference_number: "SHG-2026-0002",
-      status: "SUBMITTED",
-    },
-    has_password: true,
-    is_active: true,
-    is_approved: false,
-  };
+  // Full application data from API (id:3)
+  const [app,     setApp]     = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [copied,  setCopied]  = useState(false);
 
-  const fullName =
-    `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim() || "User";
-  const initials = getInitials(data.first_name ?? "", data.last_name ?? "");
-  const appStatus = data.application_status?.status ?? "PENDING";
-  const statusCfg = getStatusConfig(appStatus);
-  const refNumber = data.application_status?.reference_number ?? "—";
+  useEffect(() => {
+    const pk = localStorage.getItem(getDraftKey());
+    if (!pk) { setLoading(false); return; }
 
-  const [copied, setCopied] = useState(false);
+    getApplicationApi(parseInt(pk))
+      .then(data => setApp(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  // ── Derive display values ─────────────────────────────────────────────────
+  // Prefer API data, fall back to localStorage user data
+  const user      = app?.user ?? baseUser;
+  const firstName = user?.first_name ?? "";
+  const lastName  = user?.last_name  ?? "";
+  const fullName  = `${firstName} ${lastName}`.trim() || "User";
+  const initials  = getInitials(firstName, lastName);
+  const email     = user?.email ?? "";
+  const phone     = user?.phone ?? "";
+
+  // Application-level fields from API response
+  const regStatus = app?.registration_status ?? "Unregistered";
+  const statusCfg = getStatusConfig(app?.is_submitted ? "SUBMITTED" : regStatus);
+  const appId     = app?.id ?? "—";
+  const dob       = app?.dob       ? new Date(app.dob).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  const gender        = app?.gender         ?? "—";
+  const bloodGroup    = app?.blood_group    ?? "—";
+  const language      = app?.language       ? app.language.charAt(0).toUpperCase() + app.language.slice(1) : "—";
+  const maritalStatus = app?.marital_status ?? "—";
+  const state         = app?.state          ?? "—";
+  const country       = app?.country        ?? "—";
+  const addressLine1  = app?.address_line_1 ?? "";
+  const addressLine2  = app?.address_line_2 ?? "";
+  const district      = app?.district       ?? "";
+  const pinCode       = app?.pin_code       ?? "";
+  const fullAddress   = [addressLine1, addressLine2, district, state, pinCode, country].filter(Boolean).join(", ") || "—";
+
   const copyRef = () => {
-    navigator.clipboard.writeText(refNumber).then(() => {
+    navigator.clipboard.writeText(String(appId)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <span className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Page heading */}
+      {/* Heading */}
       <div>
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">My Profile</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Your account information and application status.
-        </p>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Your account information and application details.</p>
       </div>
 
       {/* ── Hero card ── */}
       <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] overflow-hidden">
-        {/* Cover banner */}
         <div className="h-28 bg-gradient-to-r from-brand-500 via-brand-400 to-purple-500 relative">
           <div className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
-            }}
+            style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "40px 40px" }}
           />
         </div>
-
-        {/* Avatar + name */}
         <div className="px-6 pb-6">
           <div className="flex items-end justify-between -mt-10 mb-4">
-            {/* Avatar */}
             <div className="w-20 h-20 rounded-2xl border-4 border-white dark:border-gray-900 bg-brand-500 flex items-center justify-center shadow-lg">
               <span className="text-2xl font-bold text-white">{initials}</span>
             </div>
-
-            {/* Status badge */}
             <div className="mb-1">
               <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ${statusCfg.badge}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot} animate-pulse`} />
@@ -178,14 +154,10 @@ const UserProfile = () => {
               </span>
             </div>
           </div>
-
-          {/* Name + ID */}
           <div>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white/90 capitalize">
-              {fullName}
-            </h2>
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white/90 capitalize">{fullName}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              User ID: <span className="font-mono text-gray-700 dark:text-gray-300">#{data.id}</span>
+              Application ID: <span className="font-mono text-gray-700 dark:text-gray-300">#{appId}</span>
             </p>
           </div>
         </div>
@@ -193,146 +165,117 @@ const UserProfile = () => {
 
       {/* ── Quick stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard
-          label="Account"
-          value={data.is_active ? "Active" : "Inactive"}
-          color={data.is_active ? "bg-green-100 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-800"}
-          icon={
-            <svg className={`w-5 h-5 ${data.is_active ? "text-green-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
+        <StatCard label="Account" value={user?.is_active ? "Active" : "Inactive"}
+          color={user?.is_active ? "bg-green-100 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-800"}
+          icon={<svg className={`w-5 h-5 ${user?.is_active ? "text-green-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
-        <StatCard
-          label="Approval"
-          value={data.is_approved ? "Approved" : "Pending"}
-          color={data.is_approved ? "bg-green-100 dark:bg-green-900/20" : "bg-yellow-100 dark:bg-yellow-900/20"}
-          icon={
-            <svg className={`w-5 h-5 ${data.is_approved ? "text-green-600" : "text-yellow-600"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-            </svg>
-          }
+        <StatCard label="Approval" value={user?.is_approved ? "Approved" : "Pending"}
+          color={user?.is_approved ? "bg-green-100 dark:bg-green-900/20" : "bg-yellow-100 dark:bg-yellow-900/20"}
+          icon={<svg className={`w-5 h-5 ${user?.is_approved ? "text-green-600" : "text-yellow-600"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>}
         />
-        <StatCard
-          label="Password"
-          value={data.has_password ? "Set" : "Not Set"}
-          color={data.has_password ? "bg-brand-50 dark:bg-brand-900/20" : "bg-red-50 dark:bg-red-900/20"}
-          icon={
-            <svg className={`w-5 h-5 ${data.has_password ? "text-brand-500" : "text-red-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-            </svg>
-          }
+        <StatCard label="Submitted" value={app?.is_submitted ? "Yes" : "No"}
+          color={app?.is_submitted ? "bg-brand-50 dark:bg-brand-900/20" : "bg-red-50 dark:bg-red-900/20"}
+          icon={<svg className={`w-5 h-5 ${app?.is_submitted ? "text-brand-500" : "text-red-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
         />
-        <StatCard
-          label="Application"
-          value={statusCfg.label}
+        <StatCard label="Registration" value={regStatus}
           color="bg-blue-50 dark:bg-blue-900/20"
-          icon={
-            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          }
+          icon={<svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0" /></svg>}
         />
       </div>
 
-      {/* ── Two columns: contact info + application info ── */}
+      {/* ── Contact + Personal Info ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Contact info */}
+        {/* Contact */}
         <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
           <div className="px-5 pt-5 pb-3 border-b border-gray-100 dark:border-gray-800">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-white/80">Contact Information</h3>
           </div>
           <div className="px-5 pb-3">
-            <InfoRow
-              label="Email Address"
-              value={data.email ?? "—"}
-              icon={
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              }
+            <InfoRow label="Full Name" value={<span className="capitalize">{fullName}</span>}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
             />
-            <InfoRow
-              label="Phone Number"
-              value={data.phone ?? "—"}
-              mono
-              icon={
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-              }
+            <InfoRow label="Email Address" value={email}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
             />
-            <InfoRow
-              label="Full Name"
-              value={<span className="capitalize">{fullName}</span>}
-              icon={
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              }
+            <InfoRow label="Phone Number" value={phone} mono
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>}
             />
           </div>
         </div>
 
-        {/* Application info */}
+        {/* Personal details from application */}
+        <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+          <div className="px-5 pt-5 pb-3 border-b border-gray-100 dark:border-gray-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-white/80">Personal Details</h3>
+          </div>
+          <div className="px-5 pb-3">
+            <InfoRow label="Date of Birth" value={dob}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+            />
+            <InfoRow label="Gender" value={gender}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
+            />
+            <InfoRow label="Blood Group" value={bloodGroup}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>}
+            />
+            <InfoRow label="Language" value={language}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>}
+            />
+            <InfoRow label="Marital Status" value={maritalStatus}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Address + Application Info ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Address */}
+        <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+          <div className="px-5 pt-5 pb-3 border-b border-gray-100 dark:border-gray-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-white/80">Address</h3>
+          </div>
+          <div className="px-5 pb-3">
+            <InfoRow label="Full Address" value={fullAddress}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
+            />
+            <InfoRow label="State" value={state}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>}
+            />
+            <InfoRow label="Pin Code" value={pinCode || "—"} mono
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>}
+            />
+          </div>
+        </div>
+
+        {/* Application */}
         <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
           <div className="px-5 pt-5 pb-3 border-b border-gray-100 dark:border-gray-800">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-white/80">Application Details</h3>
           </div>
           <div className="px-5 pb-3">
-            <InfoRow
-              label="Reference Number"
-              mono
+            <InfoRow label="Application ID" mono
               value={
                 <span className="flex items-center gap-2">
-                  {refNumber}
-                  <button
-                    onClick={copyRef}
-                    title="Copy reference number"
-                    className="text-gray-400 hover:text-brand-500 transition"
-                  >
-                    {copied ? (
-                      <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    )}
+                  #{appId}
+                  <button onClick={copyRef} title="Copy" className="text-gray-400 hover:text-brand-500 transition">
+                    {copied
+                      ? <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    }
                   </button>
                 </span>
               }
-              icon={
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                </svg>
-              }
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0" /></svg>}
             />
-            <InfoRow
-              label="Application Status"
-              value={
-                <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${statusCfg.badge}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
-                  {statusCfg.label}
-                </span>
-              }
-              icon={
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              }
+            <InfoRow label="Registration Status" value={regStatus}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>}
             />
-            <InfoRow
-              label="Application ID"
-              mono
-              value={`#${data.application_status?.id ?? "—"}`}
-              icon={
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                </svg>
-              }
+            <InfoRow label="Submitted" value={app?.is_submitted ? "Yes" : "No"}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            />
+            <InfoRow label="Member Since" value={app?.created_at ? new Date(app.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+              icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
             />
           </div>
         </div>
@@ -345,42 +288,16 @@ const UserProfile = () => {
         </div>
         <div className="px-5 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-3 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-gray-800">
           {[
-            {
-              label: "Account Active",
-              value: data.is_active,
-              yes: "Active",
-              no: "Inactive",
-              yesColor: "text-green-600",
-              noColor: "text-red-500",
-            },
-            {
-              label: "Admin Approved",
-              value: data.is_approved,
-              yes: "Approved",
-              no: "Not Yet",
-              yesColor: "text-green-600",
-              noColor: "text-yellow-500",
-            },
-            {
-              label: "Password Set",
-              value: data.has_password,
-              yes: "Configured",
-              no: "Not Set",
-              yesColor: "text-brand-500",
-              noColor: "text-red-500",
-            },
-          ].map((flag) => (
+            { label: "Account Active",  value: user?.is_active,   yes: "Active",     no: "Inactive",  yesColor: "text-green-600",  noColor: "text-red-500"    },
+            { label: "Admin Approved",  value: user?.is_approved, yes: "Approved",   no: "Not Yet",   yesColor: "text-green-600",  noColor: "text-yellow-500" },
+            { label: "Phone Verified",  value: user?.phone_verified, yes: "Verified", no: "Not Verified", yesColor: "text-brand-500", noColor: "text-red-500" },
+          ].map(flag => (
             <div key={flag.label} className="py-3 sm:px-5 first:pl-0 last:pr-0 flex items-center gap-3">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${flag.value ? "bg-green-100 dark:bg-green-900/20" : "bg-gray-100 dark:bg-gray-800"}`}>
-                {flag.value ? (
-                  <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                )}
+                {flag.value
+                  ? <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                  : <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                }
               </div>
               <div>
                 <p className="text-xs text-gray-400 dark:text-gray-500">{flag.label}</p>
