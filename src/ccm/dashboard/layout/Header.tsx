@@ -49,7 +49,7 @@ const CCMHeader: React.FC = () => {
         {/* Center: mobile logo */}
         <Link to="/ccm-dashboard/home" className="lg:hidden">
           {/* <img className="dark:hidden h-7" src={imgbright} alt="Logo" /> */}
-          <img className=" dark:block h-7 " src={imgdark} alt="Logo" />
+          <img className=" dark:block h-7 " src={imgdark} alt="Logo" /> 
         </Link>
 
         {/* Right: user dropdown — always visible, no sliding panel */}
