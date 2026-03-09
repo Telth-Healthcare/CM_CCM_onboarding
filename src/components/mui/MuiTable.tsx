@@ -1,6 +1,7 @@
 // shared/components/mui/MuiTable.tsx
 import {
   MaterialReactTable,
+  MRT_ColumnFiltersState,
   type MRT_ColumnDef,
   type MRT_PaginationState,
   type MRT_RowData,
@@ -36,6 +37,8 @@ interface CommonTableProps<T extends MRT_RowData> {
   maxHeight?: string | number;
   enableColumnFilters?: boolean;
   enableColumnFilterModes?: boolean; // Add this prop
+  columnFilters?: MRT_ColumnFiltersState;
+  onColumnFiltersChange?: OnChangeFn<MRT_ColumnFiltersState>;
 }
 
 const CommonTable = <T extends MRT_RowData>({
@@ -51,6 +54,8 @@ const CommonTable = <T extends MRT_RowData>({
   enableColumnFilterModes = false, // Default to false
   enablePinning = true,
   maxHeight,
+  columnFilters,
+  onColumnFiltersChange,
 }: CommonTableProps<T>) => {
   const { theme } = useTheme();
   const isDarkMode = theme === "dark";
@@ -64,6 +69,7 @@ const CommonTable = <T extends MRT_RowData>({
           isLoading: loading,
           pagination,
           showSkeletons: loading,
+          columnFilters: columnFilters ?? [],
         }}
         onPaginationChange={onPaginationChange}
         // Only enable one of these at a time
@@ -76,12 +82,13 @@ const CommonTable = <T extends MRT_RowData>({
         enableFullScreenToggle={false}
         localization={MRT_Localization_EN}
         paginationDisplayMode="pages"
+        onColumnFiltersChange={onColumnFiltersChange}
         initialState={{
           columnPinning: { left: ["mrt-row-actions"] },
           showColumnFilters: enableColumnFilters, // This is important!
         }}
-        defaultColumn={{ 
-          minSize: 150, 
+        defaultColumn={{
+          minSize: 150,
           size: 200,
           // Enable filtering by default for all columns
           enableColumnFilter: enableColumnFilters,

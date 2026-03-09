@@ -1,13 +1,14 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { type MRT_ColumnDef } from "material-react-table";
+import {
+  MRT_ColumnFiltersState,
+  type MRT_ColumnDef,
+} from "material-react-table";
 import { toast } from "react-toastify";
-import { ThemeProvider } from "@mui/material/styles";
 import { getApplicationsApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { EyeIcon, PencilIcon } from "../../icons";
 import CommonTable from "../mui/MuiTable";
 import { getUserRole } from "../../config/constants";
-import useMuiTheme from "../mui/muiTheme";
 import ViewEditApplication from "./ViewEditApplication";
 import ViewUserApplication from "./ViewUserApplication";
 
@@ -19,6 +20,7 @@ interface Application {
   private_notes: string;
   public_notes: string;
   reference_number: string;
+  payment_status: string;
   shg: number;
   status: string;
   updated_at: string;
@@ -32,7 +34,14 @@ interface Application {
 }
 
 const Applications = () => {
-  const muiTheme = useMuiTheme();
+  const statusOptions = [
+    { value: "submitted", label: "Submitted" },
+    { value: "under_review", label: "Under Review" },
+    { value: "assigned", label: "Assigned" },
+    { value: "training", label: "Training" },
+    { value: "production", label: "Production" },
+    { value: "rejected", label: "Rejected" },
+  ];
 
   const userRole = getUserRole("admin");
 
@@ -47,6 +56,9 @@ const Applications = () => {
     id: number;
     data: Application | null;
   } | null>(null);
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
+    [],
+  );
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -61,6 +73,7 @@ const Applications = () => {
   }, []);
 
   const fetchApplications = async () => {
+    setColumnFilters([]);
     try {
       setLoading(true);
       const response = await getApplicationsApi();
@@ -171,6 +184,8 @@ const Applications = () => {
           const value = cell.getValue<string | number | null>();
           return value ?? "-";
         },
+        filterVariant: "text",
+        enableColumnFilter: true,
       },
       {
         accessorKey: "reference_number",
@@ -180,15 +195,25 @@ const Applications = () => {
           const value = cell.getValue<string>();
           return value ?? "-";
         },
+        filterVariant: "text",
+        enableColumnFilter: true,
       },
       {
         accessorKey: "status",
         header: "Status",
         size: 120,
+        accessorFn: (row) => row.status ?? "",
         Cell: ({ cell }) => {
           const status = cell.getValue<string>() ?? "";
-          return status ?? "-";
+          const match = statusOptions.find((option) => option.value === status);
+          return match?.label ?? status ?? "-";
         },
+        filterVariant: "select",
+        filterSelectOptions: statusOptions.map((item) => ({
+          text: item.label,
+          value: item.value,
+        })),
+        enableColumnFilter: true,
       },
       {
         accessorKey: "trainer_details",
@@ -198,6 +223,8 @@ const Applications = () => {
           const value = cell.getValue<string | number | null>();
           return value ?? "-";
         },
+        filterVariant: "text",
+        enableColumnFilter: true,
       },
       {
         accessorKey: "created_at",
@@ -207,6 +234,8 @@ const Applications = () => {
           const value = cell.getValue<string>();
           return value ? new Date(value).toLocaleDateString() : "-";
         },
+        // filterVariant: "text",
+        enableColumnFilter: false,
       },
       {
         accessorKey: "financier_details",
@@ -221,10 +250,16 @@ const Applications = () => {
         accessorKey: "payment_status",
         header: "Payment Status",
         size: 120,
+        accessorFn: (row) => row.payment_status ? "pending" : "cleared",
         Cell: ({ cell }) => {
           const status = cell.getValue<string>() ?? "";
           return status ?? "-";
         },
+        filterVariant: "select",
+        filterSelectOptions: [
+          { text: "Pending", value: "pending" },
+          { text: "Cleared", value: "cleared" },
+        ],
       },
     ],
     [pagination.pageIndex, pagination.pageSize],
@@ -247,7 +282,6 @@ const Applications = () => {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
-        <ThemeProvider theme={muiTheme}>
           <CommonTable
             columns={columns}
             data={applications}
@@ -257,8 +291,9 @@ const Applications = () => {
             onPaginationChange={setPagination}
             toolbarActions={[{ label: "Refresh", onClick: fetchApplications }]}
             rowActions={rowActionsList}
+            columnFilters={columnFilters}
+            onColumnFiltersChange={setColumnFilters}
           />
-        </ThemeProvider>
       </div>
 
       {viewApplication && (

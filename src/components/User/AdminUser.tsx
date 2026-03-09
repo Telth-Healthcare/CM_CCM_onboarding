@@ -3,6 +3,7 @@ import {
   type MRT_ColumnDef,
   type MRT_Cell,
   type MRT_Row,
+  MRT_ColumnFiltersState,
 } from "material-react-table";
 import { toast } from "react-toastify";
 import PageMeta from "../common/PageMeta";
@@ -73,6 +74,9 @@ const AdminUser = () => {
   const [roles, setRoles] = useState<OptionType[]>([]);
   const [regions, setRegions] = useState<OptionType[]>([]);
   const [mnpList, setMnpList] = useState<OptionType[]>([]);
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
+    [],
+  );
 
   // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -116,9 +120,9 @@ const AdminUser = () => {
   }, [formData.role]);
 
   const showRegionFiled = useMemo(() => {
-    if(formData.role === "admin"){
+    if (formData.role === "admin") {
       return true;
-    } else if (formData.role === "trainer" || formData.role === "financier"){
+    } else if (formData.role === "trainer" || formData.role === "financier") {
       return false;
     }
     return false;
@@ -143,7 +147,7 @@ const AdminUser = () => {
   useEffect(() => {
     fetchUsers();
     fetchRoleInfo();
-    if(!isAdmin){
+    if (!isAdmin) {
       fetchRegions();
     }
   }, []);
@@ -182,6 +186,7 @@ const AdminUser = () => {
   };
 
   const fetchUsers = async () => {
+    setColumnFilters([]);
     try {
       setLoading(true);
       const response = await getAllUsers();
@@ -203,7 +208,7 @@ const AdminUser = () => {
         }
         return false;
       });
-      
+
       const formattedMnpList = adminUsers.map((user: User) => ({
         value: String(user.id),
         label:
@@ -234,8 +239,7 @@ const AdminUser = () => {
         accessorKey: "id",
         header: "S.No",
         size: 80,
-        Cell: ({ row }: { row: MRT_Row<User> }) =>
-          row.index + 1,
+        Cell: ({ row }: { row: MRT_Row<User> }) => row.index + 1,
         enableColumnFilter: false,
       },
       {
@@ -290,7 +294,7 @@ const AdminUser = () => {
           return roles[0];
         },
         filterVariant: "select",
-        filterSelectOptions: roles.map(role => ({
+        filterSelectOptions: roles.map((role) => ({
           text: role.label,
           value: role.value,
         })),
@@ -300,7 +304,7 @@ const AdminUser = () => {
         accessorKey: "is_active",
         header: "Status",
         size: 100,
-        accessorFn: (row) => row.is_active ? "active" : "inactive", // Transform for filtering
+        accessorFn: (row) => (row.is_active ? "active" : "inactive"), // Transform for filtering
         Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
           const value = cell.row.original.is_active;
           return (
@@ -318,7 +322,7 @@ const AdminUser = () => {
         filterVariant: "select",
         filterSelectOptions: [
           { text: "Active", value: "active" },
-          { text: "Inactive", value: "inactive" }
+          { text: "Inactive", value: "inactive" },
         ],
         enableColumnFilter: true,
       },
@@ -326,7 +330,7 @@ const AdminUser = () => {
         accessorKey: "is_approved",
         header: "Approval",
         size: 100,
-        accessorFn: (row) => row.is_approved ? "approved" : "pending", // Transform for filtering
+        accessorFn: (row) => (row.is_approved ? "approved" : "pending"), // Transform for filtering
         Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
           const value = cell.row.original.is_approved;
           return (
@@ -344,7 +348,7 @@ const AdminUser = () => {
         filterVariant: "select",
         filterSelectOptions: [
           { text: "Approved", value: "approved" },
-          { text: "Pending", value: "pending" }
+          { text: "Pending", value: "pending" },
         ],
         enableColumnFilter: true,
       },
@@ -519,6 +523,8 @@ const AdminUser = () => {
           enableColumnFilters={true}
           onPaginationChange={setPagination}
           toolbarActions={toolbarActions}
+          columnFilters={columnFilters} // ADD
+          onColumnFiltersChange={setColumnFilters}
         />
       </div>
 
@@ -653,7 +659,7 @@ const AdminUser = () => {
                 </div>
 
                 {/* Region Select */}
-                {(!isAdmin && showRegionFiled) && (
+                {!isAdmin && showRegionFiled && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Region <span className="text-red-500">*</span>
@@ -685,7 +691,7 @@ const AdminUser = () => {
                     )}
                   </div>
                 )}
-                
+
                 {!isAdmin && showMnpField && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -751,4 +757,4 @@ const AdminUser = () => {
   );
 };
 
-export default AdminUser; 
+export default AdminUser;
