@@ -182,8 +182,7 @@ export default function CCMOnboard() {
         }
       })
       .catch(() => {
-        localStorage.removeItem(getDraftKey())
-        toast.error('Could not restore draft. Starting fresh.')
+        toast.error('Could not restore draft. login Starting fresh.')
       })
   }, [])
 
@@ -317,11 +316,17 @@ export default function CCMOnboard() {
     try {
       const response = await submitApplicationApi(userId)
       const reference = response?.data?.reference_number ?? response?.reference_number
+
+      // Keep draft pk in localStorage — UserProfile needs it to fetch application data
+      // Also store the application id from response if available
+      const appId = response?.data?.shg ?? response?.shg
+      if (appId) localStorage.setItem(getDraftKey(), String(appId))  // ensure pk is saved
+
       if (reference) {
-        localStorage.removeItem(getDraftKey())
-        setRefNumber(reference)
+        setRefNumber(reference)       // show reference screen (pk stays — UserProfile needs it)
       } else {
         toast.success('Application submitted!')
+        console.log('before navigate pk:', localStorage.getItem(getDraftKey()))
         navigate('/ccm-dashboard')
       }
     } catch (err) {

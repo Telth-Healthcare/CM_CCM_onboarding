@@ -20,7 +20,7 @@ export default function CCMSignUpForm() {
     email:     "",
     phone:     "",
     password:  "",
-    ccm:"ccm"
+    ccm:       "ccm",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked,    setIsChecked]    = useState(false);
@@ -51,96 +51,90 @@ export default function CCMSignUpForm() {
     return valid;
   };
 
+  // Single button → validate → open modal → modal auto-sends OTP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    setOtpModalOpen(true); // formattedPhone always +91XXXXXXXXXX
+    setOtpModalOpen(true);
   };
 
-  // ── Called by OtpModal after Firebase verifies OTP ───────────────────────
-  // idToken = proof from Firebase that OTP was correct
+  // Reaches here ONLY after Firebase OTP verified inside modal
+  // Firebase errors are fully handled inside OtpModal — never reach here
   const handleFirebaseSuccess = async (idToken: string) => {
     setLoading(true);
     try {
-      const formattedPhone = `+91${state.phone.replace(/\D/g, '')}`  // always +91XXXXXXXXXX
+      const formattedPhone = `+91${state.phone.replace(/\D/g, '')}`; // always +91XXXXXXXXXX
 
-      // POST all signup data + Firebase token to backend
-
-      
       const response = await fetch(`${baseUrl}_allauth/app/v1/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           first_name: state.firstName,
           last_name:  state.lastName,
-          phone:      formattedPhone,        // +91XXXXXXXXXX
+          phone:      formattedPhone,
           email:      state.email,
           password:   state.password,
-          token:      idToken,               // ✅ Firebase JWT
-          roles:["ccm"]
+          token:      idToken,  // Firebase JWT — proof phone is verified
+          roles:      ["ccm"],
         }),
       });
 
-    if (!response.ok) {
-  const errorData = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json();
 
-  if (response.status === 401) {
-    const backendMessage =
-      errorData?.message ||
-      errorData?.errors?.[0]?.message ||
-      " Please sign in.";
+        // 401 = already registered → soft info toast + redirect
+        if (response.status === 401) {
+          const msg =
+            errorData?.message ||
+            errorData?.errors?.[0]?.message ||
+            "Account created. Please sign in.";
+          toast.info(msg);
+          setTimeout(() => navigate("/ccm-auth/signin"), 800);
+          return;
+        }
 
-    toast.success(backendMessage);
+        // All other backend errors → show raw backend message exactly
+        const backendError =
+          errorData?.message ||
+          errorData?.errors?.[0]?.message ||
+          errorData?.detail ||   // DRF default error key
+          "Signup failed. Please try again.";
 
-    setOtpModalOpen(false);
-
-    setTimeout(() => {
-      navigate("/ccm-auth/signin");
-    }, 800);
-
-    return;
-  }
-
-  throw new Error(
-    errorData?.message ||
-    errorData?.errors?.[0]?.message ||
-    "Signup failed"
-  );
-}
-
+        toast.error(backendError);
+        return;
+      }
 
       const data = await response.json();
 
-      // ── Signup response already has tokens — treat as auto-login, no re-auth needed ──
+      // Tokens come with signup → auto-login, no re-auth step needed
       setToken("ccm", {
         access:  data.meta?.access_token  ?? data.access_token,
         refresh: data.meta?.refresh_token ?? data.refresh_token,
-        user:    data.user ?? data,        // full user object for Onboard.tsx
+        user:    data.user ?? data,
       });
 
-      // Store ccm_user same as SignInForm so getDraftKey() in Onboard.tsx resolves correctly
+      // Same key as SignInForm so getDraftKey() in Onboard.tsx resolves correctly
       localStorage.setItem("ccm_user", JSON.stringify(data.user ?? data));
 
-      // If backend returns profile_id (rare on fresh signup), persist draft key
+      // Rare: profile_id on fresh signup → persist draft key
       const profileId = data.profile_id ?? null;
       if (profileId) {
         const userId = (data.user ?? data)?.id;
         if (userId) localStorage.setItem(`ccm_draft_pk_${userId}`, String(profileId));
       }
 
-      // Navigate directly — user is authenticated, no sign-in step needed
       toast.success("Account created! Let's complete your profile.");
       navigate("/ccmonboard/personal-info", { replace: true });
 
     } catch (err) {
+      // Network / unexpected JS crash — not Firebase, not backend
       const error = err as Error;
-      toast.error(error.message || "Signup failed. Please try again.");
+      toast.error(error.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Always +91 prefix — user only types 10 digits
   const formattedPhone = `+91${state.phone.replace(/\D/g, '')}`;
 
   return (
@@ -171,7 +165,7 @@ export default function CCMSignUpForm() {
 
             <div>
               <Label>Phone Number <span className="text-error-500">*</span></Label>
-              {/* +91 prefix locked — user types 10 digits only */}
+              {/* +91 locked — strips non-digits, caps at 10 */}
               <div className="flex">
                 <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-lg bg-gray-100 dark:bg-gray-800 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium select-none">
                   +91
@@ -223,10 +217,12 @@ export default function CCMSignUpForm() {
               {errors.terms && <p className="mt-1 text-xs text-red-500">{errors.terms}</p>}
             </div>
 
+            {/* One button — validates then opens OTP modal which auto-sends OTP */}
             <button type="submit" disabled={loading}
               className="w-full px-4 py-3 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 disabled:opacity-50 transition">
               {loading ? "Creating account..." : "Sign Up & Verify Phone"}
             </button>
+
           </div>
         </form>
 
@@ -241,7 +237,7 @@ export default function CCMSignUpForm() {
         onClose={() => setOtpModalOpen(false)}
         phone={formattedPhone}
         mode="signup"
-        onFirebaseSuccess={handleFirebaseSuccess}   // ✅ receives idToken after OTP verified
+        onFirebaseSuccess={handleFirebaseSuccess} // called only after Firebase OTP verified
       />
     </div>
   );

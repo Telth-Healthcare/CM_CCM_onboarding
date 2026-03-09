@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { getApplicationApi } from "../../../api/ccmonboard.api";
 
+// ── Module-level cache — survives tab switches / route changes, resets on refresh ──
+// Keyed by userId so multiple users on same browser don't share data
+const _appCache: Record<string, any> = {};
+
 // ── Get stored draft pk (application id = profile_id) ────────────────────────
 function getDraftKey() {
   try {
@@ -76,11 +80,24 @@ const UserProfile = () => {
   const [copied,  setCopied]  = useState(false);
 
   useEffect(() => {
-    const pk = localStorage.getItem(getDraftKey());
-    if (!pk) { setLoading(false); return; }
+    const draftKey = getDraftKey();                        // e.g. "ccm_draft_pk_7"
+    const pk       = localStorage.getItem(draftKey);
 
+    if (!pk) { setLoading(false); return; }               // no application yet
+
+    // Return cached data immediately — no re-fetch on tab switch or route change
+    if (_appCache[draftKey]) {
+      setApp(_appCache[draftKey]);
+      setLoading(false);
+      return;
+    }
+
+    // First load: fetch from API and store in cache
     getApplicationApi(parseInt(pk))
-      .then(data => setApp(data))
+      .then(data => {
+        _appCache[draftKey] = data;                        // cache for this session
+        setApp(data);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
