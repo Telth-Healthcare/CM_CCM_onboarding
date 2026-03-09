@@ -5,7 +5,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { OtpModal } from "../../components/modals/OtpModal";
 import Label from "../../shared/components/form/Label";
-import InputField from "../../shared/components/form/input/InputField";
 import { setToken } from "../../config/constants";
 import { baseUrl } from "../../config/env";
 

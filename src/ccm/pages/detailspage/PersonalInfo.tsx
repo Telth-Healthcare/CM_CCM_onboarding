@@ -43,6 +43,13 @@ const BLOOD_GROUP_OPTIONS = [
   { value: 'O-',  label: 'O-' },
 ]
 
+// ── DOB bounds: age must be 18–55 ─────────────────────────────────────────────
+const today = new Date()
+const maxDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+  .toISOString().split('T')[0]  // latest allowed DOB = 18 years ago today
+const minDob = new Date(today.getFullYear() - 55, today.getMonth(), today.getDate())
+  .toISOString().split('T')[0]  // earliest allowed DOB = 55 years ago today
+
 const PersonalInfo: React.FC<StepProps> = ({ formData, updateFormData, errors }) => {
   if (!formData) return null
 
@@ -53,7 +60,7 @@ const PersonalInfo: React.FC<StepProps> = ({ formData, updateFormData, errors })
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-        {/* First Name */}
+        {/* First Name — maps to: first_name (inside user object) */}
         <div>
           <Label htmlFor="firstName">First Name <span className="text-red-500">*</span></Label>
           <Input
@@ -66,7 +73,7 @@ const PersonalInfo: React.FC<StepProps> = ({ formData, updateFormData, errors })
           />
         </div>
 
-        {/* Last Name */}
+        {/* Last Name — maps to: last_name (inside user object) */}
         <div>
           <Label htmlFor="lastName">Last Name <span className="text-red-500">*</span></Label>
           <Input
@@ -79,19 +86,21 @@ const PersonalInfo: React.FC<StepProps> = ({ formData, updateFormData, errors })
           />
         </div>
 
-        {/* Date of Birth */}
+        {/* Date of Birth — maps to: dob | min/max enforces age 18–55 in the date picker too */}
         <div>
           <Label htmlFor="dob">Date of Birth <span className="text-red-500">*</span></Label>
           <Input
             type="date" id="dob" name="dob"
             value={formData.dob}
+            min={minDob}   // oldest allowed: 55 years ago
+            max={maxDob}   // youngest allowed: 18 years ago
             onChange={e => updateFormData('dob', e.target.value)}
             error={!!errors?.dob}
             hint={errors?.dob}
           />
         </div>
 
-        {/* Language */}
+        {/* Language — maps to: language (lowercase e.g. "hindi") */}
         <div>
           <Label htmlFor="language">Language <span className="text-red-500">*</span></Label>
           <Select
@@ -104,18 +113,7 @@ const PersonalInfo: React.FC<StepProps> = ({ formData, updateFormData, errors })
           />
         </div>
 
-        {/* Marital Status */}
-        <div>
-          <Label htmlFor="maritalStatus">Marital Status</Label>
-          <Select
-            value={formData.maritalStatus}
-            onChange={val => updateFormData('maritalStatus', val)}
-            options={MARITAL_STATUS_OPTIONS}
-            placeholder="Select Marital Status"
-          />
-        </div>
-
-        {/* Gender */}
+        {/* Gender — maps to: gender (e.g. "Male") */}
         <div>
           <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
           <Select
@@ -128,7 +126,7 @@ const PersonalInfo: React.FC<StepProps> = ({ formData, updateFormData, errors })
           />
         </div>
 
-        {/* Blood Group */}
+        {/* Blood Group — maps to: blood_group (e.g. "O-") */}
         <div>
           <Label htmlFor="bloodGroup">Blood Group <span className="text-red-500">*</span></Label>
           <Select
@@ -139,6 +137,45 @@ const PersonalInfo: React.FC<StepProps> = ({ formData, updateFormData, errors })
             error={!!errors?.bloodGroup}
             hint={errors?.bloodGroup}
           />
+        </div>
+
+        {/* Marital Status — maps to: marital_status (e.g. "Divorced") | optional */}
+        <div>
+          <Label htmlFor="maritalStatus">Marital Status</Label>
+          <Select
+            value={formData.maritalStatus}
+            onChange={val => updateFormData('maritalStatus', val)}
+            options={MARITAL_STATUS_OPTIONS}
+            placeholder="Select Marital Status"
+          />
+        </div>
+
+        {/* Mobile — maps to: user.phone | pre-filled from login, read-only */}
+        <div>
+          <Label htmlFor="mobile">Mobile Number</Label>
+          <div className="flex">
+            <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-lg bg-gray-100 dark:bg-gray-800 dark:border-gray-600 text-gray-500 text-sm select-none">
+              +91
+            </span>
+            <input
+              type="tel" id="mobile" readOnly
+              value={(formData.mobile ?? '').replace('+91', '')}
+              className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-r-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-400">Registered mobile — cannot be changed</p>
+        </div>
+
+        {/* Email — maps to: user.email | pre-filled from login, disabled (Input doesn't support readOnly) */}
+        <div className="sm:col-span-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            type="email" id="email" name="email"
+            value={formData.email}
+            disabled                  // disabled = greyed out + not editable, no readOnly prop in this Input
+            onChange={() => {}}       // required by controlled input even when disabled
+          />
+          <p className="mt-1 text-xs text-gray-400">Registered email — cannot be changed</p>
         </div>
 
       </div>
