@@ -133,8 +133,9 @@ export default function CCMSignUpForm() {
       navigate("/ccmonboard/personal-info", { replace: true });
 
     } catch (err) {
-      const error = err as Error;
-      toast.error(error.message || "Signup failed. Please try again.");
+      console.log(err)
+      // const error = err as Error;
+      // toast.error( error || "Signup failed. Please try again."   );
     } finally {
       setLoading(false);
     }
