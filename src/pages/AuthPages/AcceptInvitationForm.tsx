@@ -38,10 +38,10 @@ export default function AcceptInvitationForm() {
   useEffect(() => {
     if (!inviteToken) {
       
-      localStorage.clear()
       setIsValidToken(false);
     }
-
+    
+    localStorage.clear()
     setIsValidToken(true);
   }, [inviteToken]);
 
