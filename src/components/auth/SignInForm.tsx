@@ -43,11 +43,10 @@ export default function SignInForm() {
     const newErrors: FormErrors = {};
 
     if (!state.phone) {
-      newErrors.phone = "phone number is required";
+      newErrors.phone = "Phone number is required";
+    } else if (!/^\d{10}$/.test(state.phone)) {
+      newErrors.phone = "Enter a valid 10-digit phone number";
     }
-    // else if (!validatephone(state.phone)) {
-    //   newErrors.phone = "Enter valid 10 digit phone number";
-    // }
 
     if (!state.password) {
       newErrors.password = "Password is required";
@@ -59,6 +58,11 @@ export default function SignInForm() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 10); // digits only, max 10
+    setState({ ...state, phone: value });
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -68,7 +72,12 @@ export default function SignInForm() {
       setLoading(true);
       setErrors({});
 
-      const response = await signinApi(state);
+      const payload = {
+        ...state,
+        phone: `+91${state.phone}`, // append +91 before sending
+      };
+
+      const response = await signinApi(payload);
       const accessToken = response?.meta?.access_token;
       const refreshToken = response?.meta?.refresh_token;
       const user = response?.data?.user;
@@ -92,6 +101,7 @@ export default function SignInForm() {
       setLoading(false);
     }
   };
+
   return (
     <div className="flex flex-col flex-1">
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
@@ -111,20 +121,25 @@ export default function SignInForm() {
                   <div className="text-sm text-red-500">{errors.general}</div>
                 )}
 
-                {/* phone Number */}
+                {/* Phone Number */}
                 <div>
                   <Label>
                     Phone Number <span className="text-error-500">*</span>
                   </Label>
-                  <Input
-                    type="tel"
-                    placeholder="9876543210"
-                    value={state.phone}
-                    disabled={loading}
-                    onChange={(e) =>
-                      setState({ ...state, phone: e.target.value })
-                    }
-                  />
+                  <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden dark:border-gray-700 focus-within:ring-2 focus-within:ring-blue-500">
+                    <span className="px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium border-r border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 select-none">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      placeholder="9876543210"
+                      value={state.phone}
+                      disabled={loading}
+                      onChange={handlePhoneChange}
+                      maxLength={10}
+                      className="flex-1 px-3 py-2 text-sm outline-none bg-white dark:bg-gray-900 dark:text-white"
+                    />
+                  </div>
                   {errors.phone && (
                     <p className="text-sm text-red-500 mt-1">{errors.phone}</p>
                   )}
