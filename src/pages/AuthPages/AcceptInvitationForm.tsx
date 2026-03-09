@@ -37,6 +37,7 @@ export default function AcceptInvitationForm() {
   // Validate the invitation token when the component mounts
   useEffect(() => {
     if (!inviteToken) {
+      
       localStorage.clear()
       setIsValidToken(false);
     }
