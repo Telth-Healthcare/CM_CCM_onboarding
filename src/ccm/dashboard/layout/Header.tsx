@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
 import CCMUserDropdown from "./CCMUserDropdown";
-import imgbright from '../../../assets/TELTH LOGO - Light.png'
 import imgdark from '../../../assets/TELTH LOGO.png'
 
 const CCMHeader: React.FC = () => {
