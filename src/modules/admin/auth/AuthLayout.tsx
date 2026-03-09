@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import GridShape from "../../../shared/components/common/GridShape";
-import logo from "../../../assets/images/logo.svg";
+import logo from "../../../assets/TELTH LOGO - Light.png";
 
 export default function AuthLayout({
   children,

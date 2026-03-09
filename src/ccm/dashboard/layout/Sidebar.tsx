@@ -11,7 +11,7 @@ import {
   PieChartIcon,
 } from "../../../icons";
 import { useSidebar } from "../../../context/SidebarContext";
-import logo from "../assets/TELTH LOGO.png"
+import logo from "../../../assets/TELTH LOGO.png"
 
 
 type NavItem = {

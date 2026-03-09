@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React from "react";
 
 interface Option {
   value: string;
@@ -23,24 +23,23 @@ const Select: React.FC<SelectProps> = ({
   onChange,
   className = "",
   defaultValue = "",
+  value,           // controlled value from parent (formData)
 }) => {
-  // Manage the selected value
-  const [selectedValue, setSelectedValue] = useState<string>(defaultValue);
+  // Controlled: prefer `value` prop; fall back to defaultValue for uncontrolled usage
+  const controlledValue = value !== undefined ? value : defaultValue;
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setSelectedValue(value);
-    onChange(value); // Trigger parent handler
+    onChange(e.target.value); // bubble up — parent owns the state
   };
 
   return (
     <select
       className={`h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-11 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 ${
-        selectedValue
+        controlledValue          // non-empty → use readable color
           ? "text-gray-800 dark:text-white/90"
           : "text-gray-400 dark:text-gray-400"
       } ${className}`}
-      value={selectedValue}
+      value={controlledValue}   // always reflects latest formData from parent
       onChange={handleChange}
     >
       {/* Placeholder option */}

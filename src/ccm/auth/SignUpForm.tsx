@@ -38,8 +38,8 @@ export default function CCMSignUpForm() {
     let valid = true;
     if (!state.phone.trim()) {
       newErrors.phone = "Phone number is required"; valid = false;
-    } else if (!/^\+?[1-9][\d]{8,14}$/.test(state.phone.replace(/\s/g, ""))) {
-      newErrors.phone = "Enter a valid phone number with country code (+91...)"; valid = false;
+    } else if (!/^\d{10}$/.test(state.phone.replace(/\D/g, ''))) {
+      newErrors.phone = "Enter a valid 10-digit mobile number"; valid = false;
     }
     if (!state.password) {
       newErrors.password = "Password is required"; valid = false;
@@ -54,11 +54,7 @@ export default function CCMSignUpForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    // Ensure E.164 format before passing to Firebase
-    if (!state.phone.startsWith("+")) {
-      setState(prev => ({ ...prev, phone: `+${prev.phone}` }));
-    }
-    setOtpModalOpen(true);
+    setOtpModalOpen(true); // formattedPhone always +91XXXXXXXXXX
   };
 
   // ── Called by OtpModal after Firebase verifies OTP ───────────────────────
@@ -66,7 +62,7 @@ export default function CCMSignUpForm() {
   const handleFirebaseSuccess = async (idToken: string) => {
     setLoading(true);
     try {
-      const formattedPhone = state.phone.startsWith("+") ? state.phone : `+${state.phone}`;
+      const formattedPhone = `+91${state.phone.replace(/\D/g, '')}`  // always +91XXXXXXXXXX
 
       // POST all signup data + Firebase token to backend
 
@@ -92,9 +88,9 @@ export default function CCMSignUpForm() {
     const backendMessage =
       errorData?.message ||
       errorData?.errors?.[0]?.message ||
-      "Unauthorized. Please sign in.";
+      " Please sign in.";
 
-    toast.error(backendMessage);
+    toast.success(backendMessage);
 
     setOtpModalOpen(false);
 
@@ -115,15 +111,26 @@ export default function CCMSignUpForm() {
 
       const data = await response.json();
 
-      // Save tokens
-      setToken("ccm",{
-        access:    data.meta?.access_token ?? data.access_token,
-        refresh:   data.meta?.refresh_token ?? data.refresh_token,
-        user:      data.user,
+      // ── Signup response already has tokens — treat as auto-login, no re-auth needed ──
+      setToken("ccm", {
+        access:  data.meta?.access_token  ?? data.access_token,
+        refresh: data.meta?.refresh_token ?? data.refresh_token,
+        user:    data.user ?? data,        // full user object for Onboard.tsx
       });
 
-      toast.success("Account created! Starting onboarding...");
-      setTimeout(() => navigate("/ccmonboard"), 500);
+      // Store ccm_user same as SignInForm so getDraftKey() in Onboard.tsx resolves correctly
+      localStorage.setItem("ccm_user", JSON.stringify(data.user ?? data));
+
+      // If backend returns profile_id (rare on fresh signup), persist draft key
+      const profileId = data.profile_id ?? null;
+      if (profileId) {
+        const userId = (data.user ?? data)?.id;
+        if (userId) localStorage.setItem(`ccm_draft_pk_${userId}`, String(profileId));
+      }
+
+      // Navigate directly — user is authenticated, no sign-in step needed
+      toast.success("Account created! Let's complete your profile.");
+      navigate("/ccmonboard/personal-info", { replace: true });
 
     } catch (err) {
       const error = err as Error;
@@ -133,7 +140,8 @@ export default function CCMSignUpForm() {
     }
   };
 
-  const formattedPhone = state.phone.startsWith("+") ? state.phone : `+${state.phone}`;
+  // Always +91 prefix — user only types 10 digits
+  const formattedPhone = `+91${state.phone.replace(/\D/g, '')}`;
 
   return (
     <div className="flex flex-col flex-1 w-full overflow-y-auto lg:w-1/2 no-scrollbar">
@@ -163,8 +171,21 @@ export default function CCMSignUpForm() {
 
             <div>
               <Label>Phone Number <span className="text-error-500">*</span></Label>
-              <InputField type="tel" placeholder="+91 9876543210" inputMode="tel" value={state.phone}
-                onChange={e => handleChange("phone", e.target.value.replace(/[^0-9+]/g, ""))} />
+              {/* +91 prefix locked — user types 10 digits only */}
+              <div className="flex">
+                <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-lg bg-gray-100 dark:bg-gray-800 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium select-none">
+                  +91
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="Enter 10-digit mobile number"
+                  value={state.phone}
+                  onChange={e => handleChange("phone", e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  maxLength={10}
+                  className={`flex-1 px-4 py-2.5 text-sm border rounded-r-lg outline-none transition-colors bg-white dark:bg-gray-900 text-gray-800 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 ${errors.phone ? 'border-error-500' : 'border-gray-300 dark:border-gray-600'}`}
+                />
+              </div>
               {errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
             </div>
 

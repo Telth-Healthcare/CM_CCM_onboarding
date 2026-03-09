@@ -6,7 +6,6 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { toast } from 'react-toastify'
 
 import PersonalInfo       from './detailspage/PersonalInfo'
-import ContactInfo        from './detailspage/ContactInfo'
 import AddressInfo        from './detailspage/AddressInfo'
 import PersonalDocuments  from './detailspage/PersonalDocuments'
 import EducationDocuments from './detailspage/EducationDocuments'
@@ -24,11 +23,11 @@ import { handleAxiosError } from '../../utils/handleAxiosError'
 // ── Steps — id matches URL segment ───────────────────────────────────────────
 const STEPS = [
   { id: 'personal-info',       name: 'Personal Info',  icon: '👤', step: 1 },
-  { id: 'contact-info',        name: 'Contact Info',   icon: '📞', step: 2 },
-  { id: 'address-info',        name: 'Address',        icon: '🏠', step: 3 },
-  { id: 'personal-documents',  name: 'ID Documents',   icon: '🪪', step: 4 },
-  { id: 'education-documents', name: 'Education',      icon: '🎓', step: 5 },
-  { id: 'preview',             name: 'Preview',        icon: '👁️', step: 6 },
+  // { id: 'contact-info',     name: 'Contact Info',   icon: '📞', step: 2 }, // removed — contact captured at signup
+  { id: 'address-info',        name: 'Address',        icon: '🏠', step: 2 },
+  { id: 'personal-documents',  name: 'ID Documents',   icon: '🪪', step: 3 },
+  { id: 'education-documents', name: 'Education',      icon: '🎓', step: 4 },
+  { id: 'preview',             name: 'Preview',        icon: '👁️', step: 5 },
 ]
 
 // Per-user draft key — prevents two users on same browser from conflicting
@@ -45,6 +44,8 @@ const INITIAL_FORM: CCMFormData = {
   mobile:           '+91', email: '',
   addressLine1:     '', addressLine2: '', city: '', state: '', zipcode: '', country: 'IN',
   aadharFront:     null, aadharBack: null, pan: null,
+  aadharFrontUrl:  null, aadharBackUrl: null, panUrl: null,
+  bachelorDocUrl:  null, masterDocUrl: null, experienceCertDocUrl: null,
   bachelorDegreeType: '', bachelorDoc: null,
   masterDegreeType:   '', masterDoc: null,
   experienceCertType: '', experienceCertDoc: null,
@@ -55,29 +56,35 @@ const validate = (stepId: string, data: CCMFormData) => {
   if (stepId === 'personal-info') {
     if (!data.firstName.trim())  errs.firstName   = 'First name required'
     if (!data.lastName.trim())   errs.lastName    = 'Last name required'
-    if (!data.dob)               errs.dob         = 'Date of birth required'
+    if (!data.dob) {
+      errs.dob = 'Date of birth required'
+    } else {
+      const today = new Date()
+      const birth = new Date(data.dob)
+      let age = today.getFullYear() - birth.getFullYear()
+      const monthDiff = today.getMonth() - birth.getMonth()
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--
+      if (age < 18) errs.dob = 'Must be at least 18 years old'
+      else if (age > 55) errs.dob = 'Must be 55 years old or younger'
+    }
     if (!data.language)          errs.language    = 'Language required'
     if (!data.gender)            errs.gender      = 'Gender required'
     if (!data.bloodGroup)        errs.bloodGroup  = 'Blood group required'
   }
-  if (stepId === 'contact-info') {
-    const digits = (data.mobile || '').replace('+91', '').replace(/\D/g, '')
-    if (!/^\d{10}$/.test(digits))                                errs.mobile = 'Enter valid 10-digit mobile'
-    if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) errs.email  = 'Enter valid email'
-  }
+  // contact-info step removed — mobile & email captured at signup
   if (stepId === 'address-info') {
     if (!data.city.trim())                errs.city    = 'City required'
     if (!data.state)                      errs.state   = 'State required'
     if (!/^\d{4,10}$/.test(data.zipcode)) errs.zipcode = 'Enter valid zipcode'
   }
   if (stepId === 'personal-documents') {
-    if (!data.aadharFront) errs.aadharFront = 'Aadhar front required'
-    if (!data.aadharBack)  errs.aadharBack  = 'Aadhar back required'
-    if (!data.pan)          errs.pan          = 'PAN card required'
+    if (!data.aadharFront && !data.aadharFrontUrl) errs.aadharFront = 'Aadhar front required'   // pass if URL exists (already uploaded)
+    if (!data.aadharBack  && !data.aadharBackUrl)  errs.aadharBack  = 'Aadhar back required'
+    if (!data.pan         && !data.panUrl)         errs.pan         = 'PAN card required'
   }
   if (stepId === 'education-documents') {
-    if (!data.bachelorDegreeType) errs.bachelorDegreeType = "Select bachelor's degree"
-    if (!data.bachelorDoc)        errs.bachelorDoc        = "Bachelor's document required"
+    if (!data.bachelorDegreeType && !data.bachelorDocUrl) errs.bachelorDegreeType = "Select bachelor's degree"  // skip if doc already uploaded
+    if (!data.bachelorDoc && !data.bachelorDocUrl) errs.bachelorDoc = "Bachelor's document required"  // pass if URL exists
   }
   return errs
 }
@@ -86,7 +93,6 @@ export default function CCMOnboard() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // ── Derive current step from URL ──────────────────────────────────────────
   const currentId    = location.pathname.split('/').pop() ?? 'personal-info'
   const currentIndex = Math.max(STEPS.findIndex(s => s.id === currentId), 0)
   const isFirst      = currentIndex === 0
@@ -95,7 +101,7 @@ export default function CCMOnboard() {
   const [formData,  setFormData]  = useState<CCMFormData>(INITIAL_FORM)
   const [errors,    setErrors]    = useState<Partial<Record<keyof CCMFormData, string>>>({})
   const [saving,    setSaving]    = useState(false)
-  const [appId,     setAppId]     = useState<number | null>(null)  // pk from backend
+  const [appId,     setAppId]     = useState<number | null>(null)
   const [refNumber, setRefNumber] = useState('')
 
   const updateFormData = useCallback((field: keyof CCMFormData, value: any) => {
@@ -105,10 +111,9 @@ export default function CCMOnboard() {
 
   useEffect(() => {
     const ccmUser     = JSON.parse(localStorage.getItem('ccm_user') || 'null')
-    const currentUser = ccmUser?.user ?? ccmUser   // inner user object (id:7)
+    const currentUser = ccmUser?.user ?? ccmUser
 
-    // ── Step 1: Pre-fill from signup/login user data (id:7) ─────────────────
-    // These fields are always available from the login response
+    // Pre-fill from login/signup user object
     if (currentUser) {
       setFormData(prev => ({
         ...prev,
@@ -119,15 +124,11 @@ export default function CCMOnboard() {
       }))
     }
 
-    // ── Step 2: Check if CCM application exists (id:3 = profile_id) ─────────
-    // SignInForm stores profile_id into draftKey immediately on login.
-    // If it's there → application exists → fetch full data + skip step 1.
-    // If not → brand new user, no application yet → stay on step 1.
     const savedPk = localStorage.getItem(getDraftKey())
-    if (!savedPk) return   // no application yet — show step 1 normally
+    if (!savedPk) return
 
     const pk = parseInt(savedPk)
-    setAppId(pk)   // sync React state so submit button works
+    setAppId(pk)
 
     getApplicationApi(pk)
       .then(data => {
@@ -137,12 +138,16 @@ export default function CCMOnboard() {
           return
         }
 
-        // Fill all form fields from the fetched application
+        // ── Map API response → formData ───────────────────────────────────
+        // Parse documents array into lookup: { aadhar_front: '/path/...', pan: '/path/...' }
+        const docs: Record<string, string> = {}
+        data.documents?.forEach((d: any) => { docs[d.document_type] = d.file })
+
         setFormData(prev => ({
           ...prev,
-          firstName:     data.first_name      ?? prev.firstName,
-          lastName:      data.last_name       ?? prev.lastName,
-          dob:           data.dob             ?? prev.dob,
+          firstName:     data.user?.first_name   ?? prev.firstName,       // nested in user
+          lastName:      data.user?.last_name    ?? prev.lastName,        // nested in user
+          dob:           data.dob                ?? prev.dob,
           gender:        ['Male','Female','Other','Prefer_not_say'].find(
                            v => v.toLowerCase() === (data.gender ?? '').toLowerCase()
                          ) ?? prev.gender,
@@ -155,29 +160,33 @@ export default function CCMOnboard() {
           maritalStatus: ['Single','Married','Divorced','Widowed'].find(
                            v => v.toLowerCase() === (data.marital_status ?? '').toLowerCase()
                          ) ?? prev.maritalStatus,
-          mobile:        data.mobile          ?? prev.mobile,
-          email:         data.email           ?? prev.email,
-          addressLine1:  data.address_line_1  ?? prev.addressLine1,
-          addressLine2:  data.address_line_2  ?? prev.addressLine2,
-          city:          data.district        ?? prev.city,
-          state:         data.state           ?? prev.state,
-          zipcode:       data.pin_code        ?? prev.zipcode,
-          country:       data.country        ?? prev.country,
+          mobile:        data.user?.phone        ?? prev.mobile,          // nested in user, key = phone
+          email:         data.user?.email        ?? prev.email,           // nested in user
+          addressLine1:  data.address_line_1     ?? prev.addressLine1,    // underscore before 1
+          addressLine2:  data.address_line_2     ?? prev.addressLine2,    // underscore before 2
+          city:          data.district           ?? prev.city,            // backend = district
+          state:         data.state              ?? prev.state,
+          zipcode:       data.pin_code           ?? prev.zipcode,         // backend = pin_code
+          country:       data.country            ?? prev.country,
+          // ── Document URLs from backend ─────────────────────────────────
+          aadharFrontUrl:       docs['aadhar_front']           ?? prev.aadharFrontUrl,
+          aadharBackUrl:        docs['aadhar_back']            ?? prev.aadharBackUrl,
+          panUrl:               docs['pan']                    ?? prev.panUrl,
+          bachelorDocUrl:       docs['bachelor_certificate']   ?? prev.bachelorDocUrl,
+          masterDocUrl:         docs['master_certificate']     ?? prev.masterDocUrl,
+          experienceCertDocUrl: docs['experience_certificate'] ?? prev.experienceCertDocUrl,
         }))
 
-        // Application already exists → step 1 is done → skip to step 2
         if (currentId === 'personal-info') {
-          navigate('/ccmonboard/contact-info', { replace: true })
+          navigate('/ccmonboard/address-info', { replace: true })
         }
       })
       .catch(() => {
-        // profile_id was stale/invalid — clear it so next visit starts fresh
         localStorage.removeItem(getDraftKey())
         toast.error('Could not restore draft. Starting fresh.')
       })
-  }, [])  // runs once on mount
+  }, [])
 
-  // ── Save: POST first time, PATCH after ────────────────────────────────────
   const saveProgress = async (data: CCMFormData): Promise<number | null> => {
     const { aadharFront, aadharBack, pan, bachelorDoc, masterDoc, experienceCertDoc, id, ...rest } = data
 
@@ -194,16 +203,15 @@ export default function CCMOnboard() {
       marital_status: rest.maritalStatus,
       mobile:         rest.mobile,
       email:          rest.email,
-      address_line1:  rest.addressLine1,
-      address_line2:  rest.addressLine2,
-      city:           rest.city,
+      address_line_1: rest.addressLine1,   // underscore before 1
+      address_line_2: rest.addressLine2,   // underscore before 2
+      district:       rest.city,           // backend expects district
       state:          rest.state,
-      zipcode:        rest.zipcode,
+      pin_code:       rest.zipcode,        // backend expects pin_code
       country:        rest.country,
-      user:           currentUser?.id,   // required by backend
+      user:           currentUser?.id,
     }
 
-    // Strip empty values but always keep `user`
     Object.keys(cleanPayload).forEach(k => {
       const val = cleanPayload[k]
       if (k !== 'user' && (val === undefined || val === null || val === '')) {
@@ -213,23 +221,18 @@ export default function CCMOnboard() {
 
     setSaving(true)
     try {
-      // ── BUG 2 FIX: read draft from localStorage, not React state ──────────
-      // appId state can be null when user skipped step 1 (state never got set),
-      // but localStorage is written before navigate — always reliable.
       const existingPkStr = localStorage.getItem(getDraftKey())
       const existingPk    = existingPkStr ? parseInt(existingPkStr) : null
 
       if (!existingPk) {
-        // No draft anywhere → first ever save → POST
         const res = await createApplicationApi(cleanPayload)
         const pk: number = res.id ?? res.pk
         setAppId(pk)
-        localStorage.setItem(getDraftKey(), String(pk))  // write BEFORE navigate
+        localStorage.setItem(getDraftKey(), String(pk))
         return pk
       } else {
-        // Draft exists → always PATCH regardless of which step we're on
         await updateApplicationApi(existingPk, cleanPayload)
-        setAppId(existingPk)   // sync React state in case skip caused it to lag
+        setAppId(existingPk)
         return existingPk
       }
     } catch (err: any) {
@@ -245,7 +248,6 @@ export default function CCMOnboard() {
     }
   }
 
-  // ── Upload documents for current step ─────────────────────────────────────
   const uploadDocuments = async (pk: number) => {
     const uploads: { file: File; type: string }[] = []
 
@@ -270,7 +272,6 @@ export default function CCMOnboard() {
     }
   }
 
-  // ── Next: validate → save → navigate ──────────────────────────────────────
   const handleNext = async () => {
     const errs = validate(currentId, formData)
     if (Object.keys(errs).length) { setErrors(errs); return }
@@ -280,69 +281,58 @@ export default function CCMOnboard() {
     if (pk === null) return
 
     const docsOk = await uploadDocuments(pk)
-    if (!docsOk) return   // stay on step if upload failed
+    if (!docsOk) return
 
     navigate(`/ccmonboard/${STEPS[currentIndex + 1].id}`)
   }
 
-  // ── Skip: navigate to next step without validating ───────────────────────
-  // Steps 2-5: pk already in localStorage from step 1 — just navigate.
-  // Step 1 special case:
-  //   - If appId is set (login response had application_status.id) → app exists → just navigate
-  //   - If no pk anywhere → brand new user → silently POST to create pk first
   const handleSkip = async () => {
     if (isPreview) return
 
     if (isFirst) {
       const existingPkStr = localStorage.getItem(getDraftKey())
-      const hasPk = existingPkStr || appId   // appId set by useEffect from login response
+      const hasPk = existingPkStr || appId
 
       if (!hasPk) {
-        // Brand new user — no application exists yet → silently POST to create one
         const pk = await saveProgress(formData)
-        if (pk === null) return   // POST failed — block navigation
+        if (pk === null) return
       }
-      // hasPk → application already exists → skip safely, next step will PATCH
     }
 
     navigate(`/ccmonboard/${STEPS[currentIndex + 1].id}`)
   }
 
-  // ── Prev: just go back in URL ──────────────────────────────────────────────
   const handlePrev = () => {
     if (!isFirst) navigate(`/ccmonboard/${STEPS[currentIndex - 1].id}`)
   }
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
- const handleSubmit = async () => {
-  // Get user id from localStorage
-  const ccmUser     = JSON.parse(localStorage.getItem('ccm_user') || 'null')
-  const currentUser = ccmUser?.user ?? ccmUser
-  const userId      = currentUser?.id
+  const handleSubmit = async () => {
+    const ccmUser     = JSON.parse(localStorage.getItem('ccm_user') || 'null')
+    const currentUser = ccmUser?.user ?? ccmUser
+    const userId      = currentUser?.id
 
-  if (!userId) { toast.error('User not found. Please sign in again.'); return }
+    if (!userId) { toast.error('User not found. Please sign in again.'); return }
 
-  setSaving(true)
-  try {
-    const response = await submitApplicationApi(userId)          // pass userId, not pk
-    const reference = response?.data?.reference_number ?? response?.reference_number
-    if (reference) {
-      localStorage.removeItem(getDraftKey())                     // clear draft
-      setRefNumber(reference)
-    } else {
-      toast.success('Application submitted!')
-      navigate('/ccm-dashboard')
+    setSaving(true)
+    try {
+      const response = await submitApplicationApi(userId)
+      const reference = response?.data?.reference_number ?? response?.reference_number
+      if (reference) {
+        localStorage.removeItem(getDraftKey())
+        setRefNumber(reference)
+      } else {
+        toast.success('Application submitted!')
+        navigate('/ccm-dashboard')
+      }
+    } catch (err) {
+      toast.error(handleAxiosError(err))
+    } finally {
+      setSaving(false)
     }
-  } catch (err) {
-    toast.error(handleAxiosError(err))
-  } finally {
-    setSaving(false)
   }
-}
 
   const stepProps = { formData, updateFormData, errors }
 
-  // ── Success screen ─────────────────────────────────────────────────────────
   if (refNumber) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-6">
@@ -367,11 +357,8 @@ export default function CCMOnboard() {
     )
   }
 
-  // ── Main layout ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
-
-      {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm">
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -395,7 +382,6 @@ export default function CCMOnboard() {
           </div>
         </div>
 
-        {/* Step progress bar */}
         <div className="max-w-4xl mx-auto px-6 pb-4">
           <div className="flex items-start relative">
             <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 dark:bg-gray-700" />
@@ -431,13 +417,12 @@ export default function CCMOnboard() {
         </div>
       </header>
 
-      {/* Step content */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 sm:p-8">
           <Routes>
             <Route index element={<Navigate to="personal-info" replace />} />
             <Route path="personal-info"       element={<PersonalInfo       {...stepProps} />} />
-            <Route path="contact-info"        element={<ContactInfo        {...stepProps} />} />
+            {/* <Route path="contact-info"     element={<ContactInfo        {...stepProps} />} /> */}
             <Route path="address-info"        element={<AddressInfo        {...stepProps} />} />
             <Route path="personal-documents"  element={<PersonalDocuments  {...stepProps} />} />
             <Route path="education-documents" element={<EducationDocuments {...stepProps} />} />
@@ -446,7 +431,6 @@ export default function CCMOnboard() {
         </div>
       </main>
 
-      {/* Footer nav */}
       <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 z-30">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <span className="text-xs text-gray-400 hidden sm:block">
@@ -463,14 +447,11 @@ export default function CCMOnboard() {
               Previous
             </button>
 
-            {/* Skip — shown on all steps except preview */}
             {!isPreview && (
-              <button
-                onClick={handleSkip}
+              <button onClick={handleSkip}
                 className="px-5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600
                   text-sm font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900
-                  hover:bg-gray-50 transition-colors"
-              >
+                  hover:bg-gray-50 transition-colors">
                 Skip
               </button>
             )}

@@ -20,8 +20,8 @@ export default function CCMSignInForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone.trim()) { setPhoneError("Phone number is required"); return; }
-    const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
-    setPhone(formattedPhone);
+    const digits = phone.replace(/\D/g, '')
+    if (!/^\d{10}$/.test(digits)) { setPhoneError("Enter valid 10-digit mobile number"); return; }
     setPhoneError("");
     setOtpModalOpen(true);
   };
@@ -45,25 +45,24 @@ export default function CCMSignInForm() {
 
       const data = await response.json();
 
-      const user    = data.user;
-      const roles   = Array.isArray(user?.user?.roles) ? user.user.roles : [];
+      // FIX: response is now flat — user fields live directly on `data` (no data.user nesting)
+      const user  = data;
+      const roles = Array.isArray(data.roles) ? data.roles : []; // was: data.user.user.roles
 
       // role: ["admin"] → admin login, else → ccm login
       const isAdmin = roles.includes("admin");
       const type    = isAdmin ? "admin" : "ccm";
 
       setToken(type, {
-        access:    data.meta?.access_token  ?? data.access_token,
-        refresh:   data.meta?.refresh_token ?? data.refresh_token,
+        access:  data.meta?.access_token  ?? data.access_token,  // supports both old & new shape
+        refresh: data.meta?.refresh_token ?? data.refresh_token,
         user,
       });
 
-      // profile_id is the CCM application id (id:3) returned by login response
-      // Store it immediately so Onboard.tsx can fetch the application on page load
-      const profileId = user?.profile_id ?? null;
+      // profile_id: CCM application id — store so Onboard.tsx can resume from step 2
+      const profileId = data.profile_id ?? null; // was: user?.profile_id (nested)
       if (profileId) {
-        const ccmInnerUser = user?.user ?? user;
-        const draftKey = `ccm_draft_pk_${ccmInnerUser?.id}`;
+        const draftKey = `ccm_draft_pk_${data.id}`; // data.id directly, no inner user object
         localStorage.setItem(draftKey, String(profileId));
       }
 
@@ -72,14 +71,14 @@ export default function CCMSignInForm() {
       if (isAdmin) {
         navigate("/dashboard", { replace: true });
       } else {
-        const appStatus = user?.application_status?.status;
+        const appStatus = data.application_status?.status; // was: user?.application_status
         if (appStatus === "SUBMITTED") {
           navigate("/ccm-dashboard", { replace: true });
         } else if (profileId) {
-          // profile_id exists → step 1 already done → go straight to step 2
+          // profile_id exists → step 1 done → skip to step 2
           navigate("/ccmonboard/contact-info", { replace: true });
         } else {
-          // no application yet → show step 1
+          // no application yet → start from step 1
           navigate("/ccmonboard/personal-info", { replace: true });
         }
       }
@@ -92,7 +91,8 @@ export default function CCMSignInForm() {
     }
   };
 
-  const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
+  // Always build E.164 format: +91 + 10 digits
+  const formattedPhone = `+91${phone}`;
 
   return (
     <div className="flex flex-col flex-1 w-full overflow-y-auto lg:w-1/2 no-scrollbar">
@@ -110,9 +110,22 @@ export default function CCMSignInForm() {
           <div className="space-y-6">
             <div>
               <Label>Phone Number <span className="text-error-500">*</span></Label>
-              <InputField type="tel" inputMode="numeric" placeholder="+91 9876543210" value={phone}
-                onChange={e => { setPhone(e.target.value.replace(/[^0-9+]/g, "")); setPhoneError(""); }}
-                disabled={loading} />
+              {/* +91 prefix always prepended — user types 10 digits only */}
+              <div className="flex">
+                <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-lg bg-gray-100 dark:bg-gray-800 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-sm font-medium select-none">
+                  +91
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="Enter 10-digit mobile number"
+                  value={phone}
+                  onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setPhoneError(""); }}
+                  disabled={loading}
+                  maxLength={10}
+                  className={`flex-1 px-4 py-2.5 text-sm border rounded-r-lg outline-none transition-colors bg-white dark:bg-gray-900 text-gray-800 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 ${phoneError ? 'border-error-500' : 'border-gray-300 dark:border-gray-600'}`}
+                />
+              </div>
               {phoneError && <p className="mt-1 text-xs text-error-500">{phoneError}</p>}
             </div>
 

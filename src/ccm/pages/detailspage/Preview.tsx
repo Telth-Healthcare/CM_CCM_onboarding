@@ -58,16 +58,29 @@ const Preview: React.FC<StepProps> = ({ formData }) => {
 
       {/* Step 4 */}
       <Section title="Personal Identification Documents">
-        <Row label="aadhar Front" value={formData.aadharFront ? formData.aadharFront.name : 'Not uploaded'} />
-        <Row label="aadhar Back"  value={formData.aadharBack  ? formData.aadharBack.name  : 'Not uploaded'} />
-        <Row label="PAN Card"      value={formData.pan          ? formData.pan.name          : 'Not uploaded'} />
+        {/* docVal: new File → show file.name, existing URL → show filename from path, else → Not uploaded */}
+        <Row label="Aadhar Front" value={formData.aadharFront ? formData.aadharFront.name : formData.aadharFrontUrl ? formData.aadharFrontUrl.split('/').pop()! : 'Not uploaded'} />
+        <Row label="Aadhar Back"  value={formData.aadharBack  ? formData.aadharBack.name  : formData.aadharBackUrl  ? formData.aadharBackUrl.split('/').pop()!  : 'Not uploaded'} />
+        <Row label="PAN Card"     value={formData.pan         ? formData.pan.name         : formData.panUrl         ? formData.panUrl.split('/').pop()!         : 'Not uploaded'} />
       </Section>
 
       {/* Step 5 */}
       <Section title="Education Documents">
-        <Row label="Bachelor's Degree" value={formData.bachelorDegreeType ? `${formData.bachelorDegreeType.toUpperCase()} — ${formData.bachelorDoc ? formData.bachelorDoc.name : 'Not uploaded'}` : 'Not provided'} />
-        <Row label="Master's Degree"   value={formData.masterDegreeType   ? `${formData.masterDegreeType.toUpperCase()} — ${formData.masterDoc ? formData.masterDoc.name : 'Not uploaded'}` : 'Not provided'} />
-        <Row label="Experience Cert"   value={formData.experienceCertType ? `${formData.experienceCertType} — ${formData.experienceCertDoc ? formData.experienceCertDoc.name : 'Not uploaded'}` : 'Not provided'} />
+        <Row label="Bachelor's Degree" value={
+          formData.bachelorDegreeType
+            ? `${formData.bachelorDegreeType.toUpperCase()} — ${formData.bachelorDoc ? formData.bachelorDoc.name : formData.bachelorDocUrl ? formData.bachelorDocUrl.split('/').pop() : 'Not uploaded'}`
+            : 'Not provided'
+        } />
+        <Row label="Master's Degree" value={
+          formData.masterDegreeType
+            ? `${formData.masterDegreeType.toUpperCase()} — ${formData.masterDoc ? formData.masterDoc.name : formData.masterDocUrl ? formData.masterDocUrl.split('/').pop() : 'Not uploaded'}`
+            : 'Not provided'
+        } />
+        <Row label="Experience Cert" value={
+          formData.experienceCertType
+            ? `${formData.experienceCertType} — ${formData.experienceCertDoc ? formData.experienceCertDoc.name : formData.experienceCertDocUrl ? formData.experienceCertDocUrl.split('/').pop() : 'Not uploaded'}`
+            : 'Not provided'
+        } />
       </Section>
 
       <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 dark:bg-amber-900/20 dark:border-amber-800">
