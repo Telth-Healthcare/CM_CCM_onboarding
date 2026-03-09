@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useSidebar } from "../../../context/SidebarContext";
 import CCMUserDropdown from "./CCMUserDropdown";
+import imgdark from '../../../assets/TELTH LOGO.png'
 
 const CCMHeader: React.FC = () => {
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
@@ -46,8 +47,8 @@ const CCMHeader: React.FC = () => {
 
         {/* Center: mobile logo */}
         <Link to="/ccm-dashboard/home" className="lg:hidden">
-          <img className="dark:hidden h-7" src="/images/logo/logo.svg" alt="Logo" />
-          <img className="hidden dark:block h-7" src="/images/logo/logo-dark.svg" alt="Logo" />
+          {/* <img className="dark:hidden h-7" src={imgbright} alt="Logo" /> */}
+          <img className=" dark:block h-7 " src={imgdark} alt="Logo" /> 
         </Link>
 
         {/* Right: user dropdown — always visible, no sliding panel */}

@@ -59,7 +59,8 @@ export function OtpModal({ isOpen, onClose, phone, onFirebaseSuccess }: OtpModal
       toast.success("OTP sent to " + phone);
     } catch (err) {
       const error = err as Error;
-      toast.error("Failed to send OTP: " + error.message);
+      console.log(error.message)
+      toast.error("Failed to send OTP: ");
       window.recaptchaVerifier?.clear?.();
       (window.recaptchaVerifier as any) = undefined;
     } finally {
