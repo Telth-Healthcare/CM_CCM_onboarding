@@ -58,6 +58,70 @@ export default function CCMSignUpForm() {
     setOtpModalOpen(true);
   };
 
+  // Called internally after signup succeeds — mirrors SignInForm.handleFirebaseSuccess exactly.
+  // Uses the same idToken from OTP modal (still fresh), hits the same signin endpoint.
+  // User never sees the login page.
+  const handleSigninAfterSignup = async (idToken: string) => {
+    const formattedPhone = `+91${state.phone.replace(/\D/g, '')}`;
+
+    const response = await fetch(`${baseUrl}accounts/firebase/login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token:          idToken,          // same Firebase token from OTP modal
+        phone_verified: formattedPhone,   // E.164 — same as SignInForm sends
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const backendError =
+        errorData?.message ||
+        errorData?.errors?.[0]?.message ||
+        errorData?.detail ||
+        "Auto sign-in failed. Please sign in manually.";
+      toast.error(backendError);
+      navigate("/ccm-auth/signin");       // fallback — let user sign in manually
+      return;
+    }
+
+    const data = await response.json();  // shape: { meta: { access_token, refresh_token }, data: { user } }
+
+    const user    = data?.data?.user;
+    const roles   = user?.roles ?? [];
+    const isAdmin = roles.includes("admin");
+    const type    = isAdmin ? "admin" : "ccm";
+
+    setToken(type, {
+      access:  data.meta?.access_token,
+      refresh: data.meta?.refresh_token,
+      user:    data.data,                // { user: {...} } — same shape SignInForm stores
+    });
+
+    localStorage.setItem("ccm_user", JSON.stringify(data.data)); // Onboard.tsx reads this
+
+    const profileId = user?.profile_id ?? null;
+    if (profileId && user?.id) {
+      localStorage.setItem(`ccm_draft_pk_${user.id}`, String(profileId)); // resume draft if exists
+    }
+
+    toast.success("Account created! Let's complete your profile.");
+
+    // Same navigation logic as SignInForm.handleLoginSuccess for ccm users
+    if (isAdmin) {
+      navigate("/dashboard", { replace: true });
+    } else {
+      const appStatus = user?.application_status?.status;
+      if (appStatus === "SUBMITTED") {
+        navigate("/ccm-dashboard",           { replace: true });
+      } else if (profileId) {
+        navigate("/ccmonboard/contact-info", { replace: true });
+      } else {
+        navigate("/ccmonboard/personal-info",{ replace: true });
+      }
+    }
+  };
+
   // Reaches here ONLY after Firebase OTP verified inside modal
   // Firebase errors are fully handled inside OtpModal — never reach here
   const handleFirebaseSuccess = async (idToken: string) => {
@@ -82,14 +146,10 @@ export default function CCMSignUpForm() {
       if (!response.ok) {
         const errorData = await response.json();
 
-        // 401 = already registered → soft info toast + redirect
+        // 401 = user just created — this is the success signal from backend
+        // Skip the login page entirely; signin internally with the same idToken
         if (response.status === 401) {
-          const msg =
-            errorData?.message ||
-            errorData?.errors?.[0]?.message ||
-            "Account created. Please sign in.";
-          toast.info(msg);
-          setTimeout(() => navigate("/ccm-auth/signin"), 800);
+          await handleSigninAfterSignup(idToken);
           return;
         }
 
@@ -104,27 +164,10 @@ export default function CCMSignUpForm() {
         return;
       }
 
-      const data = await response.json();
-
-      // Tokens come with signup → auto-login, no re-auth step needed
-      setToken("ccm", {
-        access:  data.meta?.access_token  ?? data.access_token,
-        refresh: data.meta?.refresh_token ?? data.refresh_token,
-        user:    data.user ?? data,
-      });
-
-      // Same key as SignInForm so getDraftKey() in Onboard.tsx resolves correctly
-      localStorage.setItem("ccm_user", JSON.stringify(data.user ?? data));
-
-      // Rare: profile_id on fresh signup → persist draft key
-      const profileId = data.profile_id ?? null;
-      if (profileId) {
-        const userId = (data.user ?? data)?.id;
-        if (userId) localStorage.setItem(`ccm_draft_pk_${userId}`, String(profileId));
-      }
-
-      toast.success("Account created! Let's complete your profile.");
-      navigate("/ccmonboard/personal-info", { replace: true });
+      // Signup OK — now silently call the signin OTP endpoint with the same idToken.
+      // idToken is still fresh (Firebase tokens live ~1hr), so no re-verify needed.
+      // This is exactly what SignInForm.handleFirebaseSuccess does internally.
+      await handleSigninAfterSignup(idToken);
 
     } catch (err) {
       // Network / unexpected JS crash — not Firebase, not backend
