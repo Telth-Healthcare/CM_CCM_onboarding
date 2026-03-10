@@ -1,54 +1,61 @@
 import axios from "axios";
 
-export const handleAxiosError = (
-  error: unknown,
-  fallback = "Something went wrong. Please try again."
-): string => {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data;
+type ApiErrorData = Record<string, unknown>;
 
-    if (!data) return error.message;
+const extractFieldError = (data: ApiErrorData): string | null => {
+  const firstKey = Object.keys(data)[0];
+  if (!firstKey) return null;
 
-    // 1️⃣ Simple message field
-    if (typeof data.message === "string") {
-      return data.message;
-    }
+  const value = data[firstKey];
 
-    // 2️⃣ error field
-    if (typeof data.error === "string") {
-      return data.error;
-    }
-
-    // 3️⃣ detail field (Django / DRF)
-    if (typeof data.detail === "string") {
-      return data.detail;
-    }
-
-    // 4️⃣ errors array
-    if (Array.isArray(data.errors) && data.errors.length > 0) {
-      return data.errors[0].message || fallback;
-    }
-
-    
-    // 5️⃣ Field-level errors (object with arrays)
-    if (typeof data === "object") {
-      const firstKey = Object.keys(data)[0];
-      const firstValue = data[firstKey];
-      
-      if (Array.isArray(firstValue) && firstValue.length > 0) {
-        return firstValue[0];
-      }
-    if(Array.isArray(firstValue.non_field_errors)){
-      return firstValue.non_field_errors[0];
-    }
-
-      if (typeof firstValue === "string") {
-        return firstValue;
-      }
-    }
-
-    return error.message;
+  // { field: ["error msg"] }
+  if (Array.isArray(value) && value.length > 0) {
+    return typeof value[0] === "string" ? value[0] : null;
   }
 
-  return fallback;
+  // { field: "error msg" }
+  if (typeof value === "string") return value;
+
+  // Nested object: { field: { email: [...], phone: [...], non_field_errors: [...] } }
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const nested = value as ApiErrorData;
+
+    for (const key of ["non_field_errors", "email", "phone"]) {
+      const nested_val = nested[key];
+      if (Array.isArray(nested_val) && nested_val.length > 0) {
+        return typeof nested_val[0] === "string" ? nested_val[0] : null;
+      }
+    }
+  }
+
+  return null;
+};
+
+export const handleAxiosError = (
+  error: unknown,
+  fallback = "Something went wrong. Please try again.",
+): string => {
+  if (!axios.isAxiosError(error)) return fallback;
+
+  const data = error.response?.data as ApiErrorData | undefined;
+
+  // No response body — use axios message
+  if (!data || typeof data !== "object") return error.message;
+
+  // 1. Simple string fields
+  for (const key of ["message", "error", "detail"] as const) {
+    if (typeof data[key] === "string") return data[key] as string;
+  }
+
+  // 2. Errors array: [{ message: "..." }]
+  if (Array.isArray(data.errors) && data.errors.length > 0) {
+    const first = data.errors[0] as ApiErrorData;
+    return typeof first?.message === "string" ? first.message : fallback;
+  }
+
+  // 3. Field-level errors
+  const fieldError = extractFieldError(data);
+  if (fieldError) return fieldError;
+
+  return error.message ?? fallback;
 };

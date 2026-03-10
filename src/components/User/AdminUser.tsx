@@ -20,6 +20,7 @@ import { RightSideModal } from "../mui/RightSideModal";
 import Input from "../form/input/InputField";
 import Button from "../ui/button/Button";
 import { getUserRole, getUser } from "../../config/constants";
+import Label from "../form/Label";
 
 interface User {
   id: number;
@@ -158,7 +159,10 @@ const AdminUser = () => {
 
       // Filter out super_admin from roles
       const filteredRoles = (response.roles || []).filter(
-        (role: OptionType) => role.value !== "super_admin",
+        (role: OptionType) =>
+          role.value !== "super_admin" &&
+          role.value !== "cm" &&
+          role.value !== "ccm",
       );
 
       setRoles(filteredRoles);
@@ -299,6 +303,17 @@ const AdminUser = () => {
           value: role.value,
         })),
         enableColumnFilter: true,
+      },
+      {
+        accessorKey: "created_at",
+        header: "Created Date",
+        size: 150,
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+          return value ? new Date(value).toLocaleDateString() : "-";
+        },
+        // filterVariant: "text",
+        enableColumnFilter: false,
       },
       {
         accessorKey: "is_active",
@@ -534,7 +549,7 @@ const AdminUser = () => {
           isOpen={isAddModalOpen}
           onClose={handleCloseModal}
           showCloseButton={true}
-          width="w-3/4 md:w-1/2 lg:w-2/5"
+          width="w-1/2 md:w-1/2 lg:w-1/5"
         >
           <div className="p-6">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-4">
@@ -544,16 +559,16 @@ const AdminUser = () => {
               <div className="space-y-4">
                 {/* First Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <Label>
                     First Name <span className="text-red-500">*</span>
-                  </label>
+                  </Label>
                   <Input
                     type="text"
                     name="first_name"
                     value={formData.first_name}
                     onChange={handleInputChange}
                     placeholder="Enter first name"
-                    className="w-full"
+                    // className="w-96"
                     error={!!errors.first_name}
                   />
                   {errors.first_name && (
@@ -565,9 +580,9 @@ const AdminUser = () => {
 
                 {/* Last Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <Label>
                     Last Name <span className="text-red-500">*</span>
-                  </label>
+                  </Label>
                   <Input
                     type="text"
                     name="last_name"
@@ -586,9 +601,9 @@ const AdminUser = () => {
 
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <Label>
                     Email <span className="text-red-500">*</span>
-                  </label>
+                  </Label>
                   <Input
                     type="email"
                     name="email"
@@ -607,18 +622,28 @@ const AdminUser = () => {
 
                 {/* Phone */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <Label>
                     Phone <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="+1 (123) 456-7890"
-                    className="w-full"
-                    error={!!errors.phone}
-                  />
+                  </Label>
+                  <div
+                    className={`flex items-center border rounded-lg overflow-hidden ${
+                      errors.phone
+                        ? "border-red-500 dark:border-red-500"
+                        : "border-gray-300 dark:border-gray-700"
+                    }`}
+                  >
+                    <span className="px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium border-r border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 select-none">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="Enter phone number"
+                      className="flex-1 px-3 py-2 text-sm h-11 outline-none bg-white dark:bg-gray-900 dark:text-white"
+                    />
+                  </div>
                   {errors.phone && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                       {errors.phone}
