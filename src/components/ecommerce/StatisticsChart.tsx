@@ -1,31 +1,63 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
 import flatpickr from "flatpickr";
-import ChartTab from "../common/ChartTab";
-import { CalenderIcon } from "../../icons";
+import "flatpickr/dist/themes/light.css";
+import { getApplicationsApi } from "../../api";
+import { handleAxiosError } from "../../utils/handleAxiosError";
+import { toast } from "react-toastify";
+
+interface ApplicationData {
+  id: number;
+  created_at: string;
+  status: string;
+  payment_status: string;
+}
+
+interface ChartData {
+  applications: number[];
+  payments: number[];
+  categories: string[];
+}
 
 export default function StatisticsChart() {
   const datePickerRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState<ChartData>({
+    applications: [],
+    payments: [],
+    categories: []
+  });
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
+  // Get month name helper
+  const getMonthName = (date: Date): string => {
+    return date.toLocaleDateString('en-US', { month: 'long' });
+  };
+
+  // Initialize date picker for month selection
   useEffect(() => {
     if (!datePickerRef.current) return;
 
-    const today = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(today.getDate() - 6);
-
     const fp = flatpickr(datePickerRef.current, {
-      mode: "range",
+      mode: "single",
       static: true,
-      monthSelectorType: "static",
-      dateFormat: "M d",
-      defaultDate: [sevenDaysAgo, today],
-      clickOpens: true,
-      prevArrow:
-        '<svg class="stroke-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.5 15L7.5 10L12.5 5" stroke="" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-      nextArrow:
-        '<svg class="stroke-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 15L12.5 10L7.5 5" stroke="" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      monthSelectorType: "dropdown",
+      dateFormat: "F Y", // Display full month name and year
+      defaultDate: selectedDate,
+      onChange: (selectedDates) => {
+        if (selectedDates.length > 0) {
+          setSelectedDate(selectedDates[0]);
+        }
+      },
+      // Custom config for month picker
+      plugins: [], // Remove the plugin as it might be causing issues
+      // This makes it behave like a month picker
+      onReady: (_, __, instance) => {
+        // Force month picker mode
+        instance.config.enableTime = false;
+        instance.config.noCalendar = false;
+      }
     });
 
     return () => {
@@ -35,26 +67,113 @@ export default function StatisticsChart() {
     };
   }, []);
 
+  // Update input display when date changes
+  useEffect(() => {
+    if (datePickerRef.current) {
+      const formattedDate = selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      datePickerRef.current.value = formattedDate;
+    }
+  }, [selectedDate]);
+
+  // Fetch data when month/year changes
+  useEffect(() => {
+    fetchApplicationsData();
+  }, [selectedDate]);
+
+  const fetchApplicationsData = async () => {
+    setLoading(true);
+    try {
+      const response = await getApplicationsApi();
+      
+      // Calculate date range for selected month
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth();
+      
+      const startDate = new Date(year, month, 1);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+      // Filter applications for selected month
+      const filteredApplications = response?.results?.filter((app: ApplicationData) => {
+        const createdDate = new Date(app.created_at);
+        return createdDate >= startDate && createdDate <= endDate;
+      }) || [];
+
+      // Process data for daily chart within the month
+      const processedData = processMonthlyData(filteredApplications, year, month);
+      setChartData(processedData);
+
+    } catch (error) {
+      const errorMessage = handleAxiosError(error, "Failed to fetch applications data");
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processMonthlyData = (applications: ApplicationData[], year: number, month: number): ChartData => {
+    // Get number of days in the month
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    const categories: string[] = [];
+    const applicationsByDay: number[] = new Array(daysInMonth).fill(0);
+    const paymentsByDay: number[] = new Array(daysInMonth).fill(0);
+
+    // Generate day categories (1, 2, 3, ...)
+    for (let day = 1; day <= daysInMonth; day++) {
+      categories.push(day.toString());
+    }
+
+    // Count applications by day
+    applications.forEach(app => {
+      const createdDate = new Date(app.created_at);
+      const day = createdDate.getDate() - 1; // 0-based index
+      
+      if (day >= 0 && day < daysInMonth) {
+        applicationsByDay[day]++;
+        
+        // Count paid applications
+        if (app.payment_status === 'completed' || app.payment_status === 'paid') {
+          paymentsByDay[day]++;
+        }
+      }
+    });
+
+    return {
+      applications: applicationsByDay,
+      payments: paymentsByDay,
+      categories
+    };
+  };
+
   const options: ApexOptions = {
     legend: {
-      show: false, // Hide legend
+      show: true,
       position: "top",
       horizontalAlign: "left",
+      labels: {
+        colors: "#6B7280"
+      }
     },
-    colors: ["#465FFF", "#9CB9FF"], // Define line colors
+    colors: ["#465FFF", "#10B981"],
     chart: {
       fontFamily: "Outfit, sans-serif",
       height: 310,
-      type: "line", // Set the chart type to 'line'
+      type: "line",
       toolbar: {
-        show: false, // Hide chart toolbar
+        show: false,
       },
+      animations: {
+        enabled: true,
+        // easing: 'easeinout',
+        speed: 800
+      }
     },
     stroke: {
-      curve: "straight", // Define the line style (straight, smooth, or step)
-      width: [2, 2], // Line width for each dataset
+      curve: "smooth",
+      width: [2, 2],
     },
-
     fill: {
       type: "gradient",
       gradient: {
@@ -63,115 +182,171 @@ export default function StatisticsChart() {
       },
     },
     markers: {
-      size: 0, // Size of the marker points
-      strokeColors: "#fff", // Marker border color
+      size: 4,
+      strokeColors: "#fff",
       strokeWidth: 2,
       hover: {
-        size: 6, // Marker size on hover
+        size: 6,
       },
     },
     grid: {
       xaxis: {
         lines: {
-          show: false, // Hide grid lines on x-axis
+          show: false,
         },
       },
       yaxis: {
         lines: {
-          show: true, // Show grid lines on y-axis
+          show: true,
         },
       },
     },
     dataLabels: {
-      enabled: false, // Disable data labels
+      enabled: false,
     },
     tooltip: {
-      enabled: true, // Enable tooltip
-      x: {
-        format: "dd MMM yyyy", // Format for x-axis tooltip
+      enabled: true,
+      shared: true,
+      intersect: false,
+      y: {
+        formatter: (value: number) => `${value} applications`,
       },
     },
     xaxis: {
-      type: "category", // Category-based x-axis
-      categories: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ],
+      type: "category",
+      categories: chartData.categories,
+      title: {
+        text: "Day of Month",
+        style: {
+          fontSize: "12px",
+          color: "#6B7280"
+        }
+      },
       axisBorder: {
-        show: false, // Hide x-axis border
+        show: false,
       },
       axisTicks: {
-        show: false, // Hide x-axis ticks
+        show: false,
+      },
+      labels: {
+        style: {
+          fontSize: "12px",
+          colors: "#6B7280",
+        },
+        rotate: 0,
+        rotateAlways: false,
+        hideOverlappingLabels: true,
+        maxHeight: 120,
       },
       tooltip: {
-        enabled: false, // Disable tooltip for x-axis points
+        enabled: false,
       },
     },
     yaxis: {
       labels: {
         style: {
-          fontSize: "12px", // Adjust font size for y-axis labels
-          colors: ["#6B7280"], // Color of the labels
+          fontSize: "12px",
+          colors: ["#6B7280"],
         },
+        formatter: (value: number) => Math.round(value).toString(),
       },
       title: {
-        text: "", // Remove y-axis title
+        text: "Number of Applications",
         style: {
-          fontSize: "0px",
-        },
+          fontSize: "12px",
+          color: "#6B7280"
+        }
       },
+      min: 0,
+      forceNiceScale: true,
     },
   };
 
   const series = [
     {
-      name: "Sales",
-      data: [180, 190, 170, 160, 175, 165, 170, 205, 230, 210, 240, 235],
+      name: "Applications",
+      data: chartData.applications,
     },
     {
-      name: "Revenue",
-      data: [40, 30, 50, 40, 55, 40, 70, 100, 110, 120, 150, 140],
+      name: "Payments",
+      data: chartData.payments,
     },
   ];
+
+  // Calculate totals
+  const totalApplications = chartData.applications.reduce((a, b) => a + b, 0);
+  const totalPayments = chartData.payments.reduce((a, b) => a + b, 0);
+  const conversionRate = totalApplications > 0 
+    ? ((totalPayments / totalApplications) * 100).toFixed(1) 
+    : "0";
+
+  // Get current month name
+  const currentMonthName = getMonthName(selectedDate);
+  const currentYear = selectedDate.getFullYear();
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/3 mb-6"></div>
+          <div className="h-[310px] bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
       <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Statistics
+            Applications Statistics - {currentMonthName} {currentYear}
           </h3>
-          <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            Target you've set for each month
-          </p>
+          <div className="flex flex-wrap gap-4 mt-2">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Total Applications: <span className="font-semibold text-gray-800 dark:text-white">{totalApplications}</span>
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Total Payments: <span className="font-semibold text-gray-800 dark:text-white">{totalPayments}</span>
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Conversion Rate: <span className="font-semibold text-green-600">{conversionRate}%</span>
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3 sm:justify-end">
+        {/* <div className="flex items-center gap-3 sm:justify-end">
           <ChartTab />
           <div className="relative inline-flex items-center">
             <CalenderIcon className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:left-3 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2 size-5 text-gray-500 dark:text-gray-400 pointer-events-none z-10" />
             <input
               ref={datePickerRef}
-              className="h-10 w-10 lg:w-40 lg:h-auto  lg:pl-10 lg:pr-3 lg:py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-transparent lg:text-gray-700 outline-none dark:border-gray-700 dark:bg-gray-800 dark:lg:text-gray-300 cursor-pointer"
-              placeholder="Select date range"
+              className="h-10 w-10 lg:w-48 lg:h-auto lg:pl-10 lg:pr-3 lg:py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 cursor-pointer"
+              placeholder="Select month"
             />
           </div>
-        </div>
+        </div> */}
       </div>
 
       <div className="max-w-full overflow-x-auto custom-scrollbar">
-        <div className="min-w-[1000px] xl:min-w-full">
-          <Chart options={options} series={series} type="area" height={310} />
+        <div className="min-w-[800px] xl:min-w-full">
+          <Chart 
+            options={options} 
+            series={series} 
+            type="area" 
+            height={310} 
+            key={`${currentYear}-${selectedDate.getMonth()}`} // Force re-render when month changes
+          />
         </div>
       </div>
+
+      {totalApplications === 0 && (
+        <div className="text-center py-8">
+          <p className="text-gray-500 dark:text-gray-400">
+            No applications found for {currentMonthName} {currentYear}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
