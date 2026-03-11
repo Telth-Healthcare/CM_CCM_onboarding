@@ -1,6 +1,6 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { ToastContainer } from "react-toastify";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./config/ProtectedRoute";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import CCMDashboardRoutes from "./ccm/dashboard/DashboardRoutes";
@@ -21,7 +21,6 @@ const OnboardLayout = lazy(() => import("./ccm/pages/OnboardLayout"));
 
 // Admin Pages
 const Home = lazy(() => import("./pages/Dashboard/Home"));
-const UserProfiles = lazy(() => import("./pages/UserProfiles"));
 const Blank = lazy(() => import("./pages/Blank"));
 const AdminUser = lazy(() => import("./components/User/AdminUser"));
 const Applications = lazy(() => import("./components/User/Applications"));
@@ -57,16 +56,20 @@ export default function App() {
           <Route element={<ProtectedRoute authType="ccm" />}>
             <Route path="/ccmonboard/*" element={<OnboardLayout />} />
             <Route path="/ccm-dashboard/*" element={<CCMDashboardRoutes />} />
-
           </Route>
 
           <Route element={<ProtectedRoute authType="admin" />}>
             <Route element={<AppLayout />}>
-              <Route path="/dashboard" element={<Home />} />
-              <Route path="/profile" element={<UserProfiles />} />
-              <Route path="/blank" element={<Blank />} />
-              <Route path="/regions" element={<Region />} />
-              <Route path="/applications" element={<Applications />} />
+              <Route path="/dashboard" element={<Home key="/dashboard" />} />
+              <Route path="/blank" element={<Blank key="/blank" />} />
+              <Route
+                path="/regions"
+                element={<Region key={location.pathname} />}
+              />{" "}
+              <Route
+                path="/applications"
+                element={<Applications key="/applications" />}
+              />
               <Route
                 path="/users"
                 element={
@@ -74,7 +77,7 @@ export default function App() {
                     authType="admin"
                     allowedRoles={["super_admin", "admin"]}
                   >
-                    <AdminUser />
+                    <AdminUser key="/users" />
                   </ProtectedRoute>
                 }
               />

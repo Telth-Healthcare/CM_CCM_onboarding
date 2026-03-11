@@ -57,8 +57,8 @@ export const headerJson = () => {
 // ================= TOKEN FUNCTIONS =================
 export type AuthType = "admin" | "ccm";
 const getTokenKeys = (type: AuthType) => ({
-  access: "access_token",
-  refresh: "refresh_token",
+  access: `${type}_access_token`,
+  refresh: `${type}_refresh_token`,
   user: `${type}_user`,
   role: `${type}_role`,
 });

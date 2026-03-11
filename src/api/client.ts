@@ -3,47 +3,56 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
-import { baseUrl } from "../config/env";
 import { handleAxiosError } from "../utils/handleAxiosError";
 import { toast } from "react-toastify";
+import { AuthType } from "../config/constants";
 
-export const client = axios.create({
-  baseURL: baseUrl,
-  headers: {
-    Accept: "application/json",
-    "X-Client-ID": "app",
-    "ngrok-skip-browser-warning": "true",
-  },
-});
+const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
-client.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('access_token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
 
-client.interceptors.response.use(
-  (response: AxiosResponse) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      const errorMessage = handleAxiosError(error, "error response 401");
-      toast.error(errorMessage);
-    }
+const defaultHeaders = {
+  Accept: "application/json",
+  "X-Client-ID": "app",
+  "ngrok-skip-browser-warning": "true",
+};
 
-    return Promise.reject(error);
-  }
-);
+
+function createAuthClient(authType: AuthType) {
+  const instance = axios.create({
+    baseURL: baseUrl,
+    headers: defaultHeaders,
+  });
+
+  instance.interceptors.request.use(
+    (config: InternalAxiosRequestConfig) => {
+      const token = localStorage.getItem(`${authType}_access_token`);
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    },
+    (error) => Promise.reject(error),
+  );
+
+  instance.interceptors.response.use(
+    (response: AxiosResponse) => response,
+    (error: AxiosError) => {
+      if (error.response?.status === 401) {
+        const message = handleAxiosError(error, "Session expired. Please sign in again.");
+        toast.error(message);
+      }
+      return Promise.reject(error);
+    },
+  );
+
+  return instance;
+}
+
+export const client    = createAuthClient("admin"); 
+export const ccmClient = createAuthClient("ccm"); 
+
 
 export const otpClient = axios.create({
   baseURL: baseUrl,
-  headers: {
-    Accept: "application/json",
-    "X-Client-ID": "app",
-    "ngrok-skip-browser-warning": "true",
-  },
+  headers: defaultHeaders,
 });
 
 otpClient.interceptors.request.use(
@@ -55,18 +64,15 @@ otpClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+
 export const logoutClient = axios.create({
   baseURL: baseUrl,
-  headers: {
-    Accept: "application/json",
-    "X-Client-ID": "app",
-    "ngrok-skip-browser-warning": "true",
-  },
+  headers: defaultHeaders,
 });
 
 logoutClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const sessionId = localStorage.getItem('sessionId');
+    const sessionId = localStorage.getItem("sessionId");
     if (sessionId) config.headers["X-Session-Token"] = sessionId;
     return config;
   },

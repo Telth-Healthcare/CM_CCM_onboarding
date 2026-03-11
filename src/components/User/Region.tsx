@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { type MRT_ColumnDef } from "material-react-table";
 import { toast } from "react-toastify";
+import { MRT_ColumnFiltersState, type MRT_ColumnDef } from "material-react-table";
 import PageMeta from "../common/PageMeta";
-import useMuiTheme from "../mui/muiTheme";
 import { createRegionsApi, getAllRegionsApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
-import { ThemeProvider } from "@mui/material/styles"; // ✅ FIXED
 import CommonTable from "../mui/MuiTable";
 import { RightSideModal } from "../mui/RightSideModal";
 import Input from "../form/input/InputField";
@@ -24,7 +22,6 @@ interface NewRegionForm {
 }
 
 const Region = () => {
-  const muiTheme = useMuiTheme();
   const userRole = getUserRole("admin");
 
   const [regions, setRegions] = useState<Region[]>([]);
@@ -40,7 +37,9 @@ const Region = () => {
   const [formData, setFormData] = useState<NewRegionForm>({
     name: "",
   });
-
+const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
+    [],
+  );
   const [errors, setErrors] = useState<
     Partial<Record<keyof NewRegionForm, string>>
   >({});
@@ -59,16 +58,14 @@ const Region = () => {
   }, []);
 
   const fetchRegions = async () => {
+    setColumnFilters([]);
     try {
       setLoading(true);
       const response = await getAllRegionsApi();
       const regionData = response?.data || response || [];
       setRegions(regionData?.results || []);
     } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        "Failed to fetch regions",
-      );
+      const errorMessage = handleAxiosError(error, "Failed to fetch regions");
       toast.error(errorMessage);
       setRegions([]);
     } finally {
@@ -88,10 +85,7 @@ const Region = () => {
       handleCloseModal();
       fetchRegions();
     } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        "Failed to create region",
-      );
+      const errorMessage = handleAxiosError(error, "Failed to create region");
       toast.error(errorMessage);
     } finally {
       setSubmitting(false);
@@ -176,17 +170,18 @@ const Region = () => {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
-        <ThemeProvider theme={muiTheme}>
-          <CommonTable
-            columns={columns}
-            data={regions}
-            loading={loading}
-            pagination={pagination}
-            enableRowSelection={false}
-            onPaginationChange={setPagination}
-            toolbarActions={toolbarActions}
-          />
-        </ThemeProvider>
+        <CommonTable
+          columns={columns}
+          data={regions}
+          loading={loading}
+          pagination={pagination}
+          enableColumnFilters={true}
+          enableRowSelection={false}
+          onPaginationChange={setPagination}
+          toolbarActions={toolbarActions}
+          columnFilters={columnFilters} // ADD
+          onColumnFiltersChange={setColumnFilters}
+        />
       </div>
 
       {isSuperAdmin && (
@@ -194,7 +189,7 @@ const Region = () => {
           isOpen={isAddModalOpen}
           onClose={handleCloseModal}
           showCloseButton
-          width="w-3/4 md:w-1/2 lg:w-2/5"
+          width=""
         >
           <div className="p-6">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-4">
@@ -205,8 +200,7 @@ const Region = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Region Name{" "}
-                    <span className="text-red-500">*</span>
+                    Region Name <span className="text-red-500">*</span>
                   </label>
 
                   <Input

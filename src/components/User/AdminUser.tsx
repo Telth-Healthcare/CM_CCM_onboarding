@@ -430,12 +430,13 @@ const AdminUser = () => {
     }
 
     setSubmitting(true);
+
     try {
       const payload: SendInvitationRequest = {
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
-        phone: formData.phone,
+        phone: `+91${formData.phone}`,
         region: formData.region,
         roles: [formData.role],
       };
@@ -444,10 +445,19 @@ const AdminUser = () => {
         payload.manager = formData.mnpData;
       }
 
-      await sendInvitationApi([payload]);
-      toast.success("User invitation sent successfully");
-      handleCloseModal();
-      fetchUsers();
+      const response = await sendInvitationApi([payload]);
+
+      const result = response?.data?.[0] || response?.[0];
+
+      if (result?.is_sent) {
+        toast.success("User invitation sent successfully");
+        handleCloseModal();
+        fetchUsers();
+      } else {
+        toast.warning(
+          "Email was not sent. Please check the email address.",
+        );
+      }
     } catch (error) {
       const errorMessage = handleAxiosError(
         error,
@@ -549,7 +559,7 @@ const AdminUser = () => {
           isOpen={isAddModalOpen}
           onClose={handleCloseModal}
           showCloseButton={true}
-          width="w-1/2 md:w-1/2 lg:w-1/5"
+          width=" "
         >
           <div className="p-6">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-4">

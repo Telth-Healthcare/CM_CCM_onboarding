@@ -92,10 +92,20 @@ export default function SignInForm() {
       toast.success("Signed in successfully!");
       navigate("/dashboard");
     } catch (error: any) {
+      const field = error?.response?.data?.errors?.[0]?.param;
+
+      if (field) {
+        setErrors((prev) => ({
+          ...prev,
+          [field]: "Invalid value",
+        }));
+      }
+
       const errorMessage = handleAxiosError(
         error,
         "Something went wrong. Please try again.",
       );
+
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -126,7 +136,11 @@ export default function SignInForm() {
                   <Label>
                     Phone Number <span className="text-error-500">*</span>
                   </Label>
-                  <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden dark:border-gray-700 focus-within:ring-2 focus-within:ring-blue-500">
+                  <div        className={`flex items-center border rounded-lg overflow-hidden ${
+                      errors.phone
+                        ? "border-red-500 dark:border-red-500"
+                        : "border-gray-300 dark:border-gray-700"
+                    }`}>
                     <span className="px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium border-r border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 select-none">
                       +91
                     </span>
@@ -156,6 +170,7 @@ export default function SignInForm() {
                       placeholder="Enter your password"
                       value={state.password}
                       disabled={loading}
+                      error= {!!errors.password}
                       onChange={(e) =>
                         setState({ ...state, password: e.target.value })
                       }
