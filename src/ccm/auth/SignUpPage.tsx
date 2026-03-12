@@ -7,8 +7,8 @@ export default function CCMSignUpPage() {
   return (
     <>
       <PageMeta
-        title="React.js SignUp Dashboard | T-store - Next.js Admin Dashboard Template"
-        description="This is React.js SignUp Tables Dashboard page for T-store - React.js Tailwind CSS Admin Dashboard Template"
+        title="Telth CM CCM Console"
+        description="Telth CC CCM Signin Console"
       />
       <AuthLayout>
         <CCMSignUpForm/>

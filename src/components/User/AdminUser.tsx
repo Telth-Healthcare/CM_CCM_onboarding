@@ -279,13 +279,6 @@ const AdminUser = () => {
   const columns = useMemo<MRT_ColumnDef<User>[]>(
     () => [
       {
-        accessorKey: "id",
-        header: "S.No",
-        size: 80,
-        Cell: ({ row }: { row: MRT_Row<User> }) => row.index + 1,
-        enableColumnFilter: false,
-      },
-      {
         accessorKey: "first_name",
         header: "First Name",
         size: 120,
@@ -653,7 +646,7 @@ const AdminUser = () => {
   return (
     <div className="p-3">
       <PageMeta
-        title="T-store - User Management Dashboard"
+        title="Telth Partner Console"
         description="Manage and view all users in the system"
       />
       <div className="mb-6">

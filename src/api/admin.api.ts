@@ -32,6 +32,11 @@ export const getApplicationsApi = () => {
         .then(res => res.data);
 } 
 
+export const getApplicationByIdApi = (applicationId: number) => {
+    return client.get(`applications/app/${applicationId}/`)
+        .then(res => res.data);
+}
+
 export const updateApplicationStatusApi = (applicationId: number, updateStatus: any) => {
     return client.patch(`applications/app/${applicationId}/`,  updateStatus)
         .then(res => res.data);

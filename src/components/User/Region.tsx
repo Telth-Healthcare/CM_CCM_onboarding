@@ -154,7 +154,7 @@ const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
   return (
     <div className="p-3">
       <PageMeta
-        title="T-store - Region Management"
+        title="Telth Partner Console"
         description="Manage and view all regions in the system"
       />
 

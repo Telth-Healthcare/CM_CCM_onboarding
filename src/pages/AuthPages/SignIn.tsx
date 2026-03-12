@@ -6,8 +6,8 @@ export default function SignIn() {
   return (
     <>
       <PageMeta
-        title=" Admin Dashboard Template"
-        description="This is SignIn Tables Dashboard"
+        title=" Telth Partner Console"
+        description="This is SignIn Telth Partner Console page"
       />
       <AuthLayout>
         <SignInForm />

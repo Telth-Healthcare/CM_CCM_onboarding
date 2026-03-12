@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-route
 import ProtectedRoute from "./config/ProtectedRoute";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import CCMDashboardRoutes from "./ccm/dashboard/DashboardRoutes";
+import ViewEditApplication from "./components/User/ViewEditApplication";
 
 // Admin Auth
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
@@ -21,7 +22,6 @@ const OnboardLayout = lazy(() => import("./ccm/pages/OnboardLayout"));
 
 // Admin Pages
 const Home = lazy(() => import("./pages/Dashboard/Home"));
-const Blank = lazy(() => import("./pages/Blank"));
 const AdminUser = lazy(() => import("./components/User/AdminUser"));
 const Applications = lazy(() => import("./components/User/Applications"));
 const Region = lazy(() => import("./components/User/Region"));
@@ -34,10 +34,9 @@ function RootRedirect() {
   useEffect(() => {
     // Check localStorage for user data
     const userData = localStorage.getItem("user");
-    const token = localStorage.getItem("token"); // or whatever token key you use
+    const token = localStorage.getItem("token");
     
     if (userData || token) {
-      // User is logged in - determine where to redirect based on user role
       try {
         const user = JSON.parse(userData || "{}");
         if (user.role === "ccm" || user.authType === "ccm") {
@@ -46,16 +45,13 @@ function RootRedirect() {
           navigate("/dashboard");
         }
       } catch (error) {
-        // If parsing fails or no user data, go to admin signin
         navigate("/admin/signin");
       }
     } else {
-      // No user data found, redirect to admin signin
       navigate("/admin/signin");
     }
   }, [navigate]);
 
-  // Show loading while redirecting
   return (
     <div
       style={{
@@ -110,15 +106,27 @@ export default function App() {
           <Route element={<ProtectedRoute authType="admin" />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Home key="/dashboard" />} />
-              <Route path="/blank" element={<Blank key="/blank" />} />
               <Route
                 path="/regions"
                 element={<Region key={location.pathname} />}
               />
+              
               <Route
                 path="/applications"
                 element={<Applications key="/applications" />}
               />
+              <Route
+                path="/applications/edit/:id"
+                element={
+                  <ProtectedRoute
+                    authType="admin"
+                    allowedRoles={["super_admin", "admin"]}
+                  >
+                    <ViewEditApplication />
+                  </ProtectedRoute>
+                }
+              />
+              
               <Route
                 path="/users"
                 element={

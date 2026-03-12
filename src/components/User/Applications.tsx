@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   MRT_ColumnFiltersState,
   type MRT_ColumnDef,
@@ -6,11 +7,8 @@ import {
 import { toast } from "react-toastify";
 import { getApplicationsApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
-import { EyeIcon, PencilIcon } from "../../icons";
+import {  PencilIcon } from "../../icons";
 import CommonTable from "../mui/MuiTable";
-import { getUserRole } from "../../config/constants";
-import ViewEditApplication from "./ViewEditApplication";
-import ViewUserApplication from "./ViewUserApplication";
 
 interface Application {
   assigned_incubator: null | number | string;
@@ -26,6 +24,7 @@ interface Application {
   updated_at: string;
   user_details?: string;
   trainer_details?: string;
+  assigned_financier_details?: string;
   documents?: Array<{
     document_type: string;
     file: string;
@@ -34,6 +33,7 @@ interface Application {
 }
 
 const Applications = () => {
+  const navigate = useNavigate();
   const statusOptions = [
     { value: "submitted", label: "Submitted" },
     { value: "under_review", label: "Under Review" },
@@ -43,25 +43,9 @@ const Applications = () => {
     { value: "rejected", label: "Rejected" },
   ];
 
-  const userRole = getUserRole("admin");
-
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [viewApplication, setViewApplication] = useState<{
-    id: number;
-    data: Application | null;
-  } | null>(null);
-  const [editApplication, setEditApplication] = useState<{
-    id: number;
-    data: Application | null;
-  } | null>(null);
-  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
-    [],
-  );
-
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -96,84 +80,37 @@ const Applications = () => {
     }
   };
 
-  const handleView = useCallback(async (row: Application) => {
-    try {
-      setViewApplication({
-        id: row.id,
-        data: row,
-      });
-      setIsViewModalOpen(true);
-    } catch (err) {
-      const errorMessage = handleAxiosError(
-        err,
-        "Failed to fetch application details",
-      );
-      toast.error(errorMessage);
-    }
-  }, []);
+  const handleView = useCallback((row: Application) => {
+    navigate(`/applications/view/${row.id}`);
+  }, [navigate]);
 
-  const handleEdit = useCallback(async (row: Application) => {
-    try {
-      setEditApplication({
-        id: row.id,
-        data: row,
-      });
-      setIsEditModalOpen(true);
-    } catch (err) {
-      const errorMessage = handleAxiosError(
-        err,
-        "Failed to fetch application details",
-      );
-      toast.error(errorMessage);
-    }
-  }, []);
-
-  const handleCloseViewModal = useCallback(() => {
-    setIsViewModalOpen(false);
-    setViewApplication(null);
-  }, []);
-
-  const handleCloseEditModal = useCallback(() => {
-    setIsEditModalOpen(false);
-    setEditApplication(null);
-  }, []);
-
-  const handleUpdate = useCallback(() => {
-    fetchApplications();
-  }, []);
-
-  const isAdminOrSuperAdmin =
-    userRole === "admin" || userRole === "super_admin";
+  const handleEdit = useCallback((row: Application) => {
+    navigate(`/applications/edit/${row.id}`);
+  }, [navigate]);
 
   const rowActionsList = useMemo(() => {
     const actions = [];
 
-    actions.push({
-      label: "View",
-      className: "text-brand-700 hover:text-brand-900 dark:text-brand-600",
-      icon: <EyeIcon className="w-4 h-4 fill-current" />,
-      onClick: handleView,
-    });
-
-    if (isAdminOrSuperAdmin) {
       actions.push({
         label: "Edit",
         className: "text-brand-700 hover:text-brand-900 dark:text-brand-600",
         icon: <PencilIcon className="w-4 h-4 fill-current" />,
         onClick: handleEdit,
       });
-    }
 
     return actions;
-  }, [handleEdit, handleView, isAdminOrSuperAdmin]);
+  }, [handleEdit, handleView]);
 
   const columns = useMemo<MRT_ColumnDef<Application>[]>(
     () => [
       {
-        accessorKey: "id",
-        header: "S.No",
-        size: 80,
-        Cell: ({ row }) => row.index + 1,
+        accessorKey: "reference_number",
+        header: "Reference No.",
+        size: 120,
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+          return value ?? "-";
+        },
         enableColumnFilter: false,
       },
       {
@@ -182,17 +119,6 @@ const Applications = () => {
         size: 120,
         Cell: ({ cell }) => {
           const value = cell.getValue<string | number | null>();
-          return value ?? "-";
-        },
-        filterVariant: "text",
-        enableColumnFilter: true,
-      },
-      {
-        accessorKey: "reference_number",
-        header: "Reference No.",
-        size: 120,
-        Cell: ({ cell }) => {
-          const value = cell.getValue<string>();
           return value ?? "-";
         },
         filterVariant: "text",
@@ -234,11 +160,10 @@ const Applications = () => {
           const value = cell.getValue<string>();
           return value ? new Date(value).toLocaleDateString() : "-";
         },
-        // filterVariant: "text",
         enableColumnFilter: false,
       },
       {
-        accessorKey: "financier_details",
+        accessorKey: "assigned_financier_details",
         header: "Financier",
         size: 120,
         Cell: ({ cell }) => {
@@ -295,25 +220,6 @@ const Applications = () => {
             onColumnFiltersChange={setColumnFilters}
           />
       </div>
-
-      {viewApplication && (
-        <ViewUserApplication
-          isOpen={isViewModalOpen}
-          onClose={handleCloseViewModal}
-          applicationId={viewApplication.id}
-          applicationData={viewApplication.data}
-        />
-      )}
-
-      {editApplication && (
-        <ViewEditApplication
-          isOpen={isEditModalOpen}
-          onClose={handleCloseEditModal}
-          applicationId={editApplication.id}
-          applicationData={editApplication.data}
-          onUpdate={handleUpdate}
-        />
-      )}
     </div>
   );
 };
