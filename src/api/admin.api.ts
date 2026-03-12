@@ -14,7 +14,7 @@ export interface SendInvitationRequest {
   phone: string;
   region: string;
   roles: string[];
-  manager?: string;
+  manager?: number;
 }
 
 export const getAllUsers = () => {

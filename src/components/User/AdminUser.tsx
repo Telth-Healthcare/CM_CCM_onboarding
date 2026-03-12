@@ -415,7 +415,7 @@ const AdminUser = () => {
       };
 
       if (showMnpField) {
-        payload.manager = formData.mnpData;
+        payload.manager = +formData.mnpData;
       }
 
       const response = await sendInvitationApi([payload]);
