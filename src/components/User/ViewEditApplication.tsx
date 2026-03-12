@@ -5,7 +5,6 @@ import { contactApi, getAllUsers, getSHGUserByIdApi, updateApplicationStatusApi 
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { Modal } from "../ui/modal";
 import { PencilIcon } from "../../icons";
-import { baseUrl } from "../../config/env";
 
 interface ViewEditApplicationProps {
   isOpen: boolean;

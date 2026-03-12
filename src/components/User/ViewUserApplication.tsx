@@ -5,7 +5,6 @@ import { getSHGUserByIdApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { Modal } from "../ui/modal";
 import { getUserRole } from "../../config/constants";
-import { baseUrl } from "../../config/env";
 
 interface ViewUserApplicationProps {
   isOpen: boolean;
