@@ -845,3 +845,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .dark input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
+
+@keyframes borderShift {
+  0%   { background-position: 0% 50%;   }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%;   }
+}

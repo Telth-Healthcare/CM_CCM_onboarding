@@ -47,26 +47,26 @@ const MODULES: TrainingModule[] = [
     id: 'm1', topic: 'Community Care Foundations', subtitle: 'Core principles of community-centred management',
     tag: 'Required', tagColor: 'bg-red-100 text-red-600', progress: 66, totalLessons: 3, completedLessons: 2,
     videos: [
-      { id: 'v1', title: 'Introduction to CCM Framework',     duration: '14:32', youtubeUrl: 'https://youtu.be/IivlA4o5RkU', description: 'Overview of the CCM model and its key principles.' },
-      { id: 'v2', title: 'Stakeholder Engagement Strategies', duration: '22:10', youtubeUrl: 'https://www.youtube.com/watch?v=9bZkp7q19f0', description: 'How to identify and work with community stakeholders.' },
-      { id: 'v3', title: 'Documentation & Reporting',         duration: '18:05', youtubeUrl: 'https://www.youtube.com/watch?v=JGwWNGJdvx8', description: 'Best practices for field documentation.' },
+      { id: 'v1', title: 'Introduction to CCM Framework',     duration: '14:32', youtubeUrl: 'https://youtu.be/IagYUKyS0cg?si=mzHBYzJ2NHFiWAK0', description: 'Overview of the CCM model and its key principles.' },
+      { id: 'v2', title: 'Stakeholder Engagement Strategies', duration: '22:10', youtubeUrl: 'https://youtu.be/tcBXv2fbqJA?si=JbuZlyj7N4Xxz6-A', description: 'How to identify and work with community stakeholders.' },
+      { id: 'v3', title: 'Documentation & Reporting',         duration: '18:05', youtubeUrl: 'https://youtu.be/fBwCUGjz5KE?si=Jp38_1-XIHHp0O3z', description: 'Best practices for field documentation.' },
     ],
   },
   {
     id: 'm2', topic: 'Field Operations', subtitle: 'Practical skills for on-ground deployment',
     tag: 'In Progress', tagColor: 'bg-blue-50 text-blue-600', progress: 33, totalLessons: 3, completedLessons: 1,
     videos: [
-      { id: 'v4', title: 'Safety Protocols in the Field', duration: '11:47', youtubeUrl: 'https://www.youtube.com/watch?v=kJQP7kiw5Fk', description: 'Essential safety guidelines before deployment.' },
-      { id: 'v5', title: 'Resource Mapping Techniques',   duration: '25:00', youtubeUrl: 'https://www.youtube.com/watch?v=RgKAFK5djSk', description: 'Tools for mapping community resources effectively.' },
-      { id: 'v6', title: 'Crisis Response Basics',        duration: '19:15', youtubeUrl: 'https://www.youtube.com/watch?v=fLexgOxsZu0', description: 'First-response principles during community crises.' },
+      { id: 'v4', title: 'Safety Protocols in the Field', duration: '11:47', youtubeUrl: 'https://youtu.be/AAv_KLeOoWg?si=yWLnJHaT-erQwSua', description: 'Essential safety guidelines before deployment.' },
+      { id: 'v5', title: 'Resource Mapping Techniques',   duration: '25:00', youtubeUrl: 'https://youtu.be/Q5Q2SoN28WU?si=vsa2ixdrY9joFmDQ', description: 'Tools for mapping community resources effectively.' },
+      { id: 'v6', title: 'Crisis Response Basics',        duration: '19:15', youtubeUrl: 'https://youtu.be/PRqNaFjREPY?si=sHc5XyIz83rsrWZQ', description: 'First-response principles during community crises.' },
     ],
   },
   {
     id: 'm3', topic: 'Digital Tools & Platforms', subtitle: 'Software and systems used across CCM operations',
     tag: 'Upcoming', tagColor: 'bg-gray-100 text-gray-500', progress: 0, totalLessons: 2, completedLessons: 0,
     videos: [
-      { id: 'v7', title: 'Using the CCM Dashboard', duration: '08:30', youtubeUrl: 'https://www.youtube.com/watch?v=2Vv-BfVoq4g', description: 'Walkthrough of features available on your dashboard.' },
-      { id: 'v8', title: 'Data Entry & Submissions', duration: '12:45', youtubeUrl: 'https://www.youtube.com/watch?v=pRpeEdMmmQ0', description: 'Correct way to submit field data and forms.' },
+      { id: 'v7', title: 'Using the CCM Dashboard', duration: '08:30', youtubeUrl: 'https://youtu.be/c7HS3dBV3SI?si=guS0Df7qS5ylCJoj', description: 'Walkthrough of features available on your dashboard.' },
+      { id: 'v8', title: 'Data Entry & Submissions', duration: '12:45', youtubeUrl: 'https://youtu.be/JVmPu8o2ycc?si=kjcrJ3Zc63STJ3Cs', description: 'Correct way to submit field data and forms.' },
     ],
   },
 ]
@@ -144,7 +144,7 @@ function ModuleSection({ module, watched, onWatch }: { module: TrainingModule; w
             <div className="flex-1 max-w-[200px] h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
               <div className="h-full bg-brand-500 rounded-full transition-all duration-500" style={{ width: `${module.progress}%` }} />
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{module.completedLessons}/{module.totalLessons} lessons</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{module.completedLessons}/{module.totalLessons} module lessons(soon)</span>
           </div>
         </div>
         <span className={`mt-1 transition-transform duration-200 text-gray-400 flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}>

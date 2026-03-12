@@ -1,5 +1,5 @@
 // api/shgonboard.api.ts
-import { client } from './client'
+import { ccmClient as client} from './client'
 
 // ── Application CRUD ──────────────────────────────────────────────────────────
 const createApplicationApi = (data: Record<string, any>) =>
@@ -12,6 +12,8 @@ const updateApplicationApi = (pk: number, data: Record<string, any>) =>
 
 const submitApplicationApi = (userId: number) =>
   client.post(`applications/app/`, { user: userId }).then(res => res.data)
+
+const getApplicationStatusApi=(appid:number,)=>client.get(`applications/app/${appid}/`).then(res=>res.data)
 
 const getApplicationApi = (pk: number) =>
   client.get(`shg/app/${pk}/`).then(res => res.data)
@@ -43,4 +45,5 @@ export {
   productInterestApi,
   getshgsIdApi,
   getApplicationApi,
+  getApplicationStatusApi
 }
