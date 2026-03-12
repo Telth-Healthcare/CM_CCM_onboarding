@@ -13,7 +13,6 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL;
 const defaultHeaders = {
   Accept: "application/json",
   "X-Client-ID": "app",
-  "ngrok-skip-browser-warning": "true",
 };
 
 

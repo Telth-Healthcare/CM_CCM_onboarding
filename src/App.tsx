@@ -1,6 +1,6 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { ToastContainer } from "react-toastify";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
 import ProtectedRoute from "./config/ProtectedRoute";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import CCMDashboardRoutes from "./ccm/dashboard/DashboardRoutes";
@@ -27,6 +27,50 @@ const Applications = lazy(() => import("./components/User/Applications"));
 const Region = lazy(() => import("./components/User/Region"));
 const NotFound = lazy(() => import("./pages/OtherPage/NotFound"));
 
+// Root Redirect Component
+function RootRedirect() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check localStorage for user data
+    const userData = localStorage.getItem("user");
+    const token = localStorage.getItem("token"); // or whatever token key you use
+    
+    if (userData || token) {
+      // User is logged in - determine where to redirect based on user role
+      try {
+        const user = JSON.parse(userData || "{}");
+        if (user.role === "ccm" || user.authType === "ccm") {
+          navigate("/ccm-dashboard");
+        } else {
+          navigate("/dashboard");
+        }
+      } catch (error) {
+        // If parsing fails or no user data, go to admin signin
+        navigate("/admin/signin");
+      }
+    } else {
+      // No user data found, redirect to admin signin
+      navigate("/admin/signin");
+    }
+  }, [navigate]);
+
+  // Show loading while redirecting
+  return (
+    <div
+      style={{
+        height: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        fontSize: "18px",
+      }}
+    >
+      Redirecting...
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Router>
@@ -47,12 +91,17 @@ export default function App() {
         }
       >
         <Routes>
+          {/* Root path redirect */}
+          <Route path="/" element={<RootRedirect />} />
+          
           {/* Admin Auth */}
           <Route path="/admin/signin" element={<SignIn />} />
           <Route path="/invite/accept" element={<AcceptInvitationPage />} />
+          
           {/* CCM Auth */}
           <Route path="/ccm-auth/signin" element={<CCMSignInPage />} />
           <Route path="/ccm-auth/signup" element={<CCMSignUpPage />} />
+          
           <Route element={<ProtectedRoute authType="ccm" />}>
             <Route path="/ccmonboard/*" element={<OnboardLayout />} />
             <Route path="/ccm-dashboard/*" element={<CCMDashboardRoutes />} />
@@ -65,7 +114,7 @@ export default function App() {
               <Route
                 path="/regions"
                 element={<Region key={location.pathname} />}
-              />{" "}
+              />
               <Route
                 path="/applications"
                 element={<Applications key="/applications" />}
@@ -83,6 +132,7 @@ export default function App() {
               />
             </Route>
           </Route>
+          
           {/* ================= FALLBACK ================= */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -29,7 +29,6 @@ interface User {
   email: string | null;
   phone: string;
   is_active: boolean;
-  is_approved: boolean;
   is_staff: boolean;
   is_superuser: boolean;
   phone_verified: boolean;
@@ -338,32 +337,6 @@ const AdminUser = () => {
         filterSelectOptions: [
           { text: "Active", value: "active" },
           { text: "Inactive", value: "inactive" },
-        ],
-        enableColumnFilter: true,
-      },
-      {
-        accessorKey: "is_approved",
-        header: "Approval",
-        size: 100,
-        accessorFn: (row) => (row.is_approved ? "approved" : "pending"), // Transform for filtering
-        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
-          const value = cell.row.original.is_approved;
-          return (
-            <span
-              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                value
-                  ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                  : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
-              }`}
-            >
-              {value ? "Approved" : "Pending"}
-            </span>
-          );
-        },
-        filterVariant: "select",
-        filterSelectOptions: [
-          { text: "Approved", value: "approved" },
-          { text: "Pending", value: "pending" },
         ],
         enableColumnFilter: true,
       },
