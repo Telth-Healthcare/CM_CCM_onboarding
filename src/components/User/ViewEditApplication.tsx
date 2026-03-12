@@ -588,7 +588,7 @@ const ViewEditApplication: React.FC<ViewEditApplicationProps> = ({
                         {doc.document_type?.replace(/_/g, ' ') || 'Document'}
                       </span>
                       <a
-                        href={`${baseUrl}${doc.file}`}
+                        href={doc.file}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-medium"

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   GridIcon,
@@ -14,7 +14,7 @@ import { Map, NotebookIcon } from "lucide-react";
 type NavItem = {
   name: string;
   icon: React.ReactNode;
-  path: string; // Made path required since no submenus
+  path: string;
   roles?: string[];
 };
 
@@ -46,6 +46,7 @@ const navItems: NavItem[] = [
     icon: <UserCircleIcon />,
     name: "Users",
     path: "/users",
+    roles: ["super_admin", "admin"],
   },
   {
     icon: <NotebookIcon />,
@@ -56,6 +57,7 @@ const navItems: NavItem[] = [
     icon: <Map />,
     name: "Regions",
     path: "/regions",
+    roles: ["super_admin"], 
   },
 ];
 
@@ -65,6 +67,13 @@ const AppSidebar: React.FC = () => {
   const navigate = useNavigate();
   const adminUser = getAdminUser();
 
+  const userRole = useMemo(() => {
+    if (adminUser?.roles && adminUser.roles.length > 0) {
+      return adminUser.roles[0];
+    }
+    return localStorage.getItem("admin_role");
+  }, [adminUser]);
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleSignOut = () => setShowLogoutModal(true);
@@ -73,7 +82,7 @@ const AppSidebar: React.FC = () => {
     // Clear all auth data
     localStorage.clear();
     sessionStorage.clear();
-    
+
     // Navigate to signin
     navigate("/admin/signin", { replace: true });
     setShowLogoutModal(false);
@@ -81,41 +90,60 @@ const AppSidebar: React.FC = () => {
 
   const cancelLogout = () => setShowLogoutModal(false);
 
-  // Updated isActive to handle both exact matches and subpaths
-const isActive = useCallback(
-  (path: string) => location.pathname.startsWith(path),
-  [location.pathname]
-);
-
-  // No submenu effects needed anymore
-
-  const renderMenuItems = (items: NavItem[]) => (
-    <ul className="flex flex-col gap-4">
-      {items.map((nav) => (
-        <li key={nav.name}>
-          <Link
-            to={nav.path}
-            className={`menu-item group ${
-              isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
-            } ${!isExpanded && !isHovered ? "lg:justify-center" : "lg:justify-start"}`}
-          >
-            <span
-              className={`menu-item-icon-size ${
-                isActive(nav.path)
-                  ? "menu-item-icon-active"
-                  : "menu-item-icon-inactive"
-              }`}
-            >
-              {nav.icon}
-            </span>
-            {(isExpanded || isHovered || isMobileOpen) && (
-              <span className="menu-item-text">{nav.name}</span>
-            )}
-          </Link>
-        </li>
-      ))}
-    </ul>
+  const isActive = useCallback(
+    (path: string) => location.pathname.startsWith(path),
+    [location.pathname],
   );
+
+  const filteredNavItems = useMemo(() => {
+    return navItems.filter(item => {
+      if (!item.roles || item.roles.length === 0) {
+        return true;
+      }
+      
+      if (!userRole) return false;
+      
+      return item.roles.includes(userRole);
+    });
+  }, [userRole]);
+
+  const renderMenuItems = (items: NavItem[]) => {
+    if (items.length === 0) {
+      return (
+        <div className="text-center text-gray-400 text-sm py-4">
+          No menu items available
+        </div>
+      );
+    }
+
+    return (
+      <ul className="flex flex-col gap-4">
+        {items.map((nav) => (
+          <li key={nav.name}>
+            <Link
+              to={nav.path}
+              className={`menu-item group ${
+                isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
+              } ${!isExpanded && !isHovered ? "lg:justify-center" : "lg:justify-start"}`}
+            >
+              <span
+                className={`menu-item-icon-size ${
+                  isActive(nav.path)
+                    ? "menu-item-icon-active"
+                    : "menu-item-icon-inactive"
+                }`}
+              >
+                {nav.icon}
+              </span>
+              {(isExpanded || isHovered || isMobileOpen) && (
+                <span className="menu-item-text">{nav.name}</span>
+              )}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   const avatarLetter =
     adminUser?.first_name?.[0]?.toUpperCase() ||
@@ -166,7 +194,7 @@ const isActive = useCallback(
                     <HorizontaLDots className="size-6" />
                   )}
                 </h2>
-                {renderMenuItems(navItems)}
+                {renderMenuItems(filteredNavItems)}
               </div>
             </nav>
           </div>
@@ -184,9 +212,9 @@ const isActive = useCallback(
                     <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
                       {adminUser?.email || ""}
                     </span>
-                    {adminUser?.roles?.[0] && (
+                    {userRole && (
                       <span className="text-xs text-brand-500 font-medium capitalize mt-0.5">
-                        {adminUser.roles[0].replace(/_/g, " ")}
+                        {userRole.replace(/_/g, " ")}
                       </span>
                     )}
                   </div>

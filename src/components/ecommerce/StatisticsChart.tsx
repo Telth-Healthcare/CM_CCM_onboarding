@@ -301,7 +301,7 @@ export default function StatisticsChart() {
       <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Applications Statistics - {currentMonthName} {currentYear}
+            CM Applications Statistics - {currentMonthName} {currentYear}
           </h3>
           <div className="flex flex-wrap gap-4 mt-2">
             <p className="text-sm text-gray-500 dark:text-gray-400">
