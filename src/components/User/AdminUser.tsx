@@ -107,7 +107,6 @@ const AdminUser = () => {
   // Check user roles
   const isSuperAdmin = userRole === "super_admin";
   const isAdmin = userRole === "admin";
-  const userId = getUser();
 
   const canAddUsers = isSuperAdmin || isAdmin;
   const canEditApproval = isSuperAdmin || isAdmin;
@@ -385,13 +384,7 @@ const AdminUser = () => {
         header: "Approval",
         size: 150,
         accessorFn: (row) => (row.is_approved ? "approved" : "pending"),
-        Cell: ({
-          cell,
-          row,
-        }: {
-          cell: MRT_Cell<User, unknown>;
-          row: MRT_Row<User>;
-        }) => {
+        Cell: ({ row }: { row: MRT_Row<User> }) => {
           const userId = row.original.id;
           const isApproved = row.original.is_approved;
           const isEditing = editingApproval?.userId === userId;
