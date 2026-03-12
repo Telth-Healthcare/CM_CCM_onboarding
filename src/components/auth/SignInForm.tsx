@@ -146,7 +146,7 @@ export default function SignInForm() {
                     </span>
                     <input
                       type="tel"
-                      placeholder="9876543210"
+                      placeholder="987654xxxx"
                       value={state.phone}
                       disabled={loading}
                       onChange={handlePhoneChange}
