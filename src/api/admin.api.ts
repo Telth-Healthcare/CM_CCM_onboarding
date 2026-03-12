@@ -22,6 +22,11 @@ export const getAllUsers = () => {
         .then(res => res.data);
 }
 
+export const updateUsersApi = (userId: number ,payload: any) => {
+    return client.patch(`accounts/users/${userId}/`, payload)
+        .then(res => res.data);
+}
+
 export const getApplicationsApi = () => {
     return client.get("applications/app/")
         .then(res => res.data);

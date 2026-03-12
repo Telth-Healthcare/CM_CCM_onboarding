@@ -13,6 +13,7 @@ import {
   getAllUsers,
   sendInvitationApi,
   SendInvitationRequest,
+  updateUsersApi,
 } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import CommonTable from "../mui/MuiTable";
@@ -29,6 +30,7 @@ interface User {
   email: string | null;
   phone: string;
   is_active: boolean;
+  is_approved: boolean;
   is_staff: boolean;
   is_superuser: boolean;
   phone_verified: boolean;
@@ -78,9 +80,13 @@ const AdminUser = () => {
     [],
   );
 
-  // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const [editingApproval, setEditingApproval] = useState<{
+    userId: number;
+    isApproved: boolean;
+  } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<NewUserForm>({
@@ -101,8 +107,10 @@ const AdminUser = () => {
   // Check user roles
   const isSuperAdmin = userRole === "super_admin";
   const isAdmin = userRole === "admin";
+  const userId = getUser();
 
   const canAddUsers = isSuperAdmin || isAdmin;
+  const canEditApproval = isSuperAdmin || isAdmin;
 
   const availableRoles = useMemo(() => {
     if (isSuperAdmin) {
@@ -236,6 +244,39 @@ const AdminUser = () => {
     }
   };
 
+  const handleApprovalChange = async (
+    userId: number,
+    newApprovalStatus: boolean,
+  ) => {
+    if (!canEditApproval) {
+      toast.error("You don't have permission to edit approval status");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await updateUsersApi(userId, {
+        is_approved: newApprovalStatus,
+      });
+
+      if (response) {
+        toast.success(
+          `User ${newApprovalStatus ? "approved" : "pending"} successfully`,
+        );
+        await fetchUsers();
+      }
+    } catch (error) {
+      const errorMessage = handleAxiosError(
+        error,
+        "Failed to update approval status",
+      );
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+      setEditingApproval(null);
+    }
+  };
+
   const columns = useMemo<MRT_ColumnDef<User>[]>(
     () => [
       {
@@ -254,7 +295,7 @@ const AdminUser = () => {
           return value || "-";
         },
         filterVariant: "text",
-        enableColumnFilter: true, // Explicitly enable filter
+        enableColumnFilter: true,
       },
       {
         accessorKey: "last_name",
@@ -289,7 +330,7 @@ const AdminUser = () => {
         accessorKey: "roles",
         header: "Role",
         size: 150,
-        accessorFn: (row) => row.roles?.[0] || "", // Transform for filtering
+        accessorFn: (row) => row.roles?.[0] || "",
         Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
           const row = cell.row.original;
           const roles = row.roles;
@@ -311,14 +352,13 @@ const AdminUser = () => {
           const value = cell.getValue<string>();
           return value ? new Date(value).toLocaleDateString() : "-";
         },
-        // filterVariant: "text",
         enableColumnFilter: false,
       },
       {
         accessorKey: "is_active",
         header: "Status",
         size: 100,
-        accessorFn: (row) => (row.is_active ? "active" : "inactive"), // Transform for filtering
+        accessorFn: (row) => (row.is_active ? "active" : "inactive"),
         Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
           const value = cell.row.original.is_active;
           return (
@@ -340,8 +380,134 @@ const AdminUser = () => {
         ],
         enableColumnFilter: true,
       },
+      {
+        accessorKey: "is_approved",
+        header: "Approval",
+        size: 150,
+        accessorFn: (row) => (row.is_approved ? "approved" : "pending"),
+        Cell: ({
+          cell,
+          row,
+        }: {
+          cell: MRT_Cell<User, unknown>;
+          row: MRT_Row<User>;
+        }) => {
+          const userId = row.original.id;
+          const isApproved = row.original.is_approved;
+          const isEditing = editingApproval?.userId === userId;
+
+          if (isEditing) {
+            return (
+              <div className="flex items-center gap-2">
+                <select
+                  value={editingApproval.isApproved ? "approved" : "pending"}
+                  onChange={(e) => {
+                    const newValue = e.target.value === "approved";
+                    setEditingApproval({
+                      userId,
+                      isApproved: newValue,
+                    });
+                  }}
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white"
+                  autoFocus
+                >
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                </select>
+                <button
+                  onClick={() =>
+                    handleApprovalChange(userId, editingApproval.isApproved)
+                  }
+                  className="p-1 text-success-600 hover:text-success-700 dark:text-success-400"
+                  title="Save"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setEditingApproval(null)}
+                  className="p-1 text-error-600 hover:text-error-700 dark:text-error-400"
+                  title="Cancel"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isApproved
+                    ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                    : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
+                }`}
+              >
+                {isApproved ? "Approved" : "Pending"}
+              </span>
+              {canEditApproval && (
+                <button
+                  onClick={() => setEditingApproval({ userId, isApproved })}
+                  className="p-1 text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+                  title="Edit approval status"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          );
+        },
+        filterVariant: "select",
+        filterSelectOptions: [
+          { text: "Approved", value: "approved" },
+          { text: "Pending", value: "pending" },
+        ],
+        enableColumnFilter: true,
+      },
     ],
-    [pagination.pageIndex, pagination.pageSize, roles],
+    [
+      pagination.pageIndex,
+      pagination.pageSize,
+      roles,
+      canEditApproval,
+      editingApproval,
+    ],
   );
 
   const handleAddUser = () => setIsAddModalOpen(true);
@@ -415,9 +581,15 @@ const AdminUser = () => {
       };
 
       if (showMnpField) {
-        payload.manager = +formData.mnpData;
+        if (isAdmin) {
+          const adminUser = JSON.parse(
+            localStorage.getItem("admin_user") || "{}",
+          );
+          payload.manager = adminUser?.id;
+        } else {
+          payload.manager = +formData.mnpData;
+        }
       }
-
       const response = await sendInvitationApi([payload]);
 
       const result = response?.data?.[0] || response?.[0];
@@ -427,9 +599,7 @@ const AdminUser = () => {
         handleCloseModal();
         fetchUsers();
       } else {
-        toast.warning(
-          "Email was not sent. Please check the email address.",
-        );
+        toast.warning("Email was not sent. Please check the email address.");
       }
     } catch (error) {
       const errorMessage = handleAxiosError(
@@ -521,7 +691,7 @@ const AdminUser = () => {
           enableColumnFilters={true}
           onPaginationChange={setPagination}
           toolbarActions={toolbarActions}
-          columnFilters={columnFilters} // ADD
+          columnFilters={columnFilters}
           onColumnFiltersChange={setColumnFilters}
         />
       </div>
@@ -551,7 +721,6 @@ const AdminUser = () => {
                     value={formData.first_name}
                     onChange={handleInputChange}
                     placeholder="Enter first name"
-                    // className="w-96"
                     error={!!errors.first_name}
                   />
                   {errors.first_name && (
