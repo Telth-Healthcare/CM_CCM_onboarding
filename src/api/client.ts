@@ -6,13 +6,15 @@ import axios, {
 import { handleAxiosError } from "../utils/handleAxiosError";
 import { toast } from "react-toastify";
 import { AuthType } from "../config/constants";
+import { baseUrl } from "../config/env";
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL;
+// const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
 
 const defaultHeaders = {
   Accept: "application/json",
   "X-Client-ID": "app",
+  // "ngrok-skip-browser-warning": "true",
 };
 
 
