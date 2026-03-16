@@ -9,6 +9,30 @@ import { setToken } from "../../config/constants";
 import { toast } from "react-toastify";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 
+// Simple Spinner Component
+const Spinner = () => (
+  <svg 
+    className="animate-spin h-5 w-5 text-white" 
+    xmlns="http://www.w3.org/2000/svg" 
+    fill="none" 
+    viewBox="0 0 24 24"
+  >
+    <circle 
+      className="opacity-25" 
+      cx="12" 
+      cy="12" 
+      r="10" 
+      stroke="currentColor" 
+      strokeWidth="4"
+    />
+    <path 
+      className="opacity-75" 
+      fill="currentColor" 
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    />
+  </svg>
+);
+
 interface FormState {
   phone: string;
   password: string;
@@ -37,7 +61,7 @@ export default function SignInForm() {
     if (token) {
       navigate("/dashboard");
     }
-  }, []);
+  }, [navigate]);
 
   const validateForm = () => {
     const newErrors: FormErrors = {};
@@ -59,8 +83,20 @@ export default function SignInForm() {
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, "").slice(0, 10); // digits only, max 10
+    const value = e.target.value.replace(/\D/g, "").slice(0, 10);
     setState({ ...state, phone: value });
+    // Clear phone error when user types
+    if (errors.phone) {
+      setErrors({ ...errors, phone: undefined });
+    }
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setState({ ...state, password: e.target.value });
+    // Clear password error when user types
+    if (errors.password) {
+      setErrors({ ...errors, password: undefined });
+    }
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -74,7 +110,7 @@ export default function SignInForm() {
 
       const payload = {
         ...state,
-        phone: `+91${state.phone}`, // append +91 before sending
+        phone: `+91${state.phone}`,
       };
 
       const response = await signinApi(payload);
@@ -88,9 +124,11 @@ export default function SignInForm() {
           refresh: refreshToken,
           user: user,
         });
+        toast.success("Signed in successfully!");
+        navigate("/dashboard");
+      } else {
+        throw new Error("Invalid response from server");
       }
-      toast.success("Signed in successfully!");
-      navigate("/dashboard");
     } catch (error: any) {
       const field = error?.response?.data?.errors?.[0]?.param;
 
@@ -136,7 +174,7 @@ export default function SignInForm() {
                   <Label>
                     Phone Number <span className="text-error-500">*</span>
                   </Label>
-                  <div        className={`flex items-center border rounded-lg overflow-hidden ${
+                  <div className={`flex items-center border rounded-lg overflow-hidden ${
                       errors.phone
                         ? "border-red-500 dark:border-red-500"
                         : "border-gray-300 dark:border-gray-700"
@@ -151,7 +189,7 @@ export default function SignInForm() {
                       disabled={loading}
                       onChange={handlePhoneChange}
                       maxLength={10}
-                      className="flex-1 px-3 py-2 text-sm outline-none bg-white dark:bg-gray-900 dark:text-white"
+                      className="flex-1 px-3 py-2 text-sm outline-none bg-white dark:bg-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                   {errors.phone && (
@@ -170,13 +208,11 @@ export default function SignInForm() {
                       placeholder="Enter your password"
                       value={state.password}
                       disabled={loading}
-                      error= {!!errors.password}
-                      onChange={(e) =>
-                        setState({ ...state, password: e.target.value })
-                      }
+                      error={!!errors.password}
+                      onChange={handlePasswordChange}
                     />
                     <span
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={() => !loading && setShowPassword(!showPassword)}
                       className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
                     >
                       {showPassword ? (
@@ -193,8 +229,20 @@ export default function SignInForm() {
                   )}
                 </div>
 
-                <Button className="w-full" size="sm" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign in"}
+                {/* Sign In Button with Loading Animation */}
+                <Button 
+                  className="w-full" 
+                  size="sm" 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Spinner />
+                      Signing in...
+                    </span>
+                  ) : (
+                    "Sign in"
+                  )}
                 </Button>
               </div>
             </form>

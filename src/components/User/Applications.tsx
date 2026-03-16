@@ -7,7 +7,7 @@ import {
 import { toast } from "react-toastify";
 import { getApplicationsApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
-import {  PencilIcon } from "../../icons";
+import { PencilIcon } from "../../icons";
 import CommonTable from "../mui/MuiTable";
 
 interface Application {
@@ -34,6 +34,7 @@ interface Application {
 
 const Applications = () => {
   const navigate = useNavigate();
+
   const statusOptions = [
     { value: "submitted", label: "Submitted" },
     { value: "under_review", label: "Under Review" },
@@ -70,7 +71,7 @@ const Applications = () => {
     } catch (err) {
       const errorMessage = handleAxiosError(
         err,
-        "Failed to fetch applications",
+        "Failed to fetch applications"
       );
       toast.error(errorMessage);
       setApplications([]);
@@ -104,34 +105,27 @@ const Applications = () => {
   const columns = useMemo<MRT_ColumnDef<Application>[]>(
     () => [
       {
-        accessorKey: "reference_number",
+        accessorFn: (row) => row?.reference_number ?? "-",
+        id: "reference_number",
         header: "Reference No.",
         size: 120,
-        Cell: ({ cell }) => {
-          const value = cell.getValue<string>();
-          return value ?? "-";
-        },
         enableColumnFilter: false,
       },
       {
-        accessorKey: "user_details",
+        accessorFn: (row) => row?.user_details ?? "-",
+        id: "user_details",
         header: "Name",
-        size: 120,
-        Cell: ({ cell }) => {
-          const value = cell.getValue<string | number | null>();
-          return value ?? "-";
-        },
+        size: 150,
         filterVariant: "text",
-        enableColumnFilter: true,
       },
       {
-        accessorKey: "status",
+        accessorFn: (row) => row?.status ?? "",
+        id: "status",
         header: "Status",
         size: 120,
-        accessorFn: (row) => row.status ?? "",
         Cell: ({ cell }) => {
-          const status = cell.getValue<string>() ?? "";
-          const match = statusOptions.find((option) => option.value === status);
+          const status = cell.getValue<string>();
+          const match = statusOptions.find((s) => s.value === status);
           return match?.label ?? status ?? "-";
         },
         filterVariant: "select",
@@ -139,47 +133,36 @@ const Applications = () => {
           text: item.label,
           value: item.value,
         })),
-        enableColumnFilter: true,
       },
       {
-        accessorKey: "trainer_details",
+        accessorFn: (row) => row?.trainer_details ?? "-",
+        id: "trainer_details",
         header: "Trainer",
         size: 120,
-        Cell: ({ cell }) => {
-          const value = cell.getValue<string | number | null>();
-          return value ?? "-";
-        },
         filterVariant: "text",
-        enableColumnFilter: true,
       },
       {
-        accessorKey: "created_at",
+        accessorFn: (row) =>
+          row?.created_at
+            ? new Date(row.created_at).toLocaleDateString()
+            : "-",
+        id: "created_at",
         header: "Created Date",
         size: 150,
-        Cell: ({ cell }) => {
-          const value = cell.getValue<string>();
-          return value ? new Date(value).toLocaleDateString() : "-";
-        },
         enableColumnFilter: false,
       },
       {
-        accessorKey: "assigned_financier_details",
+        accessorFn: (row) => row?.assigned_financier_details ?? "-",
+        id: "assigned_financier_details",
         header: "Financier",
-        size: 120,
-        Cell: ({ cell }) => {
-          const value = cell.getValue<string | number | null>();
-          return value ?? "-";
-        },
+        size: 150,
       },
       {
-        accessorKey: "payment_status",
+        accessorFn: (row) =>
+          row?.payment_status === "pending" ? "pending" : "cleared",
+        id: "payment_status",
         header: "Payment Status",
         size: 120,
-        accessorFn: (row) => row.payment_status ? "pending" : "cleared",
-        Cell: ({ cell }) => {
-          const status = cell.getValue<string>() ?? "";
-          return status ?? "-";
-        },
         filterVariant: "select",
         filterSelectOptions: [
           { text: "Pending", value: "pending" },

@@ -9,7 +9,7 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import logo from "../assets/TELTH LOGO.png";
-import { Map, NotebookIcon } from "lucide-react";
+import { Contact, Mail, Map, NotebookIcon, UserCheck } from "lucide-react";
 
 type NavItem = {
   name: string;
@@ -43,6 +43,11 @@ const navItems: NavItem[] = [
     path: "/dashboard",
   },
   {
+    icon: <UserCheck />,
+    name: "Profile",
+    path: "/profile",
+  },
+  {
     icon: <UserCircleIcon />,
     name: "Users",
     path: "/users",
@@ -57,7 +62,19 @@ const navItems: NavItem[] = [
     icon: <Map />,
     name: "Regions",
     path: "/regions",
-    roles: ["super_admin"], 
+    roles: ["super_admin"],
+  },
+  {
+    icon: <Mail />,
+    name: "Webinars",
+    path: "/webinars",
+    roles: ["super_admin", "admin"],
+  },
+  {
+    icon: <Contact />,
+    name: "Contact",
+    path: "/contact",
+    roles: ["super_admin", "admin"],
   },
 ];
 
@@ -206,7 +223,7 @@ const AppSidebar: React.FC = () => {
                 {/* User card */}
                 <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-gray-50 dark:bg-gray-800">
                   <div className="w-9 h-9 rounded-full bg-brand-500 flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                    {avatarLetter}
+                   <span onClick={() => navigate("/profile")} style={{ cursor: 'pointer'}}>{avatarLetter}</span> 
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
@@ -248,17 +265,18 @@ const AppSidebar: React.FC = () => {
         </div>
       </aside>
 
-      {/* Logout Confirmation Modal */}
       {showLogoutModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={cancelLogout}
           />
+          
+          {/* Modal Content */}
           <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 animate-fadeIn">
             <button
               onClick={cancelLogout}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             >
               <CloseLineIcon className="w-5 h-5" />
             </button>
@@ -284,7 +302,7 @@ const AppSidebar: React.FC = () => {
               </button>
               <button
                 onClick={confirmLogout}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200"
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200"
               >
                 Sign Out
               </button>
@@ -300,6 +318,12 @@ const AppSidebar: React.FC = () => {
         }
         .animate-fadeIn {
           animation: fadeIn 0.2s ease-out forwards;
+        }
+        
+        /* Ensure backdrop blur works */
+        .backdrop-blur-md {
+          --tw-backdrop-blur: blur(12px);
+          backdrop-filter: var(--tw-backdrop-blur);
         }
       `}</style>
     </>

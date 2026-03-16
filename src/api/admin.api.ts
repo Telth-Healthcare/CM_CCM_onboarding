@@ -71,3 +71,13 @@ export const getSHGUserByIdApi = (userId: number) => {
     return client.get(`shg/app/${userId}/`)
     .then(res => res.data)
 }  
+
+export const getAllWebinarsApi = () => {
+    return client.get("web/webinars/") 
+    .then(res => res.data); 
+}
+
+export const getAllContactApi = () => {
+    return client.get("web/contacts/") 
+    .then(res => res.data); 
+}

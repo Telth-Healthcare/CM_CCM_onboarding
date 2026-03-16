@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
-import logo from "../assets/TELTH LOGO.png"
+import logo from "../assets/TELTH LOGO.png";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
