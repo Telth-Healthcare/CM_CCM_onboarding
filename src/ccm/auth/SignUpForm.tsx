@@ -43,8 +43,8 @@ export default function CCMSignUpForm() {
     }
     if (!state.password) {
       newErrors.password = "Password is required"; valid = false;
-    } else if (state.password.length < 6) {
-      newErrors.password = "Minimum 6 characters"; valid = false;
+    } else if (state.password.length < 8) {
+      newErrors.password = "Minimum 8 characters"; valid = false;
     }
     if (!isChecked) { newErrors.terms = "You must agree to terms and conditions"; valid = false; }
     setErrors(newErrors);

@@ -86,7 +86,7 @@ function NotesTab() {
   const [notes, setNotes] = useState<Note[]>([
     {
       id: "n1",
-      title: "CCM Framework Key Points",
+      title: "CM Framework Key Points",
       content: "Remember: community-first approach. Stakeholder mapping is critical before any deployment. Always document interactions.",
       createdAt: "2024-11-10T09:00:00Z",
       updatedAt: "2024-11-10T09:00:00Z",

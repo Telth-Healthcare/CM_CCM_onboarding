@@ -95,6 +95,9 @@ const validate = (stepId: string, data: CCMFormData) => {
   return errs
 }
 
+
+
+
 export default function CCMOnboard() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -109,7 +112,7 @@ export default function CCMOnboard() {
   const [saving,    setSaving]    = useState(false)
   const [appId,     setAppId]     = useState<number | null>(null)
   const [refNumber, setRefNumber] = useState('')
-
+const [replacedDocs, setReplacedDocs] = useState<Set<string>>(new Set())
   const updateFormData = useCallback((field: keyof CCMFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     setErrors(prev  => ({ ...prev, [field]: undefined }))
@@ -257,29 +260,65 @@ export default function CCMOnboard() {
   }
 
   // ── Upload documents for current step ─────────────────────────────────────
-  const uploadDocuments = async (pk: number) => {
-    const uploads: { file: File; type: string }[] = []
+const uploadDocuments = async (pk: number) => {
+  const uploads: { file: File; type: string; urlField: keyof CCMFormData ;isReplace?: boolean}[] = []
 
-    if (currentId === 'personal-documents') {
-      if (formData.aadharFront) uploads.push({ file: formData.aadharFront, type: 'aadhar_front' })
-      if (formData.aadharBack)  uploads.push({ file: formData.aadharBack,  type: 'aadhar_back'  })
-      if (formData.pan)         uploads.push({ file: formData.pan,         type: 'pan'           })
-    }
-    if (currentId === 'education-documents') {
-      if (formData.bachelorDoc)       uploads.push({ file: formData.bachelorDoc,       type: 'bachelor_certificate'   })
-      if (formData.masterDoc)         uploads.push({ file: formData.masterDoc,         type: 'master_certificate'     })
-      if (formData.experienceCertDoc) uploads.push({ file: formData.experienceCertDoc, type: 'experience_certificate' })
-    }
-
-    if (uploads.length === 0) return true
-    try {
-      await Promise.all(uploads.map(u => uploadDocumentApi(u.file, u.type, pk)))
-      return true
-    } catch (err) {
-      toast.error('Document upload failed: ' + handleAxiosError(err))
-      return false
-    }
+  if (currentId === 'personal-documents') {
+    if (formData.aadharFront && !formData.aadharFrontUrl)
+      uploads.push({ file: formData.aadharFront, type: 'aadhar_front', urlField: 'aadharFrontUrl' })
+    if (formData.aadharBack  && !formData.aadharBackUrl)
+      uploads.push({ file: formData.aadharBack,  type: 'aadhar_back',  urlField: 'aadharBackUrl'  })
+    if (formData.pan         && !formData.panUrl)
+      uploads.push({ file: formData.pan,         type: 'pan',          urlField: 'panUrl'         })
   }
+
+  if (currentId === 'education-documents') {
+    if (formData.bachelorDoc       && !formData.bachelorDocUrl)
+      uploads.push({ file: formData.bachelorDoc,       type: 'bachelor_certificate',   urlField: 'bachelorDocUrl' ,isReplace: replacedDocs.has('bachelor_certificate'),       })
+    if (formData.masterDoc         && !formData.masterDocUrl)
+      uploads.push({ file: formData.masterDoc,         type: 'master_certificate',     urlField: 'masterDocUrl' ,isReplace: replacedDocs.has('master_certificate'),         })
+    if (formData.experienceCertDoc && !formData.experienceCertDocUrl)
+      uploads.push({ file: formData.experienceCertDoc, type: 'experience_certificate', urlField: 'experienceCertDocUrl' ,isReplace: replacedDocs.has('experience_certificate'), })
+  }
+
+  if (uploads.length === 0) return true
+
+  // allSettled — never throws, every result is fulfilled or rejected individually
+  const results = await Promise.allSettled(
+    uploads.map(u => uploadDocumentApi(u.file, u.type, pk))
+  )
+
+  const failed: string[] = []
+
+ results.forEach((result, i) => {
+  if (result.status === 'fulfilled') {
+    const url = result.value?.file ?? result.value?.url ?? result.value?.data?.file ?? null
+    if (url) {
+      updateFormData(uploads[i].urlField, url)   // store URL — skips re-upload next visit
+      setReplacedDocs(prev => {                  // clear replace flag — upload done
+        const next = new Set(prev)
+        next.delete(uploads[i].type)
+        return next
+      })
+    }
+  } else {
+    failed.push(uploads[i].type.replace(/_/g, ' '))
+  }
+})
+
+  if (failed.length > 0) {
+    // Tell user exactly which docs failed — they can retry
+    toast.error(`Failed to upload: ${failed.join(', ')}. Please try again.`)
+    return false  // block navigation — stay on this step
+  }
+
+  return true
+}
+
+ const handleReplace = (urlField: keyof CCMFormData, docType: string) => {
+  updateFormData(urlField, null)           // clear URL as before
+  setReplacedDocs(prev => new Set(prev).add(docType))  // mark as replace not new
+}
 
   // ── Next: validate → save → upload → navigate ────────────────────────────
   const handleNext = async () => {
@@ -329,7 +368,7 @@ export default function CCMOnboard() {
     }
   }
 
-  const stepProps = { formData, updateFormData, errors }
+  const stepProps = { formData, updateFormData, errors ,onReplace: handleReplace}
 
   // ── Success screen ─────────────────────────────────────────────────────────
   if (refNumber) {
@@ -342,7 +381,7 @@ export default function CCMOnboard() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Application Submitted!</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">Your CCM onboarding application has been received.</p>
+          <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">Your CM onboarding application has been received.</p>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-4">
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Reference Number</p>
             <p className="text-3xl font-bold text-brand-600 tracking-widest">{refNumber}</p>
@@ -366,7 +405,7 @@ export default function CCMOnboard() {
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-sm font-bold">C</span>
             </div>
-            <span className="font-semibold text-gray-800 dark:text-white text-sm">CCM Onboarding</span>
+            <span className="font-semibold text-gray-800 dark:text-white text-sm">CM Onboarding</span>
           </div>
           <div className="flex items-center gap-3">
             {appId && !saving && (

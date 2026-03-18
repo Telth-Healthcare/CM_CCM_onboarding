@@ -19,10 +19,8 @@ const CCMUserDropdown: React.FC = () => {
   const initials  = `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase() || "U";
 
   const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("ccm_user");
-    localStorage.removeItem("ccm_role");
+    localStorage.clear()
+    sessionStorage.clear()
     // Also clear draft key so next login starts fresh
     const draftKey = `ccm_draft_pk_${innerUser.id}`;
     localStorage.removeItem(draftKey);
