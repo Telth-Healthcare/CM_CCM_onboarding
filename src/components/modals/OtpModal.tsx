@@ -156,20 +156,25 @@ export function OtpModal({
         )}
 
         <div className="mb-4">
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="Enter 6-digit OTP"
-            value={otp}
-            autoFocus
-            disabled={sendLoading || !otpSent}
-            onChange={(e) => {
-              setOtp(e.target.value.replace(/\D/g, ""));
-              setFirebaseError("");
-            }}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:opacity-50"
-          />
+         <input
+  type="text"
+  inputMode="numeric"
+  maxLength={6}
+  placeholder="Enter 6-digit OTP"
+  value={otp}
+  autoFocus
+  disabled={sendLoading || !otpSent}
+  onChange={(e) => {
+    setOtp(e.target.value.replace(/\D/g, ""));
+    setFirebaseError("");
+  }}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" && otp.length === 6 && !verifyLoading && otpSent) {
+      handleVerifyOtp();
+    }
+  }}
+  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:opacity-50"
+/>
         </div>
 
         <div className="flex items-center justify-between mb-4">
