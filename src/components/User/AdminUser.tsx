@@ -512,38 +512,56 @@ const AdminUser = () => {
     }
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof NewUserForm, string>> = {};
+const validateForm = (): boolean => {
+  const newErrors: Partial<Record<keyof NewUserForm, string>> = {};
 
-    const requiredFields: (keyof NewUserForm)[] = [
-      "first_name",
-      "last_name",
-      "email",
-      "phone",
-      "role",
-    ];
+  // Check required fields
+  if (!formData.first_name?.trim()) {
+    newErrors.first_name = "First name is required";
+  }
 
-    for (const field of requiredFields) {
-      if (!formData[field] || formData[field].trim() === "") {
-        newErrors[field] = `${field.replace("_", " ")} is required`;
-      }
+  if (!formData.last_name?.trim()) {
+    newErrors.last_name = "Last name is required";
+  }
+
+  if (!formData.email?.trim()) {
+    newErrors.email = "Email is required";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    newErrors.email = "Please enter a valid email address";
+  }
+
+  if (!formData.phone?.trim()) {
+    newErrors.phone = "Phone number is required";
+  } else if (!/^[0-9]{10}$/.test(formData.phone)) {
+    newErrors.phone = "Please enter a valid 10-digit phone number";
+  }
+
+  if (!formData.role) {
+    newErrors.role = "Role is required";
+  }
+
+  // Region is mandatory ONLY for admin role
+  if (formData.role === "admin") {
+    if (!formData.region?.trim()) {
+      newErrors.region = "Region is required for admin users";
     }
+  }
 
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+  // MNP Admin is mandatory for trainer/financier roles
+  if ((formData.role === "trainer" || formData.role === "financier") &&  userRole !== 'admin') {
+    if (!formData.mnpData?.trim()) {
+      newErrors.mnpData = "MNP Admin is required for trainer/financier users";
     }
+  }
 
-    if (formData.phone && !/^\+?[0-9]{10,15}$/.test(formData.phone)) {
-      newErrors.phone = "Please enter a valid phone number";
-    }
+  // Permission check for admin users
+  if (isAdmin && formData.role === "admin") {
+    newErrors.role = "You don't have permission to create admin users";
+  }
 
-    if (isAdmin && formData.role === "admin") {
-      newErrors.role = "You don't have permission to create admin users";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

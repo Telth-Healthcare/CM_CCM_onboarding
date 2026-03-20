@@ -5,10 +5,12 @@ import {
   type MRT_ColumnDef,
 } from "material-react-table";
 import { toast } from "react-toastify";
-import { getApplicationsApi } from "../../api";
+import { CheckIcon } from "lucide-react";
+import { getApplicationsApi, updateApplicationStatusApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
-import { PencilIcon } from "../../icons";
+import { CloseIcon, PencilIcon } from "../../icons";
 import CommonTable from "../mui/MuiTable";
+import { getUserRole } from "../../config/constants";
 
 interface Application {
   assigned_incubator: null | number | string;
@@ -34,6 +36,7 @@ interface Application {
 
 const Applications = () => {
   const navigate = useNavigate();
+  const userRole = getUserRole("admin");
 
   const statusOptions = [
     { value: "submitted", label: "Submitted" },
@@ -44,6 +47,11 @@ const Applications = () => {
     { value: "rejected", label: "Rejected" },
   ];
 
+  const paymentStatusOptions = [
+    { value: "pending", label: "Pending" },
+    { value: "cleared", label: "Cleared" },
+  ];
+
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>([]);
@@ -52,6 +60,17 @@ const Applications = () => {
     pageIndex: 0,
     pageSize: 10,
   });
+
+  // State for inline payment status editing
+  const [editingPaymentStatus, setEditingPaymentStatus] = useState<{
+    rowId: number;
+    currentValue: string;
+  } | null>(null);
+
+  // Check if user can edit payment status
+  const canEditPaymentStatus = useMemo(() => {
+    return userRole === "super_admin" || userRole === "admin" || userRole === "financier";
+  }, [userRole]);
 
   useEffect(() => {
     fetchApplications();
@@ -81,9 +100,30 @@ const Applications = () => {
     }
   };
 
-  const handleView = useCallback((row: Application) => {
-    navigate(`/applications/view/${row.id}`);
-  }, [navigate]);
+  const handleUpdatePaymentStatus = async (rowId: number, newStatus: string) => {
+    try {
+      setLoading(true);
+      const response = await updateApplicationStatusApi(rowId, {
+        payment_status: newStatus,
+      });
+
+      if (response) {
+        toast.success("Payment status updated successfully");
+        // Update local state
+        setApplications(prevApps =>
+          prevApps.map(app =>
+            app.id === rowId ? { ...app, payment_status: newStatus } : app
+          )
+        );
+        setEditingPaymentStatus(null);
+      }
+    } catch (error) {
+      const errorMessage = handleAxiosError(error, "Failed to update payment status");
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEdit = useCallback((row: Application) => {
     navigate(`/applications/edit/${row.id}`);
@@ -92,15 +132,16 @@ const Applications = () => {
   const rowActionsList = useMemo(() => {
     const actions = [];
 
-      actions.push({
-        label: "Edit",
-        className: "text-brand-700 hover:text-brand-900 dark:text-brand-600",
-        icon: <PencilIcon className="w-4 h-4 fill-current" />,
-        onClick: handleEdit,
-      });
+    // Edit action - available to all roles that can edit
+    actions.push({
+      label: "Edit",
+      className: "text-brand-700 hover:text-brand-900 dark:text-brand-600",
+      icon: <PencilIcon className="w-4 h-4 fill-current" />,
+      onClick: handleEdit,
+    });
 
     return actions;
-  }, [handleEdit, handleView]);
+  }, [handleEdit]);
 
   const columns = useMemo<MRT_ColumnDef<Application>[]>(
     () => [
@@ -158,19 +199,98 @@ const Applications = () => {
         size: 150,
       },
       {
-        accessorFn: (row) =>
-          row?.payment_status === "pending" ? "pending" : "cleared",
+        accessorFn: (row) => row?.payment_status ?? "pending",
         id: "payment_status",
         header: "Payment Status",
-        size: 120,
+        size: 150,
+        Cell: ({ row }) => {
+          const paymentStatus = row.original.payment_status;
+          const isEditing = editingPaymentStatus?.rowId === row.original.id;
+
+          // If currently editing this row
+          if (isEditing && canEditPaymentStatus) {
+            return (
+              <div className="flex items-center gap-2">
+                <select
+                  value={editingPaymentStatus.currentValue}
+                  onChange={(e) => 
+                    setEditingPaymentStatus({
+                      rowId: row.original.id,
+                      currentValue: e.target.value,
+                    })
+                  }
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white"
+                  autoFocus
+                >
+                  {paymentStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => 
+                    handleUpdatePaymentStatus(row.original.id, editingPaymentStatus.currentValue)
+                  }
+                  className="p-1 text-success-600 hover:text-success-700 dark:text-success-400"
+                  title="Save"
+                >
+                  <CheckIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setEditingPaymentStatus(null)}
+                  className="p-1 text-error-600 hover:text-error-700 dark:text-error-400"
+                  title="Cancel"
+                >
+                  <CloseIcon className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          }
+
+          // Display mode
+          const match = paymentStatusOptions.find(
+            (option) => option.value === paymentStatus
+          );
+          
+          return (
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  paymentStatus === "cleared"
+                    ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                    : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
+                }`}
+              >
+                {match?.label ?? paymentStatus}
+              </span>
+              
+              {/* Edit button for payment status - only shown to authorized roles */}
+              {canEditPaymentStatus && (
+                <button
+                  onClick={() => 
+                    setEditingPaymentStatus({
+                      rowId: row.original.id,
+                      currentValue: paymentStatus,
+                    })
+                  }
+                  className="p-1 text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+                  title="Edit payment status"
+                >
+                  <PencilIcon className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          );
+        },
         filterVariant: "select",
-        filterSelectOptions: [
-          { text: "Pending", value: "pending" },
-          { text: "Cleared", value: "cleared" },
-        ],
+        filterSelectOptions: paymentStatusOptions.map((item) => ({
+          text: item.label,
+          value: item.value,
+        })),
       },
     ],
-    [pagination.pageIndex, pagination.pageSize],
+    [pagination.pageIndex, pagination.pageSize, editingPaymentStatus, canEditPaymentStatus],
   );
 
   return (
@@ -184,24 +304,24 @@ const Applications = () => {
         </p>
         {!loading && (
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-            Total Users: <span className="font-semibold">{totalCount}</span>
+            Total Applications: <span className="font-semibold">{totalCount}</span>
           </p>
         )}
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
-          <CommonTable
-            columns={columns}
-            data={applications}
-            loading={loading}
-            pagination={pagination}
-            enableRowSelection={false}
-            onPaginationChange={setPagination}
-            toolbarActions={[{ label: "Refresh", onClick: fetchApplications }]}
-            rowActions={rowActionsList}
-            columnFilters={columnFilters}
-            onColumnFiltersChange={setColumnFilters}
-          />
+        <CommonTable
+          columns={columns}
+          data={applications}
+          loading={loading}
+          pagination={pagination}
+          enableRowSelection={false}
+          onPaginationChange={setPagination}
+          toolbarActions={[{ label: "Refresh", onClick: fetchApplications }]}
+          rowActions={rowActionsList}
+          columnFilters={columnFilters}
+          onColumnFiltersChange={setColumnFilters}
+        />
       </div>
     </div>
   );
