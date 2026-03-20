@@ -34,6 +34,7 @@ const Region = lazy(() => import("./components/User/Region"));
 const NotFound = lazy(() => import("./pages/OtherPage/NotFound"));
 const Webinars = lazy(() => import("./components/User/Webinars"));
 const Contact = lazy(() => import("./components/User/Contact"));
+const CourseDetails = lazy(() => import("./components/User/course/CourseDetails"))
 
 // Root Redirect Component
 function RootRedirect() {
@@ -119,7 +120,10 @@ export default function App() {
                 path="/regions"
                 element={<Region key={location.pathname} />}
               />
-
+              <Route
+                path="/course"
+                element={<CourseDetails key={location.pathname} />}
+              />
               <Route
                 path="/applications"
                 element={<Applications key="/applications" />}

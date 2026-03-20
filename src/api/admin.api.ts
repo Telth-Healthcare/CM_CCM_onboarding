@@ -22,6 +22,10 @@ export const getAllUsers = () => {
         .then(res => res.data);
 }
 
+export const getRoleUsers = (role: string) => {
+  return client.get(`accounts/users/?roles__name=${role}`);
+};
+
 export const updateUsersApi = (userId: number ,payload: any) => {
     return client.patch(`accounts/users/${userId}/`, payload)
         .then(res => res.data);

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { toast } from "react-toastify";
-import { MRT_ColumnFiltersState, type MRT_ColumnDef } from "material-react-table";
+import {
+  MRT_ColumnFiltersState,
+  type MRT_ColumnDef,
+} from "material-react-table";
 import PageMeta from "../common/PageMeta";
 import { createRegionsApi, getAllRegionsApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import CommonTable from "../mui/MuiTable";
 import { RightSideModal } from "../mui/RightSideModal";
-import Input from "../form/input/InputField";
 import Button from "../ui/button/Button";
 import { getUserRole } from "../../config/constants";
 
@@ -19,6 +21,7 @@ interface Region {
 
 interface NewRegionForm {
   name: string;
+  pincodes: { code: string }[];
 }
 
 const Region = () => {
@@ -36,19 +39,31 @@ const Region = () => {
 
   const [formData, setFormData] = useState<NewRegionForm>({
     name: "",
+    pincodes: [],
   });
-const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
+
+  // Pincode tag input states
+  const [pincodeInput, setPincodeInput] = useState("");
+  const [pincodes, setPincodes] = useState<string[]>([]);
+  const [pincodeError, setPincodeError] = useState("");
+
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
+
   const [errors, setErrors] = useState<
     Partial<Record<keyof NewRegionForm, string>>
   >({});
 
   const isSuperAdmin = userRole === "super_admin";
 
+  // Reset form when modal closes
   useEffect(() => {
     if (!isAddModalOpen) {
-      setFormData({ name: "" });
+      setFormData({ name: "", pincodes: [] });
+      setPincodes([]);
+      setPincodeInput("");
+      setPincodeError("");
       setErrors({});
     }
   }, [isAddModalOpen]);
@@ -73,14 +88,48 @@ const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     }
   };
 
+  // ── Pincode helpers ─────────────────────────────────────────────────────
+  const addPincode = () => {
+    const val = pincodeInput.trim();
+    if (!val) return;
+    if (!/^\d{6}$/.test(val)) {
+      setPincodeError("Pincode must be exactly 6 digits");
+      return;
+    }
+    if (pincodes.includes(val)) {
+      setPincodeError("Pincode already added");
+      return;
+    }
+    setPincodes((prev) => [...prev, val]);
+    setPincodeInput("");
+    setPincodeError("");
+  };
+
+  const removePin = (pin: string) => {
+    setPincodes((prev) => prev.filter((p) => p !== pin));
+  };
+
+  const handlePincodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addPincode();
+    }
+    if (e.key === "Backspace" && pincodeInput === "" && pincodes.length > 0) {
+      removePin(pincodes[pincodes.length - 1]);
+    }
+  };
+
+  // ── Form submit ─────────────────────────────────────────────────────────
   const handleCreateRegion = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) return;
 
     try {
       setSubmitting(true);
-      await createRegionsApi(formData);
+      await createRegionsApi({
+        name: formData.name,
+        pincodes: pincodes.map((code) => ({ code })),
+      });
       toast.success("Region created successfully");
       handleCloseModal();
       fetchRegions();
@@ -90,6 +139,20 @@ const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Partial<Record<keyof NewRegionForm, string>> = {};
+
+    if (!formData.name || formData.name.trim() === "") {
+      newErrors.name = "Region name is required";
+    }
+    if (pincodes.length === 0) {
+      newErrors.pincodes = "At least one pincode is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const columns = useMemo<MRT_ColumnDef<Region>[]>(
@@ -105,9 +168,16 @@ const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
         accessorKey: "name",
         header: "Region Name",
         size: 200,
+        Cell: ({ cell }) => cell.getValue<string>() ?? "-",
+      },
+      {
+        accessorKey: "pincodes",
+        header: "Pincode",
+        size: 200,
         Cell: ({ cell }) => {
-          const value = cell.getValue<string>();
-          return value ?? "-";
+          const value = cell.getValue<{ code: string }[]>();
+          if (!value || value.length === 0) return "-";
+          return value.map((p) => p.code).join(", ");
         },
       },
     ],
@@ -125,30 +195,11 @@ const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     setErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof NewRegionForm, string>> = {};
-
-    if (!formData.name || formData.name.trim() === "") {
-      newErrors.name = "Region name is required";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const toolbarActions = [
     ...(isSuperAdmin
-      ? [
-          {
-            label: "Add Region",
-            onClick: handleAddRegion,
-          },
-        ]
+      ? [{ label: "Add Region", onClick: handleAddRegion }]
       : []),
-    {
-      label: "Refresh",
-      onClick: fetchRegions,
-    },
+    { label: "Refresh", onClick: fetchRegions },
   ];
 
   return (
@@ -179,7 +230,7 @@ const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
           enableRowSelection={false}
           onPaginationChange={setPagination}
           toolbarActions={toolbarActions}
-          columnFilters={columnFilters} // ADD
+          columnFilters={columnFilters}
           onColumnFiltersChange={setColumnFilters}
         />
       </div>
@@ -192,46 +243,138 @@ const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
           width=""
         >
           <div className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-4">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-6">
               Add New Region
             </h2>
 
             <form onSubmit={handleCreateRegion} noValidate>
-              <div className="space-y-4">
+              <div className="space-y-5">
+                {/* Region Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Region Name <span className="text-red-500">*</span>
                   </label>
-
-                  <Input
+                  <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
                     placeholder="Enter region name"
-                    className="w-full"
-                    error={!!errors.name}
+                    className={`w-full px-3 py-2 text-sm border ${
+                      errors.name
+                        ? "border-red-400"
+                        : "border-gray-300 dark:border-gray-600"
+                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400`}
                   />
-
                   {errors.name && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {errors.name}
+                    <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+                  )}
+                </div>
+
+                {/* Pincode Tag Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Pincode <span className="text-red-500">*</span>
+                  </label>
+
+                  <div className="flex gap-2 items-start">
+                    {/* Tag box */}
+                    <div
+                      className={`flex flex-wrap gap-1.5 items-center flex-1 min-h-[42px] px-2 py-1.5 border ${
+                        errors.pincodes
+                          ? "border-red-400"
+                          : "border-gray-300 dark:border-gray-600"
+                      } rounded-lg bg-white dark:bg-gray-800 cursor-text`}
+                      onClick={() =>
+                        document.getElementById("pincode-input")?.focus()
+                      }
+                    >
+                      {pincodes.map((pin) => (
+                        <span
+                          key={pin}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded text-xs font-medium"
+                        >
+                          {pin}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removePin(pin);
+                            }}
+                            className="leading-none opacity-60 hover:opacity-100 text-base"
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+
+                      {/* Text input */}
+                      <input
+                        id="pincode-input"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={pincodeInput}
+                        onChange={(e) => {
+                          setPincodeInput(e.target.value.replace(/\D/g, ""));
+                          setPincodeError("");
+                          setErrors((prev) => ({
+                            ...prev,
+                            pincode: undefined,
+                          }));
+                        }}
+                        onKeyDown={handlePincodeKeyDown}
+                        placeholder={
+                          pincodes.length === 0 ? "Enter 6-digit pincode…" : ""
+                        }
+                        className="flex-1 min-w-[130px] bg-transparent outline-none text-sm text-gray-800 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+
+                    {/* Add button */}
+                    <button
+                      type="button"
+                      onClick={addPincode}
+                      disabled={!pincodeInput.trim()}
+                      className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {/* Pincode validation error */}
+                  {pincodeError && (
+                    <p className="mt-1 text-xs text-red-500">{pincodeError}</p>
+                  )}
+                  {/* Form validation error */}
+                  {errors.pincodes && !pincodeError && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.pincodes}
+                    </p>
+                  )}
+
+                  {/* Count hint */}
+                  {pincodes.length > 0 && (
+                    <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                      {pincodes.length} pincode{pincodes.length > 1 ? "s" : ""}{" "}
+                      added
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-end space-x-3">
+              {/* Actions */}
+              <div className="mt-8 flex justify-end gap-3">
                 <Button
                   onClick={handleCloseModal}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                 >
                   Cancel
                 </Button>
-
                 <Button
                   disabled={submitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? "Creating..." : "Create Region"}
                 </Button>

@@ -9,7 +9,7 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import logo from "../assets/TELTH LOGO.png";
-import { Contact, Mail, Map, NotebookIcon, UserCheck } from "lucide-react";
+import { BookAIcon, Contact, Mail, Map, NotebookIcon, UserCheck } from "lucide-react";
 
 type NavItem = {
   name: string;
@@ -75,6 +75,12 @@ const navItems: NavItem[] = [
     name: "Contact",
     path: "/contact",
     roles: ["super_admin", "admin"],
+  },
+  {
+    icon: <BookAIcon />,
+    name: "Course",
+    path: "/course",
+    roles: ["super_admin", "admin", "trainer"],
   },
 ];
 
