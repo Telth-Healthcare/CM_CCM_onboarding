@@ -90,7 +90,7 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
     setSizeErrors(prev => ({ ...prev, [field]: '' }))
     if (refs[field].current) refs[field].current!.value = ''
   }
-
+  
   // ── Reusable upload zone ──────────────────────────────────────────────────
   const FileUploadZone = ({ field, urlField, required = false }: { field: DocField; urlField: UrlField; required?: boolean }) => {
     const file        = formData[field] as File | null

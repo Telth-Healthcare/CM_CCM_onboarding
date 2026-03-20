@@ -47,7 +47,7 @@ const MODULES: TrainingModule[] = [
     id: 'm1', topic: 'Community Care Foundations', subtitle: 'Core principles of community-centred management',
     tag: 'Required', tagColor: 'bg-red-100 text-red-600', progress: 66, totalLessons: 3, completedLessons: 2,
     videos: [
-      { id: 'v1', title: 'Introduction to CCM Framework',     duration: '14:32', youtubeUrl: 'https://youtu.be/IagYUKyS0cg?si=mzHBYzJ2NHFiWAK0', description: 'Overview of the CCM model and its key principles.' },
+      { id: 'v1', title: 'Introduction to CM Framework',     duration: '14:32', youtubeUrl: 'https://youtu.be/IagYUKyS0cg?si=mzHBYzJ2NHFiWAK0', description: 'Overview of the CM model and its key principles.' },
       { id: 'v2', title: 'Stakeholder Engagement Strategies', duration: '22:10', youtubeUrl: 'https://youtu.be/tcBXv2fbqJA?si=JbuZlyj7N4Xxz6-A', description: 'How to identify and work with community stakeholders.' },
       { id: 'v3', title: 'Documentation & Reporting',         duration: '18:05', youtubeUrl: 'https://youtu.be/fBwCUGjz5KE?si=Jp38_1-XIHHp0O3z', description: 'Best practices for field documentation.' },
     ],
@@ -62,10 +62,10 @@ const MODULES: TrainingModule[] = [
     ],
   },
   {
-    id: 'm3', topic: 'Digital Tools & Platforms', subtitle: 'Software and systems used across CCM operations',
+    id: 'm3', topic: 'Digital Tools & Platforms', subtitle: 'Software and systems used across CM operations',
     tag: 'Upcoming', tagColor: 'bg-gray-100 text-gray-500', progress: 0, totalLessons: 2, completedLessons: 0,
     videos: [
-      { id: 'v7', title: 'Using the CCM Dashboard', duration: '08:30', youtubeUrl: 'https://youtu.be/c7HS3dBV3SI?si=guS0Df7qS5ylCJoj', description: 'Walkthrough of features available on your dashboard.' },
+      { id: 'v7', title: 'Using the CM Dashboard', duration: '08:30', youtubeUrl: 'https://youtu.be/c7HS3dBV3SI?si=guS0Df7qS5ylCJoj', description: 'Walkthrough of features available on your dashboard.' },
       { id: 'v8', title: 'Data Entry & Submissions', duration: '12:45', youtubeUrl: 'https://youtu.be/JVmPu8o2ycc?si=kjcrJ3Zc63STJ3Cs', description: 'Correct way to submit field data and forms.' },
     ],
   },
@@ -208,7 +208,7 @@ const Lectures = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">Training Modules</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Complete all modules to finish your CCM onboarding training.</p>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Complete all modules to finish your CM onboarding training.</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

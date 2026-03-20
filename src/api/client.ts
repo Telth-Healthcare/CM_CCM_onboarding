@@ -14,7 +14,7 @@ import { baseUrl } from "../config/env";
 const defaultHeaders = {
   Accept: "application/json",
   "X-Client-ID": "app",
-  // "ngrok-skip-browser-warning": "true",
+  "ngrok-skip-browser-warning": "true",
 };
 
 
