@@ -62,6 +62,7 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "Users",      path: "/users",      roles: ["super_admin", "admin"] },
       { name: "Invitation", path: "/invitation",  roles: ["super_admin", "admin"] },
+      {name: "Group", path:"/group",roles:["super_admin", "admin", "trainer"]}
     ],
   },
   {

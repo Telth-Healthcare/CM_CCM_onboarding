@@ -12,6 +12,7 @@ import CCMDashboardRoutes from "./ccm/dashboard/DashboardRoutes";
 import ViewEditApplication from "./components/User/ViewEditApplication";
 import UserProfiles from "./pages/UserProfiles";
 import Invitaion from "./components/User/Invitation";
+import ViewGroup from "./components/User/groupUser/ViewGroup";
 
 // Admin Auth
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
@@ -150,6 +151,17 @@ export default function App() {
                     allowedRoles={["super_admin", "admin"]}
                   >
                     <Invitaion key="/invitation" />
+                  </ProtectedRoute>
+                }
+              />
+                 <Route
+                path="/group"
+                element={
+                  <ProtectedRoute
+                    authType="admin"
+                    allowedRoles={["super_admin", "admin", "trainer"]}
+                  >
+                    <ViewGroup key="/group" />
                   </ProtectedRoute>
                 }
               />
