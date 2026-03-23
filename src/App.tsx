@@ -11,6 +11,7 @@ import { ScrollToTop } from "./components/common/ScrollToTop";
 import CCMDashboardRoutes from "./ccm/dashboard/DashboardRoutes";
 import ViewEditApplication from "./components/User/ViewEditApplication";
 import UserProfiles from "./pages/UserProfiles";
+import Invitaion from "./components/User/Invitation";
 
 // Admin Auth
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
@@ -34,7 +35,9 @@ const Region = lazy(() => import("./components/User/Region"));
 const NotFound = lazy(() => import("./pages/OtherPage/NotFound"));
 const Webinars = lazy(() => import("./components/User/Webinars"));
 const Contact = lazy(() => import("./components/User/Contact"));
-const CourseDetails = lazy(() => import("./components/User/course/CourseDetails"))
+const CourseDetails = lazy(
+  () => import("./components/User/course/CourseDetails"),
+);
 
 // Root Redirect Component
 function RootRedirect() {
@@ -139,7 +142,17 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-
+              <Route
+                path="/invitation"
+                element={
+                  <ProtectedRoute
+                    authType="admin"
+                    allowedRoles={["super_admin", "admin"]}
+                  >
+                    <Invitaion key="/invitation" />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/users"
                 element={

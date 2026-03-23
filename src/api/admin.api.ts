@@ -56,6 +56,11 @@ export const acceptInvitationApi = (invitationReseponse: invitationReseponse) =>
         .then(res => res.data);
 }
 
+export const getInvitationApi = () => {
+    return client.get("accounts/invitations/")
+    .then(res => res.data)
+}
+
 export const contactApi = () => {
     return client.get("app/meta/constants/")
         .then(res => res.data);

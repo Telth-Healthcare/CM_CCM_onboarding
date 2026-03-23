@@ -20,7 +20,7 @@ const extractFieldError = (data: ApiErrorData): string | null => {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const nested = value as ApiErrorData;
 
-    for (const key of ["non_field_errors", "email", "phone"]) {
+    for (const key of ["non_field_errors", "email", "phone", "region"]) {
       const nested_val = nested[key];
       if (Array.isArray(nested_val) && nested_val.length > 0) {
         return typeof nested_val[0] === "string" ? nested_val[0] : null;

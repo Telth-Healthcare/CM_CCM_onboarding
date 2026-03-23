@@ -33,9 +33,8 @@ interface CreateCoursePayload {
 }
 
 interface CreateCourseFlowProps {
-  initialView: "courses" | "subjects" | "materials";
-  selectedCourse: Course | null;
-  selectedSubject: Subject | null;
+  selectedCourse?: Course | null;
+  selectedSubject?: Subject | null;
   onComplete: () => void;
   onCancel: () => void;
 }
@@ -74,8 +73,8 @@ const SpinnerIcon = () => (
 
 const CreateCourse = memo(
   ({
-    selectedCourse,
-    selectedSubject,
+    selectedCourse = null,
+    selectedSubject = null,
     onComplete,
     onCancel,
   }: CreateCourseFlowProps) => {
