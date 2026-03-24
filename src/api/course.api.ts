@@ -111,3 +111,24 @@ export const deleteSubMaterialApi = (id: number | string) => {
     .delete(`trainer/app/subject-materials/${id}/`)
     .then((res) => res.data);
 };
+
+export const createCourseEnrollApi = (payload: any) => {
+  return client
+    .post("trainer/app/course-enrollments/", payload)
+    .then((res) => res.data);
+};
+
+export const createGroupEnrollApi = (payload: any) => {
+  return client.post('trainer/app/group-enrollments/', payload)
+  .then(res => res.data)
+}
+
+export const getEnrollApi = () => {
+  return client.get("trainer/app/course-enrollments/")
+  .then((res) => res.data);
+}
+
+export const updateEnrollApi = (enrollId: number, payload: any) => {
+  return client.patch(`trainer/app/course-enrollments/${enrollId}`, payload)
+  .then(res => res.data)
+}

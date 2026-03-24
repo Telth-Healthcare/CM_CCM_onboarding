@@ -141,7 +141,7 @@ const CreateCourse = memo(
 
     const fetchTrainers = useCallback(async () => {
       try {
-        const response = await getRoleUsers("trainer");
+        const response = await getRoleUsers(["trainer"]);
         const data = response?.data?.results || [];
         setTrainers(
           data.map((item: any) => ({
