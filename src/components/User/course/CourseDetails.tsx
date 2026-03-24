@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "react-toastify";
-import { type MRT_ColumnDef, MRT_ColumnFiltersState } from "material-react-table";
 import {
-  getAllCourseApi,
-  deleteCourseApi,
-} from "../../../api";
+  type MRT_ColumnDef,
+  MRT_ColumnFiltersState,
+} from "material-react-table";
+import { getAllCourseApi, deleteCourseApi } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import { Modal } from "../../ui/modal";
@@ -51,7 +51,9 @@ const CourseDetails = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
+    [],
+  );
 
   const [currentView, setCurrentView] = useState<ViewType>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -156,7 +158,7 @@ const CourseDetails = () => {
         },
       },
     ],
-    []
+    [],
   );
 
   const rowActions = [
@@ -189,7 +191,14 @@ const CourseDetails = () => {
 
   // ── Render views ──────────────────────────────────────────────────────
   if (currentView === "create") {
-    return <CreateCourse onComplete={handleComplete} onCancel={handleCancel} />;
+    return (
+      <CreateCourse
+        onComplete={handleComplete}
+        onCancel={handleCancel}
+        selectedCourse={null}
+        selectedSubject={null}
+      />
+    );
   }
 
   if (currentView === "view" && selectedCourse) {
@@ -254,7 +263,8 @@ const CourseDetails = () => {
             Confirm Delete
           </h2>
           <p className="mt-2 text-center text-gray-500 dark:text-gray-400">
-            Are you sure you want to delete this course? This action cannot be undone.
+            Are you sure you want to delete this course? This action cannot be
+            undone.
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Button

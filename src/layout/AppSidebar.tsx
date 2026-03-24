@@ -11,11 +11,20 @@ import { useSidebar } from "../context/SidebarContext";
 import logo from "../assets/TELTH LOGO.png";
 import { BookAIcon, Contact, Mail, Map, NotebookIcon, UserCheck } from "lucide-react";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type SubNavItem = {
+  name: string;
+  path: string;
+  roles?: string[];
+};
+
 type NavItem = {
   name: string;
   icon: React.ReactNode;
-  path: string;
+  path?: string;          // optional — parent-only items have no path
   roles?: string[];
+  subItems?: SubNavItem[];
 };
 
 interface AdminUser {
@@ -35,7 +44,6 @@ const getAdminUser = (): AdminUser | null => {
   }
 };
 
-// Simplified navItems without submenus
 const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
@@ -49,9 +57,13 @@ const navItems: NavItem[] = [
   },
   {
     icon: <UserCircleIcon />,
-    name: "Users",
-    path: "/users",
-    roles: ["super_admin", "admin"],
+    name: "User Management",
+    // no `path` — this item only opens/closes the accordion
+    subItems: [
+      { name: "Users",      path: "/users",      roles: ["super_admin", "admin"] },
+      { name: "Invitation", path: "/invitation",  roles: ["super_admin", "admin"] },
+      {name: "Group", path:"/group",roles:["super_admin", "admin", "trainer"]}
+    ],
   },
   {
     icon: <NotebookIcon />,
@@ -87,31 +99,31 @@ const navItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const adminUser = getAdminUser();
 
   const userRole = useMemo(() => {
-    if (adminUser?.roles && adminUser.roles.length > 0) {
-      return adminUser.roles[0];
-    }
+    if (adminUser?.roles && adminUser.roles.length > 0) return adminUser.roles[0];
     return localStorage.getItem("admin_role");
   }, [adminUser]);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  // track which accordion groups are open by name
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
 
-  const handleSignOut = () => setShowLogoutModal(true);
+  const toggleGroup = (name: string) =>
+    setOpenGroups((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+    );
 
-  const confirmLogout = () => {
-    // Clear all auth data
+  const handleSignOut  = () => setShowLogoutModal(true);
+  const cancelLogout   = () => setShowLogoutModal(false);
+  const confirmLogout  = () => {
     localStorage.clear();
     sessionStorage.clear();
-
-    // Navigate to signin
     navigate("/admin/signin", { replace: true });
     setShowLogoutModal(false);
   };
-
-  const cancelLogout = () => setShowLogoutModal(false);
 
   const isActive = useCallback(
     (path: string) => location.pathname.startsWith(path),
@@ -119,51 +131,125 @@ const AppSidebar: React.FC = () => {
   );
 
   const filteredNavItems = useMemo(() => {
-    return navItems.filter(item => {
-      if (!item.roles || item.roles.length === 0) {
-        return true;
-      }
-      
-      if (!userRole) return false;
-      
-      return item.roles.includes(userRole);
-    });
+    return navItems
+      .filter((item) => {
+        // Items with no roles are visible to everyone
+        if (!item.roles || item.roles.length === 0) return true;
+        if (!userRole) return false;
+        return item.roles.includes(userRole);
+      })
+      .map((item) => {
+        // For items with subItems, filter the subItems by role too
+        if (!item.subItems) return item;
+        const visibleSubs = item.subItems.filter((sub) => {
+          if (!sub.roles || sub.roles.length === 0) return true;
+          if (!userRole) return false;
+          return sub.roles.includes(userRole);
+        });
+        return { ...item, subItems: visibleSubs };
+      })
+      // Drop parent items whose every subItem was filtered out
+      .filter((item) => !item.subItems || item.subItems.length > 0);
   }, [userRole]);
 
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  const isSidebarOpen = isExpanded || isHovered || isMobileOpen;
+
   const renderMenuItems = (items: NavItem[]) => {
-    if (items.length === 0) {
+    if (items.length === 0)
       return (
         <div className="text-center text-gray-400 text-sm py-4">
           No menu items available
         </div>
       );
-    }
 
     return (
-      <ul className="flex flex-col gap-4">
-        {items.map((nav) => (
-          <li key={nav.name}>
-            <Link
-              to={nav.path}
-              className={`menu-item group ${
-                isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
-              } ${!isExpanded && !isHovered ? "lg:justify-center" : "lg:justify-start"}`}
-            >
-              <span
-                className={`menu-item-icon-size ${
-                  isActive(nav.path)
-                    ? "menu-item-icon-active"
-                    : "menu-item-icon-inactive"
-                }`}
+      <ul className="flex flex-col gap-1">
+        {items.map((nav) => {
+          // ── Item with subItems (accordion) ──────────────────────────────
+          if (nav.subItems && nav.subItems.length > 0) {
+            const isOpen        = openGroups.includes(nav.name);
+            const anyChildActive = nav.subItems.some((s) => isActive(s.path));
+
+            return (
+              <li key={nav.name}>
+                {/* Accordion trigger */}
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(nav.name)}
+                  className={`menu-item group w-full ${
+                    anyChildActive ? "menu-item-active" : "menu-item-inactive"
+                  } ${!isSidebarOpen ? "lg:justify-center" : "lg:justify-start"}`}
+                >
+                  <span
+                    className={`menu-item-icon-size ${
+                      anyChildActive ? "menu-item-icon-active" : "menu-item-icon-inactive"
+                    }`}
+                  >
+                    {nav.icon}
+                  </span>
+
+                  {isSidebarOpen && (
+                    <>
+                      <span className="menu-item-text flex-1 text-left">{nav.name}</span>
+                      <AngleRightIcon
+                        className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                          isOpen ? "rotate-90" : ""
+                        }`}
+                      />
+                    </>
+                  )}
+                </button>
+
+                {/* SubItems list */}
+                {isSidebarOpen && isOpen && (
+                  <ul className="mt-1 ml-9 flex flex-col gap-1">
+                    {nav.subItems.map((sub) => (
+                      <li key={sub.path}>
+                        <Link
+                          to={sub.path}
+                          className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150 ${
+                            isActive(sub.path)
+                              ? "text-brand-500 bg-brand-50 dark:bg-brand-500/10"
+                              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                          }`}
+                        >
+                          {sub.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          }
+
+          // ── Regular item (link) ─────────────────────────────────────────
+          return (
+            <li key={nav.name}>
+              <Link
+                to={nav.path!}
+                className={`menu-item group ${
+                  isActive(nav.path!) ? "menu-item-active" : "menu-item-inactive"
+                } ${!isSidebarOpen ? "lg:justify-center" : "lg:justify-start"}`}
               >
-                {nav.icon}
-              </span>
-              {(isExpanded || isHovered || isMobileOpen) && (
-                <span className="menu-item-text">{nav.name}</span>
-              )}
-            </Link>
-          </li>
-        ))}
+                <span
+                  className={`menu-item-icon-size ${
+                    isActive(nav.path!)
+                      ? "menu-item-icon-active"
+                      : "menu-item-icon-inactive"
+                  }`}
+                >
+                  {nav.icon}
+                </span>
+                {isSidebarOpen && (
+                  <span className="menu-item-text">{nav.name}</span>
+                )}
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     );
   };
@@ -190,7 +276,7 @@ const AppSidebar: React.FC = () => {
           }`}
         >
           <Link to="/dashboard">
-            {isExpanded || isHovered || isMobileOpen ? (
+            {isSidebarOpen ? (
               <img src={logo} alt="Logo" width={150} height={40} />
             ) : (
               <img src={logo} alt="Logo" width={32} height={32} />
@@ -200,18 +286,15 @@ const AppSidebar: React.FC = () => {
 
         {/* Scrollable nav + bottom user block */}
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Nav */}
           <div className="flex-1 overflow-y-auto no-scrollbar duration-300 ease-linear">
             <nav className="mb-6">
               <div>
                 <h2
                   className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                    !isExpanded && !isHovered
-                      ? "lg:justify-center"
-                      : "justify-start"
+                    !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
                   }`}
                 >
-                  {isExpanded || isHovered || isMobileOpen ? (
+                  {isSidebarOpen ? (
                     "Menu"
                   ) : (
                     <HorizontaLDots className="size-6" />
@@ -224,12 +307,17 @@ const AppSidebar: React.FC = () => {
 
           {/* User info + Sign out — pinned to bottom */}
           <div className="border-t border-gray-200 dark:border-gray-700 py-6">
-            {isExpanded || isHovered || isMobileOpen ? (
+            {isSidebarOpen ? (
               <div className="flex flex-col gap-2">
                 {/* User card */}
                 <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-gray-50 dark:bg-gray-800">
                   <div className="w-9 h-9 rounded-full bg-brand-500 flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                   <span onClick={() => navigate("/profile")} style={{ cursor: 'pointer'}}>{avatarLetter}</span> 
+                    <span
+                      onClick={() => navigate("/profile")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      {avatarLetter}
+                    </span>
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
@@ -271,14 +359,14 @@ const AppSidebar: React.FC = () => {
         </div>
       </aside>
 
+      {/* Logout modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-[999999] flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={cancelLogout}
           />
-          
-          {/* Modal Content */}
+
           <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 animate-fadeIn">
             <button
               onClick={cancelLogout}
@@ -295,8 +383,7 @@ const AppSidebar: React.FC = () => {
               Sign Out
             </h3>
             <p className="text-center text-gray-500 dark:text-gray-400 mb-6">
-              Are you sure you want to sign out? You will be redirected to the
-              login page.
+              Are you sure you want to sign out? You will be redirected to the login page.
             </p>
 
             <div className="flex gap-3">
@@ -320,13 +407,9 @@ const AppSidebar: React.FC = () => {
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
+          to   { opacity: 1; transform: scale(1);    }
         }
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out forwards;
-        }
-        
-        /* Ensure backdrop blur works */
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out forwards; }
         .backdrop-blur-md {
           --tw-backdrop-blur: blur(12px);
           backdrop-filter: var(--tw-backdrop-blur);

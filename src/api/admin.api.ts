@@ -22,8 +22,12 @@ export const getAllUsers = () => {
         .then(res => res.data);
 }
 
-export const getRoleUsers = (role: string) => {
-  return client.get(`accounts/users/?roles__name=${role}`);
+export const getRoleUsers = (roles: string[]) => {
+  return client.get("accounts/users/", {
+    params: {
+      roles__name__in: roles.join(","),
+    },
+  });
 };
 
 export const updateUsersApi = (userId: number ,payload: any) => {
@@ -54,6 +58,11 @@ export const sendInvitationApi = (userData: SendInvitationRequestArray) => {
 export const acceptInvitationApi = (invitationReseponse: invitationReseponse) => {
     return client.post("accounts/invite/accept/", invitationReseponse)
         .then(res => res.data);
+}
+
+export const getInvitationApi = () => {
+    return client.get("accounts/invitations/")
+    .then(res => res.data)
 }
 
 export const contactApi = () => {
