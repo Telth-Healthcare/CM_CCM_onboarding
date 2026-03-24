@@ -143,7 +143,7 @@ const CourseDetails = () => {
         Cell: ({ cell }) => cell.getValue<string>() || "-",
       },
       {
-        accessorKey: "trainer_name",
+        accessorKey: "aurthor",
         header: "Trainer",
         size: 140,
         Cell: ({ cell }) => cell.getValue<string>() || "-",
