@@ -19,7 +19,7 @@ interface ChartData {
   payments: number[];
   categories: string[];
 }
-
+ 
 export default function StatisticsChart() {
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
