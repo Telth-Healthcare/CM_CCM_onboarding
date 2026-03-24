@@ -87,6 +87,10 @@ const AdminUser = () => {
     userId: number;
     isApproved: boolean;
   } | null>(null);
+  const [editingStatus, setEditingStatus] = useState<{
+    userId: number;
+    isActive: boolean;
+  } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<NewUserForm>({
@@ -110,6 +114,7 @@ const AdminUser = () => {
 
   const canAddUsers = isSuperAdmin || isAdmin;
   const canEditApproval = isSuperAdmin || isAdmin;
+  const canEditStatus = isSuperAdmin || isAdmin;
 
   const availableRoles = useMemo(() => {
     if (isSuperAdmin) {
@@ -276,6 +281,39 @@ const AdminUser = () => {
     }
   };
 
+  const handleStatusChange = async (
+    userId: number,
+    newStatus: boolean,
+  ) => {
+    if (!canEditStatus) {
+      toast.error("You don't have permission to edit user status");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await updateUsersApi(userId, {
+        is_active: newStatus,
+      });
+
+      if (response) {
+        toast.success(
+          `User ${newStatus ? "activated" : "deactivated"} successfully`,
+        );
+        await fetchUsers();
+      }
+    } catch (error) {
+      const errorMessage = handleAxiosError(
+        error,
+        "Failed to update user status",
+      );
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+      setEditingStatus(null);
+    }
+  };
+
   const columns = useMemo<MRT_ColumnDef<User>[]>(
     () => [
       {
@@ -349,20 +387,108 @@ const AdminUser = () => {
       {
         accessorKey: "is_active",
         header: "Status",
-        size: 100,
+        size: 150,
         accessorFn: (row) => (row.is_active ? "active" : "inactive"),
-        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
-          const value = cell.row.original.is_active;
+        Cell: ({ row }: { row: MRT_Row<User> }) => {
+          const userId = row.original.id;
+          const isActive = row.original.is_active;
+          const isEditing = editingStatus?.userId === userId;
+
+          if (isEditing) {
+            return (
+              <div className="flex items-center gap-2">
+                <select
+                  value={editingStatus.isActive ? "active" : "inactive"}
+                  onChange={(e) => {
+                    const newValue = e.target.value === "active";
+                    setEditingStatus({
+                      userId,
+                      isActive: newValue,
+                    });
+                  }}
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white"
+                  autoFocus
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <button
+                  onClick={() =>
+                    handleStatusChange(userId, editingStatus.isActive)
+                  }
+                  className="p-1 text-success-600 hover:text-success-700 dark:text-success-400"
+                  title="Save"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setEditingStatus(null)}
+                  className="p-1 text-error-600 hover:text-error-700 dark:text-error-400"
+                  title="Cancel"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            );
+          }
+
           return (
-            <span
-              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                value
-                  ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                  : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
-              }`}
-            >
-              {value ? "Active" : "Inactive"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isActive
+                    ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                    : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
+                }`}
+              >
+                {isActive ? "Active" : "Inactive"}
+              </span>
+              {canEditStatus && (
+                <button
+                  onClick={() => setEditingStatus({ userId, isActive })}
+                  className="p-1 text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+                  title="Edit status"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
           );
         },
         filterVariant: "select",
@@ -492,7 +618,9 @@ const AdminUser = () => {
       pagination.pageSize,
       roles,
       canEditApproval,
+      canEditStatus,
       editingApproval,
+      editingStatus,
     ],
   );
 
@@ -512,56 +640,56 @@ const AdminUser = () => {
     }
   };
 
-const validateForm = (): boolean => {
-  const newErrors: Partial<Record<keyof NewUserForm, string>> = {};
+  const validateForm = (): boolean => {
+    const newErrors: Partial<Record<keyof NewUserForm, string>> = {};
 
-  // Check required fields
-  if (!formData.first_name?.trim()) {
-    newErrors.first_name = "First name is required";
-  }
-
-  if (!formData.last_name?.trim()) {
-    newErrors.last_name = "Last name is required";
-  }
-
-  if (!formData.email?.trim()) {
-    newErrors.email = "Email is required";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-    newErrors.email = "Please enter a valid email address";
-  }
-
-  if (!formData.phone?.trim()) {
-    newErrors.phone = "Phone number is required";
-  } else if (!/^[0-9]{10}$/.test(formData.phone)) {
-    newErrors.phone = "Please enter a valid 10-digit phone number";
-  }
-
-  if (!formData.role) {
-    newErrors.role = "Role is required";
-  }
-
-  // Region is mandatory ONLY for admin role
-  if (formData.role === "admin") {
-    if (!formData.region?.trim()) {
-      newErrors.region = "Region is required for admin users";
+    // Check required fields
+    if (!formData.first_name?.trim()) {
+      newErrors.first_name = "First name is required";
     }
-  }
 
-  // MNP Admin is mandatory for trainer/financier roles
-  if ((formData.role === "trainer" || formData.role === "financier") &&  userRole !== 'admin') {
-    if (!formData.mnpData?.trim()) {
-      newErrors.mnpData = "MNP Admin is required for trainer/financier users";
+    if (!formData.last_name?.trim()) {
+      newErrors.last_name = "Last name is required";
     }
-  }
 
-  // Permission check for admin users
-  if (isAdmin && formData.role === "admin") {
-    newErrors.role = "You don't have permission to create admin users";
-  }
+    if (!formData.email?.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    if (!formData.phone?.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^[0-9]{10}$/.test(formData.phone)) {
+      newErrors.phone = "Please enter a valid 10-digit phone number";
+    }
+
+    if (!formData.role) {
+      newErrors.role = "Role is required";
+    }
+
+    // Region is mandatory ONLY for admin role
+    if (formData.role === "admin") {
+      if (!formData.region?.trim()) {
+        newErrors.region = "Region is required for admin users";
+      }
+    }
+
+    // MNP Admin is mandatory for trainer/financier roles
+    if ((formData.role === "trainer" || formData.role === "financier") && userRole !== 'admin') {
+      if (!formData.mnpData?.trim()) {
+        newErrors.mnpData = "MNP Admin is required for trainer/financier users";
+      }
+    }
+
+    // Permission check for admin users
+    if (isAdmin && formData.role === "admin") {
+      newErrors.role = "You don't have permission to create admin users";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

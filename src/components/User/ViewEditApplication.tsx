@@ -11,7 +11,14 @@ import {
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { getUserRole } from "../../config/constants";
 import PageMeta from "../../shared/components/common/PageMeta";
-import { ArrowLeftIcon, PencilIcon, SaveIcon, XIcon, ChevronRight, ChevronLeft } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  PencilIcon,
+  SaveIcon,
+  XIcon,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
 
 interface StatusOption {
   value: string;
@@ -71,11 +78,13 @@ const ViewEditApplication: React.FC = () => {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [financiers, setFinanciers] = useState<Financier[]>([]);
   const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
+  const [paymentOptions, setPaymentOptions] = useState<StatusOption[]>([]);
 
   const [formData, setFormData] = useState({
     status: "",
     assigned_trainer: "",
     assigned_financier: "",
+    payment_status: "",
     public_notes: "",
     private_notes: "",
   });
@@ -104,6 +113,7 @@ const ViewEditApplication: React.FC = () => {
         assigned_financier: response.assigned_financier?.toString() || "",
         public_notes: response.public_notes || "",
         private_notes: response.private_notes || "",
+        payment_status: response.payment_status || "",
       });
 
       // Fetch SHG user data if available
@@ -111,7 +121,10 @@ const ViewEditApplication: React.FC = () => {
         fetchSHGUserData(response.shg);
       }
     } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to fetch application");
+      const errorMessage = handleAxiosError(
+        error,
+        "Failed to fetch application",
+      );
       toast.error(errorMessage);
       navigate("/applications");
     } finally {
@@ -133,9 +146,14 @@ const ViewEditApplication: React.FC = () => {
     try {
       const response = await contactApi();
       const statusList = response?.application_status || [];
+      const paymentList = response?.payment_clearance || [];
       setStatusOptions(statusList);
+      setPaymentOptions(paymentList);
     } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to fetch status options");
+      const errorMessage = handleAxiosError(
+        error,
+        "Failed to fetch status options",
+      );
       toast.error(errorMessage);
     }
   };
@@ -155,13 +173,20 @@ const ViewEditApplication: React.FC = () => {
           if (item.roles.includes("trainer") || item.roles[0] === "trainer") {
             trainersList.push({
               value: item.id,
-              label: `${item.first_name || ""} ${item.last_name || ""}`.trim() || `Trainer ${item.id}`
+              label:
+                `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
+                `Trainer ${item.id}`,
             });
           }
-          if (item.roles.includes("financier") || item.roles[0] === "financier") {
+          if (
+            item.roles.includes("financier") ||
+            item.roles[0] === "financier"
+          ) {
             financiersList.push({
               id: item.id,
-              name: `${item.first_name || ""} ${item.last_name || ""}`.trim() || `Financier ${item.id}`
+              name:
+                `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
+                `Financier ${item.id}`,
             });
           }
         }
@@ -176,7 +201,9 @@ const ViewEditApplication: React.FC = () => {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -192,6 +219,7 @@ const ViewEditApplication: React.FC = () => {
         assigned_financier: formData.assigned_financier || null,
         public_notes: formData.public_notes,
         private_notes: formData.private_notes,
+        payment_status: formData.payment_status
       };
       await updateApplicationStatusApi(parseInt(id!), updatedData);
       toast.success("Application updated successfully");
@@ -199,7 +227,10 @@ const ViewEditApplication: React.FC = () => {
       // Refresh application data
       fetchApplicationDetails(parseInt(id!));
     } catch (err) {
-      const errorMessage = handleAxiosError(err, "Failed to update application");
+      const errorMessage = handleAxiosError(
+        err,
+        "Failed to update application",
+      );
       toast.error(errorMessage);
     } finally {
       setSubmitting(false);
@@ -214,6 +245,7 @@ const ViewEditApplication: React.FC = () => {
       assigned_financier: application?.assigned_financier?.toString() || "",
       public_notes: application?.public_notes || "",
       private_notes: application?.private_notes || "",
+      payment_status: application?.payment_status || '',
     });
     setIsEditing(false);
   };
@@ -295,18 +327,28 @@ const ViewEditApplication: React.FC = () => {
           </button>
           <div className="flex-1">
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              {currentStep === 1 ? 'SHG Member Information' : 'Application Processing'}
+              {currentStep === 1
+                ? "SHG Member Information"
+                : "Application Processing"}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Reference No: {application?.reference_number || "N/A"}
             </p>
           </div>
-          
+
           {/* Step indicator */}
           <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <span className={currentStep === 1 ? 'text-brand-600 font-medium' : ''}>Step 1</span>
+            <span
+              className={currentStep === 1 ? "text-brand-600 font-medium" : ""}
+            >
+              Step 1
+            </span>
             <ChevronRight className="w-4 h-4" />
-            <span className={currentStep === 2 ? 'text-brand-600 font-medium' : ''}>Step 2</span>
+            <span
+              className={currentStep === 2 ? "text-brand-600 font-medium" : ""}
+            >
+              Step 2
+            </span>
           </div>
         </div>
 
@@ -328,7 +370,7 @@ const ViewEditApplication: React.FC = () => {
                   </button>
                 )}
               </div>
-              
+
               {shgUserData ? (
                 <div className="space-y-6">
                   {/* Personal Information */}
@@ -487,40 +529,46 @@ const ViewEditApplication: React.FC = () => {
                               : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
                           }`}
                         >
-                          {shgUserData?.user.is_approved ? "Approved" : "Pending"}
+                          {shgUserData?.user.is_approved
+                            ? "Approved"
+                            : "Pending"}
                         </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Documents */}
-                  {shgUserData?.documents && shgUserData.documents.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
-                        Documents
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {shgUserData.documents.map((doc: any, index: number) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
-                          >
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {doc.document_type?.replace(/_/g, " ") || "Document"}
-                            </span>
-                            <a
-                              href={doc.file}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-medium"
-                            >
-                              View
-                            </a>
-                          </div>
-                        ))}
+                  {shgUserData?.documents &&
+                    shgUserData.documents.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
+                          Documents
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {shgUserData.documents.map(
+                            (doc: any, index: number) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
+                              >
+                                <span className="text-sm text-gray-700 dark:text-gray-300">
+                                  {doc.document_type?.replace(/_/g, " ") ||
+                                    "Document"}
+                                </span>
+                                <a
+                                  href={doc.file}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-medium"
+                                >
+                                  View
+                                </a>
+                              </div>
+                            ),
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               ) : (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-8">
@@ -635,7 +683,8 @@ const ViewEditApplication: React.FC = () => {
                       </select>
                     ) : (
                       <p className="text-gray-900 dark:text-white">
-                        {application?.assigned_financier_details || "Not Assigned"}
+                        {application?.assigned_financier_details ||
+                          "Not Assigned"}
                       </p>
                     )}
                   </div>
@@ -645,9 +694,26 @@ const ViewEditApplication: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Payment Status
                     </label>
-                    <p className="text-gray-900 dark:text-white">
-                      {application?.payment_status || "-"}
-                    </p>
+                    {isEditing ? (
+                      <select
+                        name="payment_status"
+                        value={formData.payment_status}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        required
+                      >
+                        <option value="">Select Payment Status</option>
+                        {paymentOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-gray-900 dark:text-white">
+                        {application?.payment_status || "-"}
+                      </p>
+                    )}
                   </div>
 
                   {/* Public Notes */}
