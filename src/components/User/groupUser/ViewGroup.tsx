@@ -5,11 +5,11 @@ import {
   type MRT_ColumnDef,
 } from "material-react-table";
 import { getUserRole } from "../../../config/constants";
-import { getGroupApi, createGroupApi, updateGroupApi } from "../../../api/group.api";
+import { getGroupApi, createGroupApi, updateGroupApi, deleteGroupApi } from "../../../api/group.api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import PageMeta from "../../common/PageMeta";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, Trash2Icon } from "lucide-react";
 import { RightSideModal } from "../../mui/RightSideModal";
 import Button from "../../ui/button/Button";
 import { getRoleUsers } from "../../../api";
@@ -17,6 +17,9 @@ import { getRoleUsers } from "../../../api";
 interface StudentData {
   id: number;
   name: string;
+  first_name?: string;
+  last_name?: string;
+
 }
 
 interface Group {
@@ -37,6 +40,8 @@ interface Student {
   id: number;
   name: string;
   email?: string;
+  first_name?: string;
+  last_name?: string
 }
 
 const ViewGroup = () => {
@@ -48,7 +53,8 @@ const ViewGroup = () => {
     pageIndex: 0,
     pageSize: 10,
   });
-
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState<Group | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +91,7 @@ const ViewGroup = () => {
     }
   }, [isAddModalOpen, isEditModalOpen]);
 
-  // Load edit data when editing group changes
+  // In the useEffect where you load edit data
   useEffect(() => {
     if (editingGroup && isEditModalOpen) {
       setFormData({
@@ -93,6 +99,15 @@ const ViewGroup = () => {
         students: editingGroup.student_data?.map(s => s.id) || [],
       });
       setSelectedStudents(editingGroup.student_data?.map(s => s.id) || []);
+
+      // ✅ Merge existing students into availableStudents so name lookup works
+      setAvailableStudents(prev => {
+        const existingIds = new Set(prev.map(s => s.id));
+        const missing = (editingGroup.student_data || []).filter(
+          s => !existingIds.has(s.id)
+        );
+        return [...prev, ...missing]; // merges without duplicates
+      });
     }
   }, [editingGroup, isEditModalOpen]);
 
@@ -138,6 +153,26 @@ const ViewGroup = () => {
     setStudentError("");
   };
 
+  const handleDeleteGroup = (group: Group) => {
+    setDeletingGroup(group);   // store which group to delete
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingGroup) return;
+    try {
+      await deleteGroupApi(deletingGroup.id);
+      toast.success("Group deleted successfully");
+      fetchGroups();
+    } catch (error) {
+      const errorMessage = handleAxiosError(error, "Failed to delete group");
+      toast.error(errorMessage);
+    } finally {
+      setDeleteModalOpen(false);  // close modal either way
+      setDeletingGroup(null);
+    }
+  };
+
   const removeStudent = (studentId: number) => {
     setSelectedStudents((prev) => prev.filter((id) => id !== studentId));
   };
@@ -180,7 +215,7 @@ const ViewGroup = () => {
       setSubmitting(true);
       await updateGroupApi(editingGroup.id, {
         name: formData.name,
-        students: selectedStudents, 
+        students: selectedStudents,
       });
       toast.success("Group updated successfully");
       handleCloseModal();
@@ -259,7 +294,7 @@ const ViewGroup = () => {
     setEditingGroup(group);
     setIsEditModalOpen(true);
   };
-  
+
   const handleCloseModal = () => {
     setIsAddModalOpen(false);
     setIsEditModalOpen(false);
@@ -285,6 +320,11 @@ const ViewGroup = () => {
       label: "Edit",
       icon: <PencilIcon className="w-4 h-4 text-green-500" />,
       onClick: (row: Group) => handleEditGroup(row),
+    },
+    {
+      label: "Delete",
+      icon: <Trash2Icon className="w-4 h-4 text-red-500" />,
+      onClick: (row: Group) => handleDeleteGroup(row),
     },
   ];
 
@@ -348,11 +388,10 @@ const ViewGroup = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     placeholder="Enter group name"
-                    className={`w-full px-3 py-2 text-sm border ${
-                      errors.name
-                        ? "border-red-400"
-                        : "border-gray-300 dark:border-gray-600"
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400`}
+                    className={`w-full px-3 py-2 text-sm border ${errors.name
+                      ? "border-red-400"
+                      : "border-gray-300 dark:border-gray-600"
+                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400`}
                   />
                   {errors.name && (
                     <p className="mt-1 text-xs text-red-500">{errors.name}</p>
@@ -374,22 +413,23 @@ const ViewGroup = () => {
                         className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
                       >
                         <option value="">Select a student to add...</option>
-                        {availableStudents.map((student) => (
-                          <option key={student.id} value={student.id}>
-                            {student.name} {student.email ? `(${student.email})` : ""}
-                          </option>
-                        ))}
+                        {availableStudents
+                          .filter((student) => !selectedStudents.includes(student.id)) // ← key fix
+                          .map((student) => (
+                            <option key={student.id} value={student.id}>
+                              {student.name || `${student.first_name} ${student.last_name}`} {student.email ? `(${student.email})` : ""}
+                            </option>
+                          ))}
                       </select>
                     </div>
                   </div>
 
                   {/* Selected students tags */}
                   <div
-                    className={`flex flex-wrap gap-2 items-center min-h-[60px] p-3 border ${
-                      studentError
-                        ? "border-red-400"
-                        : "border-gray-300 dark:border-gray-600"
-                    } rounded-lg bg-white dark:bg-gray-800`}
+                    className={`flex flex-wrap gap-2 items-center min-h-[60px] p-3 border ${studentError
+                      ? "border-red-400"
+                      : "border-gray-300 dark:border-gray-600"
+                      } rounded-lg bg-white dark:bg-gray-800`}
                   >
                     {selectedStudents.length === 0 ? (
                       <p className="text-sm text-gray-400 dark:text-gray-500">
@@ -397,26 +437,31 @@ const ViewGroup = () => {
                       </p>
                     ) : (
                       selectedStudents.map((studentId) => {
-                        const student = availableStudents.find(
-                          (s) => s.id === studentId
-                        ) || editingGroup?.student_data?.find(
-                          (s) => s.id === studentId
-                        );
+                        const fromAvailable = availableStudents.find((s) => s.id === studentId);
+                        const fromEditData = editingGroup?.student_data?.find((s) => s.id === studentId);
+
+                        console.log("Looking for ID:", studentId);
+                        console.log("availableStudents:", availableStudents);        // ← is it populated?
+                        console.log("editingGroup.student_data:", editingGroup?.student_data); // ← has names?
+                        console.log("Found from available:", fromAvailable);
+                        console.log("Found from edit data:", fromEditData);
+
+                        const student = fromAvailable || fromEditData;
                         return (
                           <span
                             key={studentId}
                             className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-md text-sm font-medium"
                           >
-                            {student?.name || `Student ${studentId}`}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeStudent(studentId);
-                              }}
-                              className="leading-none opacity-60 hover:opacity-100 text-base ml-1"
-                              title="Remove"
-                            >
+                            {student?.name ||
+                              (student?.first_name ? `${student.first_name} ${student.last_name}` : `Student ${studentId}`)}                            <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeStudent(studentId);
+                                }}
+                                className="leading-none opacity-60 hover:opacity-100 text-base ml-1"
+                                title="Remove"
+                              >
                               ×
                             </button>
                           </span>
@@ -451,15 +496,59 @@ const ViewGroup = () => {
                   disabled={submitting}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {submitting 
-                    ? (isEditModalOpen ? "Updating..." : "Creating...") 
+                  {submitting
+                    ? (isEditModalOpen ? "Updating..." : "Creating...")
                     : (isEditModalOpen ? "Update Group" : "Create Group")}
                 </Button>
               </div>
+
             </form>
+           
           </div>
         </RightSideModal>
+        
       )}
+         {/* Delete Confirmation Modal */}
+              {deleteModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-sm mx-4">
+
+                    {/* Icon */}
+                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
+                      <Trash2Icon className="w-6 h-6 text-red-500" />
+                    </div>
+
+                    {/* Text */}
+                    <h3 className="text-center text-lg font-semibold text-gray-800 dark:text-white mb-1">
+                      Delete Group
+                    </h3>
+                    <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">
+                      Are you sure you want to delete{" "}
+                      <span className="font-medium text-gray-700 dark:text-gray-200">
+                        "{deletingGroup?.name}"
+                      </span>
+                      ? This action cannot be undone.
+                    </p>
+
+                    {/* Actions */}
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => setDeleteModalOpen(false)}  // cancel
+                        className="flex-1 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={confirmDelete}
+                        className="flex-1 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+
+                  </div>
+                </div>
+              )}
     </div>
   );
 };

@@ -15,3 +15,8 @@ export const getGroupApi = () => {
     return client.get("trainer/app/groups/")
     .then(res => res.data)
 }
+export const deleteGroupApi = (groupid:number) => {
+    return client.delete(`trainer/app/groups/${groupid}/`)
+    .then(res => res.data)
+}
+
