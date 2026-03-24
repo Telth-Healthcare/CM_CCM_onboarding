@@ -39,6 +39,10 @@ const Contact = lazy(() => import("./components/User/Contact"));
 const CourseDetails = lazy(
   () => import("./components/User/course/CourseDetails"),
 );
+const Enrollment = lazy(
+  () => import("./components/User/course/Enrollment"),
+);
+
 
 // Root Redirect Component
 function RootRedirect() {
@@ -129,6 +133,17 @@ export default function App() {
                 element={<CourseDetails key={location.pathname} />}
               />
               <Route
+                path="/enrollments"
+                element={
+                  <ProtectedRoute
+                    authType="admin"
+                    allowedRoles={["super_admin", "admin", "trainer"]}
+                  >
+                    <Enrollment key="/enrollments" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/applications"
                 element={<Applications key="/applications" />}
               />
@@ -154,7 +169,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-                 <Route
+              <Route
                 path="/group"
                 element={
                   <ProtectedRoute

@@ -9,7 +9,14 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import logo from "../assets/TELTH LOGO.png";
-import { BookAIcon, Contact, Mail, Map, NotebookIcon, UserCheck } from "lucide-react";
+import {
+  BookAIcon,
+  Contact,
+  Mail,
+  Map,
+  NotebookIcon,
+  UserCheck,
+} from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -22,7 +29,7 @@ type SubNavItem = {
 type NavItem = {
   name: string;
   icon: React.ReactNode;
-  path?: string;          // optional — parent-only items have no path
+  path?: string; // optional — parent-only items have no path
   roles?: string[];
   subItems?: SubNavItem[];
 };
@@ -60,9 +67,17 @@ const navItems: NavItem[] = [
     name: "User Management",
     // no `path` — this item only opens/closes the accordion
     subItems: [
-      { name: "Users",      path: "/users",      roles: ["super_admin", "admin"] },
-      { name: "Invitation", path: "/invitation",  roles: ["super_admin", "admin"] },
-      {name: "Group", path:"/group",roles:["super_admin", "admin", "trainer"]}
+      { name: "Users", path: "/users", roles: ["super_admin", "admin"] },
+      {
+        name: "Invitation",
+        path: "/invitation",
+        roles: ["super_admin", "admin"],
+      },
+      {
+        name: "Group",
+        path: "/group",
+        roles: ["super_admin", "admin", "trainer"],
+      },
     ],
   },
   {
@@ -91,19 +106,30 @@ const navItems: NavItem[] = [
   {
     icon: <BookAIcon />,
     name: "Course",
-    path: "/course",
-    roles: ["super_admin", "admin", "trainer"],
+    subItems: [
+      {
+        name: "Course",
+        path: "/course",
+        roles: ["super_admin", "admin", "trainer"],
+      },
+      {
+        name: "Enroll",
+        path: "/enrollments",
+        roles: ["super_admin", "admin", "trainer"],
+      }
+    ],
   },
 ];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   const adminUser = getAdminUser();
 
   const userRole = useMemo(() => {
-    if (adminUser?.roles && adminUser.roles.length > 0) return adminUser.roles[0];
+    if (adminUser?.roles && adminUser.roles.length > 0)
+      return adminUser.roles[0];
     return localStorage.getItem("admin_role");
   }, [adminUser]);
 
@@ -116,9 +142,9 @@ const AppSidebar: React.FC = () => {
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
     );
 
-  const handleSignOut  = () => setShowLogoutModal(true);
-  const cancelLogout   = () => setShowLogoutModal(false);
-  const confirmLogout  = () => {
+  const handleSignOut = () => setShowLogoutModal(true);
+  const cancelLogout = () => setShowLogoutModal(false);
+  const confirmLogout = () => {
     localStorage.clear();
     sessionStorage.clear();
     navigate("/admin/signin", { replace: true });
@@ -131,25 +157,27 @@ const AppSidebar: React.FC = () => {
   );
 
   const filteredNavItems = useMemo(() => {
-    return navItems
-      .filter((item) => {
-        // Items with no roles are visible to everyone
-        if (!item.roles || item.roles.length === 0) return true;
-        if (!userRole) return false;
-        return item.roles.includes(userRole);
-      })
-      .map((item) => {
-        // For items with subItems, filter the subItems by role too
-        if (!item.subItems) return item;
-        const visibleSubs = item.subItems.filter((sub) => {
-          if (!sub.roles || sub.roles.length === 0) return true;
+    return (
+      navItems
+        .filter((item) => {
+          // Items with no roles are visible to everyone
+          if (!item.roles || item.roles.length === 0) return true;
           if (!userRole) return false;
-          return sub.roles.includes(userRole);
-        });
-        return { ...item, subItems: visibleSubs };
-      })
-      // Drop parent items whose every subItem was filtered out
-      .filter((item) => !item.subItems || item.subItems.length > 0);
+          return item.roles.includes(userRole);
+        })
+        .map((item) => {
+          // For items with subItems, filter the subItems by role too
+          if (!item.subItems) return item;
+          const visibleSubs = item.subItems.filter((sub) => {
+            if (!sub.roles || sub.roles.length === 0) return true;
+            if (!userRole) return false;
+            return sub.roles.includes(userRole);
+          });
+          return { ...item, subItems: visibleSubs };
+        })
+        // Drop parent items whose every subItem was filtered out
+        .filter((item) => !item.subItems || item.subItems.length > 0)
+    );
   }, [userRole]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -169,7 +197,7 @@ const AppSidebar: React.FC = () => {
         {items.map((nav) => {
           // ── Item with subItems (accordion) ──────────────────────────────
           if (nav.subItems && nav.subItems.length > 0) {
-            const isOpen        = openGroups.includes(nav.name);
+            const isOpen = openGroups.includes(nav.name);
             const anyChildActive = nav.subItems.some((s) => isActive(s.path));
 
             return (
@@ -184,7 +212,9 @@ const AppSidebar: React.FC = () => {
                 >
                   <span
                     className={`menu-item-icon-size ${
-                      anyChildActive ? "menu-item-icon-active" : "menu-item-icon-inactive"
+                      anyChildActive
+                        ? "menu-item-icon-active"
+                        : "menu-item-icon-inactive"
                     }`}
                   >
                     {nav.icon}
@@ -192,7 +222,9 @@ const AppSidebar: React.FC = () => {
 
                   {isSidebarOpen && (
                     <>
-                      <span className="menu-item-text flex-1 text-left">{nav.name}</span>
+                      <span className="menu-item-text flex-1 text-left">
+                        {nav.name}
+                      </span>
                       <AngleRightIcon
                         className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                           isOpen ? "rotate-90" : ""
@@ -231,7 +263,9 @@ const AppSidebar: React.FC = () => {
               <Link
                 to={nav.path!}
                 className={`menu-item group ${
-                  isActive(nav.path!) ? "menu-item-active" : "menu-item-inactive"
+                  isActive(nav.path!)
+                    ? "menu-item-active"
+                    : "menu-item-inactive"
                 } ${!isSidebarOpen ? "lg:justify-center" : "lg:justify-start"}`}
               >
                 <span
@@ -291,7 +325,9 @@ const AppSidebar: React.FC = () => {
               <div>
                 <h2
                   className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                    !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+                    !isExpanded && !isHovered
+                      ? "lg:justify-center"
+                      : "justify-start"
                   }`}
                 >
                   {isSidebarOpen ? (
@@ -383,7 +419,8 @@ const AppSidebar: React.FC = () => {
               Sign Out
             </h3>
             <p className="text-center text-gray-500 dark:text-gray-400 mb-6">
-              Are you sure you want to sign out? You will be redirected to the login page.
+              Are you sure you want to sign out? You will be redirected to the
+              login page.
             </p>
 
             <div className="flex gap-3">
