@@ -73,7 +73,7 @@ const ViewEditApplication: React.FC = () => {
   const [shgUserData, setShgUserData] = useState<SHGUserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1); // Step 1: SHG Info, Step 2: Application Processing
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1); // Step 1: CM/CCM Info, Step 2: Application Processing
   const [isEditing, setIsEditing] = useState(false);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [financiers, setFinanciers] = useState<Financier[]>([]);
@@ -116,7 +116,7 @@ const ViewEditApplication: React.FC = () => {
         payment_status: response.payment_status || "",
       });
 
-      // Fetch SHG user data if available
+      // Fetch CM/CCM user data if available
       if (response.shg) {
         fetchSHGUserData(response.shg);
       }
@@ -328,7 +328,7 @@ const ViewEditApplication: React.FC = () => {
           <div className="flex-1">
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
               {currentStep === 1
-                ? "SHG Member Information"
+                ? "CM/CCM Member Information"
                 : "Application Processing"}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -352,13 +352,13 @@ const ViewEditApplication: React.FC = () => {
           </div>
         </div>
 
-        {/* Step 1: SHG Member Information */}
+        {/* Step 1: CM/CCM Member Information */}
         {currentStep === 1 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  SHG Member Details
+                  CM/CCM Member Details
                 </h2>
                 {canEdit && (
                   <button
@@ -467,10 +467,10 @@ const ViewEditApplication: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* SHG Details */}
+                  {/* CM/CCM Details */}
                   <div>
                     <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
-                      SHG Details
+                      CM/CCM Details
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -572,7 +572,7 @@ const ViewEditApplication: React.FC = () => {
                 </div>
               ) : (
                 <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                  No SHG user data available
+                  No CM/CCM user data available
                 </p>
               )}
             </div>

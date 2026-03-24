@@ -3,7 +3,7 @@ import { ccmClient as client} from './client'
 
 // ── Application CRUD ──────────────────────────────────────────────────────────
 const createApplicationApi = (data: Record<string, any>) =>
-  // POST without members — members posted separately after SHG pk is known
+  // POST without members — members posted separately after CM/CCM pk is known
   client.post('shg/app/', data).then(res => res.data)
 
 const updateApplicationApi = (pk: number, data: Record<string, any>) =>
