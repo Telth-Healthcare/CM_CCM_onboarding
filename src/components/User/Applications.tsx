@@ -300,7 +300,7 @@ const Applications = () => {
           Applications
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          View and manage all SHG applications
+          View and manage all CM/CCM applications
         </p>
         {!loading && (
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">

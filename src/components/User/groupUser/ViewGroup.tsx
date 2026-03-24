@@ -255,6 +255,12 @@ const ViewGroup = () => {
         size: 200,
         Cell: ({ cell }) => cell.getValue<string>() ?? "-",
       },
+        {
+        accessorKey: "course_name",
+        header: "Course",
+        size: 200,
+        Cell: ({ cell }) => cell.getValue<string>() ?? "-",
+      },
       {
         accessorKey: "student_data",
         header: "Students",
