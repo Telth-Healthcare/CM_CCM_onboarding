@@ -468,7 +468,7 @@ const ViewEditApplication: React.FC = () => {
                   </div>
 
                   {/* CM/CCM Details */}
-                  <div>
+                  {/* <div>
                     <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
                       CM/CCM Details
                     </h3>
@@ -496,10 +496,10 @@ const ViewEditApplication: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Account Status */}
-                  <div>
+                  {/* <div>
                     <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
                       Account Status
                     </h3>
@@ -535,7 +535,7 @@ const ViewEditApplication: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Documents */}
                   {shgUserData?.documents &&

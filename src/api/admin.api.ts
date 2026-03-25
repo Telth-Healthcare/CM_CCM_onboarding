@@ -12,7 +12,7 @@ export interface SendInvitationRequest {
   last_name: string;
   email: string;
   phone: string;
-  region: string;
+  region?: string;
   roles: string[];
   manager?: number;
 }

@@ -6,7 +6,6 @@ import {
   MRT_ColumnFiltersState,
 } from "material-react-table";
 import { toast } from "react-toastify";
-import PageMeta from "../common/PageMeta";
 import {
   contactApi,
   getAllRegionsApi,
@@ -14,14 +13,15 @@ import {
   sendInvitationApi,
   SendInvitationRequest,
   updateUsersApi,
-} from "../../api";
-import { handleAxiosError } from "../../utils/handleAxiosError";
-import CommonTable from "../mui/MuiTable";
-import { RightSideModal } from "../mui/RightSideModal";
-import Input from "../form/input/InputField";
-import Button from "../ui/button/Button";
-import { getUserRole, getUser } from "../../config/constants";
-import Label from "../form/Label";
+} from "../../../api";
+import CommonTable from "../../mui/MuiTable";
+import { RightSideModal } from "../../mui/RightSideModal";
+import Input from "../../form/input/InputField";
+import Button from "../../ui/button/Button";
+import { getUserRole, getUser } from "../../../config/constants";
+import Label from "../../form/Label";
+import { handleAxiosError } from "../../../utils/handleAxiosError";
+import PageMeta from "../../common/PageMeta";
 
 interface User {
   id: number;
@@ -63,7 +63,7 @@ interface ToolbarAction {
   icon?: React.ReactNode;
 }
 
-const AdminUser = () => {
+const ViewAllUser = () => {
   const userRole = getUserRole("admin");
   const currentUser = getUser(); // Get current logged-in user details
   const [users, setUsers] = useState<User[]>([]);
@@ -74,6 +74,7 @@ const AdminUser = () => {
     pageSize: 10,
   });
   const [roles, setRoles] = useState<OptionType[]>([]);
+  const [allRoles, setAllRoles] = useState<OptionType[]>([]);
   const [regions, setRegions] = useState<OptionType[]>([]);
   const [mnpList, setMnpList] = useState<OptionType[]>([]);
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
@@ -175,8 +176,13 @@ const AdminUser = () => {
           role.value !== "cm" &&
           role.value !== "ccm",
       );
+       const allRoles = (response.roles || []).filter(
+        (role: OptionType) =>
+          role.value !== "super_admin"
+      );
 
       setRoles(filteredRoles);
+      setAllRoles(allRoles)
     } catch (error) {
       const errorMessage = handleAxiosError(error, "Failed to fetch roles");
       toast.error(errorMessage);
@@ -368,7 +374,7 @@ const AdminUser = () => {
           return roles[0];
         },
         filterVariant: "select",
-        filterSelectOptions: roles.map((role) => ({
+        filterSelectOptions: allRoles.map((role) => ({
           text: role.label,
           value: role.value,
         })),
@@ -1066,4 +1072,4 @@ const AdminUser = () => {
   );
 };
 
-export default AdminUser;
+export default ViewAllUser;
