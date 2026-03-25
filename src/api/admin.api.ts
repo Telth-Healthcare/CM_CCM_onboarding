@@ -12,7 +12,7 @@ export interface SendInvitationRequest {
   last_name: string;
   email: string;
   phone: string;
-  region: string;
+  region?: string;
   roles: string[];
   manager?: number;
 }
@@ -81,7 +81,7 @@ export const getAllRegionsApi = () => {
 }
 
 export const getSHGUserByIdApi = (userId: number) => {
-    return client.get(`shg/app/${userId}/`)
+    return client.get(`partners/app/${userId}/`)
     .then(res => res.data)
 }  
 

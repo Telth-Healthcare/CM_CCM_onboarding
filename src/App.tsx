@@ -13,6 +13,12 @@ import ViewEditApplication from "./components/User/ViewEditApplication";
 import UserProfiles from "./pages/UserProfiles";
 import Invitaion from "./components/User/Invitation";
 import ViewGroup from "./components/User/groupUser/ViewGroup";
+import ViewCMList from "./components/User/userType/ViewCMList";
+import ViewFinancier from "./components/User/userType/ViewFinancier";
+import ViewTrainer from "./components/User/userType/ViewTrainer";
+import ViewAllUser from "./components/User/userType/ViewAllUserList";
+import ViewAdminList from "./components/User/userType/ViewAdminList";
+import ViewCCMList from "./components/User/userType/ViewCCMList";
 
 // Admin Auth
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
@@ -30,7 +36,6 @@ const OnboardLayout = lazy(() => import("./ccm/pages/OnboardLayout"));
 
 // Admin Pages
 const Home = lazy(() => import("./pages/Dashboard/Home"));
-const AdminUser = lazy(() => import("./components/User/AdminUser"));
 const Applications = lazy(() => import("./components/User/Applications"));
 const Region = lazy(() => import("./components/User/Region"));
 const NotFound = lazy(() => import("./pages/OtherPage/NotFound"));
@@ -39,10 +44,7 @@ const Contact = lazy(() => import("./components/User/Contact"));
 const CourseDetails = lazy(
   () => import("./components/User/course/CourseDetails"),
 );
-const Enrollment = lazy(
-  () => import("./components/User/course/Enrollment"),
-);
-
+const Enrollment = lazy(() => import("./components/User/course/Enrollment"));
 
 // Root Redirect Component
 function RootRedirect() {
@@ -181,13 +183,68 @@ export default function App() {
                 }
               />
               <Route
-                path="/users"
+                path="/all-user"
                 element={
                   <ProtectedRoute
                     authType="admin"
                     allowedRoles={["super_admin", "admin"]}
                   >
-                    <AdminUser key="/users" />
+                    <ViewAllUser key="/all-user" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute
+                    authType="admin"
+                    allowedRoles={["super_admin", "admin"]}
+                  >
+                    <ViewAdminList key="/admin" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/trainer"
+                element={
+                  <ProtectedRoute
+                    authType="admin"
+                    allowedRoles={["super_admin", "admin"]}
+                  >
+                    <ViewTrainer key="/trainer" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/financier"
+                element={
+                  <ProtectedRoute
+                    authType="admin"
+                    allowedRoles={["super_admin", "admin"]}
+                  >
+                    <ViewFinancier key="/financier" />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/ccm-list"
+                element={
+                  <ProtectedRoute
+                    authType="admin"
+                    allowedRoles={["super_admin", "admin"]}
+                  >
+                    <ViewCCMList key="/ccm-list" />
+                  </ProtectedRoute>
+                }
+              />
+                <Route
+                path="/cm-list"
+                element={
+                  <ProtectedRoute
+                    authType="admin"
+                    allowedRoles={["super_admin", "admin"]}
+                  >
+                    <ViewCMList key="/cm-list" />
                   </ProtectedRoute>
                 }
               />

@@ -15,7 +15,6 @@ import {
   Mail,
   Map,
   NotebookIcon,
-  UserCheck,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -58,24 +57,43 @@ const navItems: NavItem[] = [
     path: "/dashboard",
   },
   {
-    icon: <UserCheck />,
-    name: "Profile",
-    path: "/profile",
-  },
-  {
     icon: <UserCircleIcon />,
     name: "User Management",
-    // no `path` — this item only opens/closes the accordion
     subItems: [
-      { name: "Users", path: "/users", roles: ["super_admin", "admin"] },
+      // { name: "All_User", path: "/all-user", roles: ["super_admin"] },
+      { name: "Admin", path: "/admin", roles: ["super_admin"] },
+      { name: "Trainer", path: "/trainer", roles: ["super_admin", "admin"] },
       {
-        name: "Invitation",
-        path: "/invitation",
+        name: "Financier",
+        path: "/financier",
         roles: ["super_admin", "admin"],
+      },
+      { name: "CCM", path: "/ccm-list", roles: ["super_admin", "admin"] },
+      { name: "CM", path: "/cm-list", roles: ["super_admin", "admin"] },
+      // {
+      //   name: "Invitation",
+      //   path: "/invitation",
+      //   roles: ["super_admin", "admin"],
+      // },
+    ],
+  },
+  {
+    icon: <BookAIcon />,
+    name: "Course",
+    subItems: [
+      {
+        name: "Course",
+        path: "/course",
+        roles: ["super_admin", "admin", "trainer"],
       },
       {
         name: "Group",
         path: "/group",
+        roles: ["super_admin", "admin", "trainer"],
+      },
+      {
+        name: "Enroll",
+        path: "/enrollments",
         roles: ["super_admin", "admin", "trainer"],
       },
     ],
@@ -102,22 +120,6 @@ const navItems: NavItem[] = [
     name: "Contact",
     path: "/contact",
     roles: ["super_admin", "admin"],
-  },
-  {
-    icon: <BookAIcon />,
-    name: "Course",
-    subItems: [
-      {
-        name: "Course",
-        path: "/course",
-        roles: ["super_admin", "admin", "trainer"],
-      },
-      {
-        name: "Enroll",
-        path: "/enrollments",
-        roles: ["super_admin", "admin", "trainer"],
-      }
-    ],
   },
 ];
 

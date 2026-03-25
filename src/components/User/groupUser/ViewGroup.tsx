@@ -5,7 +5,7 @@ import {
   type MRT_ColumnDef,
 } from "material-react-table";
 import { getUserRole } from "../../../config/constants";
-import { getGroupApi, createGroupApi, updateGroupApi, deleteGroupApi } from "../../../api/group.api";
+import { getGroupApi, createGroupApi, updateGroupApi, deleteGroupApi } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import PageMeta from "../../common/PageMeta";
