@@ -7,6 +7,8 @@ import {
   getApplicationByIdApi,
   getSHGUserByIdApi,
   updateApplicationStatusApi,
+  documentVerifyApi,
+  updateApplicationApi,
 } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { getUserRole } from "../../config/constants";
@@ -18,23 +20,29 @@ import {
   XIcon,
   ChevronRight,
   ChevronLeft,
+  CheckCircle,
+  XCircle,
+  FileText,
 } from "lucide-react";
 
 interface StatusOption {
   value: string;
   label: string;
 }
-
 interface Trainer {
   value: number;
   label: string;
 }
-
 interface Financier {
   id: number;
   name: string;
 }
-
+interface AppDocument {
+  id?: number;
+  document_type: string;
+  file: string;
+  is_approved: boolean;
+}
 interface SHGUserData {
   id: number;
   address_line_1: string;
@@ -44,7 +52,7 @@ interface SHGUserData {
   created_at: string;
   district: string;
   dob: string;
-  documents: any[];
+  documents: AppDocument[];
   gender: string;
   is_submitted: boolean;
   language: string;
@@ -66,28 +74,79 @@ interface SHGUserData {
   village: string;
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  submitted: "Submitted",
+  under_review: "Under Review",
+  assigned: "Assigned",
+  training: "Training",
+  production: "Production",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  submitted: "bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+  under_review:
+    "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400",
+  assigned:
+    "bg-purple-50 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400",
+  training:
+    "bg-orange-50 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400",
+  production:
+    "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400",
+  rejected: "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400",
+  cancelled: "bg-gray-50 text-gray-700 dark:bg-gray-500/20 dark:text-gray-400",
+};
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  pan: "PAN Card",
+  aadhar_front: "Aadhaar (Front)",
+  aadhar_back: "Aadhaar (Back)",
+  bachelor_certificate: "Bachelor Certificate",
+};
+
 const ViewEditApplication: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
   const [application, setApplication] = useState<any>(null);
   const [shgUserData, setShgUserData] = useState<SHGUserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1); // Step 1: CM/CCM Info, Step 2: Application Processing
-  const [isEditing, setIsEditing] = useState(false);
+
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+
+  const [isEditingPersonal, setIsEditingPersonal] = useState(false);
+  const [personalForm, setPersonalForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    dob: "",
+    gender: "",
+    blood_group: "",
+    marital_status: "",
+    language: "",
+    address_line_1: "",
+    address_line_2: "",
+    village: "",
+    district: "",
+    state: "",
+    pin_code: "",
+  });
+
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [financiers, setFinanciers] = useState<Financier[]>([]);
-  const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
   const [paymentOptions, setPaymentOptions] = useState<StatusOption[]>([]);
-
-  const [formData, setFormData] = useState({
-    status: "",
+  const [processingForm, setProcessingForm] = useState({
     assigned_trainer: "",
     assigned_financier: "",
     payment_status: "",
     public_notes: "",
     private_notes: "",
   });
+
+  const [docVerifying, setDocVerifying] = useState<Record<number, boolean>>({});
 
   const userRole = getUserRole("admin");
   const canEdit = userRole === "admin" || userRole === "super_admin";
@@ -105,27 +164,16 @@ const ViewEditApplication: React.FC = () => {
       setLoading(true);
       const response = await getApplicationByIdApi(applicationId);
       setApplication(response);
-
-      // Initialize form data
-      setFormData({
-        status: response.status || "",
+      setProcessingForm({
         assigned_trainer: response.assigned_trainer?.toString() || "",
         assigned_financier: response.assigned_financier?.toString() || "",
         public_notes: response.public_notes || "",
         private_notes: response.private_notes || "",
         payment_status: response.payment_status || "",
       });
-
-      // Fetch CM/CCM user data if available
-      if (response.shg) {
-        fetchSHGUserData(response.shg);
-      }
+      if (response.shg) fetchSHGUserData(response.shg);
     } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        "Failed to fetch application",
-      );
-      toast.error(errorMessage);
+      toast.error(handleAxiosError(error, "Failed to fetch application"));
       navigate("/applications");
     } finally {
       setLoading(false);
@@ -136,131 +184,147 @@ const ViewEditApplication: React.FC = () => {
     try {
       const response = await getSHGUserByIdApi(userId);
       setShgUserData(response);
+      setPersonalForm({
+        first_name: response.user.first_name || "",
+        last_name: response.user.last_name || "",
+        email: response.user.email || "",
+        phone: response.user.phone || "",
+        dob: response.dob || "",
+        gender: response.gender || "",
+        blood_group: response.blood_group || "",
+        marital_status: response.marital_status || "",
+        language: response.language || "",
+        address_line_1: response.address_line_1 || "",
+        address_line_2: response.address_line_2 || "",
+        village: response.village || "",
+        district: response.district || "",
+        state: response.state || "",
+        pin_code: response.pin_code || "",
+      });
     } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to fetch user data");
-      toast.error(errorMessage);
+      toast.error(handleAxiosError(error, "Failed to fetch user data"));
     }
   };
 
   const fetchStatusOptions = async () => {
     try {
       const response = await contactApi();
-      const statusList = response?.application_status || [];
-      const paymentList = response?.payment_clearance || [];
-      setStatusOptions(statusList);
-      setPaymentOptions(paymentList);
+      setPaymentOptions(response?.payment_clearance || []);
     } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        "Failed to fetch status options",
-      );
-      toast.error(errorMessage);
+      toast.error(handleAxiosError(error, "Failed to fetch status options"));
     }
   };
 
   const fetchUsers = async () => {
     try {
       const response = await getAllUsers();
-      const userData = response?.results || response || [];
-
+      const usersArray: any[] = Array.isArray(response?.results ?? response)
+        ? (response?.results ?? response)
+        : [];
       const trainersList: Trainer[] = [];
       const financiersList: Financier[] = [];
-
-      const usersArray = Array.isArray(userData) ? userData : [];
-
       usersArray.forEach((item: any) => {
-        if (item?.roles && Array.isArray(item.roles)) {
-          if (item.roles.includes("trainer") || item.roles[0] === "trainer") {
-            trainersList.push({
-              value: item.id,
-              label:
-                `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
-                `Trainer ${item.id}`,
-            });
-          }
-          if (
-            item.roles.includes("financier") ||
-            item.roles[0] === "financier"
-          ) {
-            financiersList.push({
-              id: item.id,
-              name:
-                `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
-                `Financier ${item.id}`,
-            });
-          }
-        }
+        if (!item?.roles) return;
+        const roles: string[] = Array.isArray(item.roles) ? item.roles : [];
+        const fullName =
+          `${item.first_name || ""} ${item.last_name || ""}`.trim();
+        if (roles.includes("trainer"))
+          trainersList.push({
+            value: item.id,
+            label: fullName || `Trainer ${item.id}`,
+          });
+        if (roles.includes("financier"))
+          financiersList.push({
+            id: item.id,
+            name: fullName || `Financier ${item.id}`,
+          });
       });
-
       setTrainers(trainersList);
       setFinanciers(financiersList);
     } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to fetch users");
-      toast.error(errorMessage);
+      toast.error(handleAxiosError(error, "Failed to fetch users"));
     }
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePersonalSave = async () => {
+    if (!shgUserData) return;
     setSubmitting(true);
     try {
-      const updatedData = {
-        status: formData.status,
-        assigned_trainer: formData.assigned_trainer || null,
-        assigned_financier: formData.assigned_financier || null,
-        public_notes: formData.public_notes,
-        private_notes: formData.private_notes,
-        payment_status: formData.payment_status
-      };
-      await updateApplicationStatusApi(parseInt(id!), updatedData);
-      toast.success("Application updated successfully");
-      setIsEditing(false);
-      // Refresh application data
-      fetchApplicationDetails(parseInt(id!));
+      await updateApplicationApi(shgUserData.id, {
+        dob: personalForm.dob,
+        gender: personalForm.gender,
+        blood_group: personalForm.blood_group,
+        marital_status: personalForm.marital_status,
+        language: personalForm.language,
+        address_line_1: personalForm.address_line_1,
+        address_line_2: personalForm.address_line_2,
+        village: personalForm.village,
+        district: personalForm.district,
+        state: personalForm.state,
+        pin_code: personalForm.pin_code,
+        user: {
+          phone: personalForm.phone,
+          email: personalForm.email,
+        },
+      });
+      toast.success("Personal details updated");
+      setIsEditingPersonal(false);
+      fetchSHGUserData(shgUserData.id);
     } catch (err) {
-      const errorMessage = handleAxiosError(
-        err,
-        "Failed to update application",
-      );
-      toast.error(errorMessage);
+      toast.error(handleAxiosError(err, "Failed to update personal details"));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleCancel = () => {
-    // Reset form to original application data
-    setFormData({
-      status: application?.status || "",
-      assigned_trainer: application?.assigned_trainer?.toString() || "",
-      assigned_financier: application?.assigned_financier?.toString() || "",
-      public_notes: application?.public_notes || "",
-      private_notes: application?.private_notes || "",
-      payment_status: application?.payment_status || '',
-    });
-    setIsEditing(false);
+  const handleDocumentVerify = async (doc: AppDocument, approved: boolean) => {
+    if (!doc.id) {
+      toast.error("Document ID not available");
+      return;
+    }
+    setDocVerifying((prev) => ({ ...prev, [doc.id!]: true }));
+    try {
+      await documentVerifyApi(doc.id, { is_approved: approved });
+      toast.success(`Document ${approved ? "approved" : "rejected"}`);
+      setShgUserData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          documents: prev.documents.map((d) =>
+            d.id === doc.id ? { ...d, is_approved: approved } : d,
+          ),
+        };
+      });
+    } catch (err) {
+      toast.error(handleAxiosError(err, "Failed to verify document"));
+    } finally {
+      setDocVerifying((prev) => ({ ...prev, [doc.id!]: false }));
+    }
   };
 
-  const goToNextStep = () => {
-    setCurrentStep(2);
-    setIsEditing(false);
+  // ---------------------------------------------------------------------------
+  // Processing save
+  // ---------------------------------------------------------------------------
+  const handleProcessingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await updateApplicationStatusApi(parseInt(id!), {
+        assigned_trainer: processingForm.assigned_trainer || null,
+        assigned_financier: processingForm.assigned_financier || null,
+        public_notes: processingForm.public_notes,
+        private_notes: processingForm.private_notes,
+        payment_status: processingForm.payment_status,
+      });
+      toast.success("Application updated successfully");
+      fetchApplicationDetails(parseInt(id!));
+    } catch (err) {
+      toast.error(handleAxiosError(err, "Failed to update application"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const goToPreviousStep = () => {
-    setCurrentStep(1);
-    setIsEditing(false);
-  };
-
-  // Format full name
   const getFullName = () => {
     if (!shgUserData) return "-";
     return (
@@ -269,34 +333,38 @@ const ViewEditApplication: React.FC = () => {
     );
   };
 
-  // Format full address
   const getFullAddress = () => {
     if (!shgUserData) return "-";
     return (
       [
-        shgUserData?.address_line_1,
-        shgUserData?.address_line_2,
-        shgUserData?.village,
-        shgUserData?.district,
-        shgUserData?.state,
-        shgUserData?.pin_code,
+        shgUserData.address_line_1,
+        shgUserData.address_line_2,
+        shgUserData.village,
+        shgUserData.district,
+        shgUserData.state,
+        shgUserData.pin_code,
       ]
         .filter(Boolean)
         .join(", ") || "-"
     );
   };
 
+  const inputCls =
+    "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
+  const readCls =
+    "text-sm font-medium text-gray-900 dark:text-white break-words";
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600" />
       </div>
     );
   }
 
   if (!application) {
     return (
-      <div className="p-6 text-center">
+      <div className="p-4 text-center">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
           Application not found
         </h2>
@@ -310,478 +378,686 @@ const ViewEditApplication: React.FC = () => {
     );
   }
 
+  const currentStatus = application?.status || "submitted";
+
   return (
     <>
       <PageMeta
         title={`Application #${application.reference_number || id}`}
         description="View and edit application details"
       />
-      <div className="p-6">
-        {/* Header with back button to applications list */}
-        <div className="flex items-center gap-4 mb-6">
+
+      <div className="p-3 sm:p-6">
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-start gap-3 mb-5 sm:mb-6">
+          {/* Back */}
           <button
             onClick={() => navigate("/applications")}
-            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0 mt-0.5"
           >
             <ArrowLeftIcon className="w-5 h-5" />
           </button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+
+          {/* Title + ref — grows to fill space */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white leading-snug">
               {currentStep === 1
                 ? "CM/CCM Member Information"
                 : "Application Processing"}
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Reference No: {application?.reference_number || "N/A"}
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              Ref: {application?.reference_number || "N/A"}
             </p>
-          </div>
-
-          {/* Step indicator */}
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <span
-              className={currentStep === 1 ? "text-brand-600 font-medium" : ""}
-            >
-              Step 1
-            </span>
-            <ChevronRight className="w-4 h-4" />
-            <span
-              className={currentStep === 2 ? "text-brand-600 font-medium" : ""}
-            >
-              Step 2
-            </span>
           </div>
         </div>
 
-        {/* Step 1: CM/CCM Member Information */}
         {currentStep === 1 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  CM/CCM Member Details
-                </h2>
-                {canEdit && (
-                  <button
-                    onClick={goToNextStep}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
-                  >
-                    Next: Application Processing
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {shgUserData ? (
-                <div className="space-y-6">
-                  {/* Personal Information */}
-                  <div>
-                    <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
+          <div className="space-y-4 sm:space-y-6">
+            {shgUserData ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                {/* ── Card 1: Personal Details ──────────────────────── */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
+                  {/* Card header */}
+                  <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700">
+                    <h2 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
                       Personal Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Full Name
-                        </label>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {getFullName()}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Date of Birth
-                        </label>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {shgUserData?.dob
-                            ? new Date(shgUserData.dob).toLocaleDateString()
-                            : "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Gender
-                        </label>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {shgUserData?.gender || "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Blood Group
-                        </label>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {shgUserData?.blood_group || "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Marital Status
-                        </label>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {shgUserData?.marital_status || "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Language
-                        </label>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {shgUserData?.language || "-"}
-                        </p>
-                      </div>
-                    </div>
+                    </h2>
+                    {canEdit && (
+                      <button
+                        onClick={() => setIsEditingPersonal((v) => !v)}
+                        className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 rounded-lg hover:bg-brand-100 dark:bg-brand-500/20 dark:text-brand-400 flex-shrink-0"
+                      >
+                        {isEditingPersonal ? (
+                          <>
+                            <XIcon className="w-3.5 h-3.5" />
+                            Cancel
+                          </>
+                        ) : (
+                          <>
+                            <PencilIcon className="w-3.5 h-3.5" />
+                            Edit
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
 
-                  {/* Contact Information */}
-                  <div>
-                    <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
-                      Contact Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+                    {/* Full Name — always read-only */}
+                    <div>
+                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Full Name
+                      </label>
+                      <p className={readCls}>{getFullName()}</p>
+                    </div>
+
+                    {/* Phone + Email */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                           Phone
                         </label>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {shgUserData?.user.phone || "-"}
-                        </p>
+                        {isEditingPersonal ? (
+                          <input
+                            type="tel"
+                            value={personalForm.phone}
+                            onChange={(e) =>
+                              setPersonalForm((p) => ({
+                                ...p,
+                                phone: e.target.value,
+                              }))
+                            }
+                            className={inputCls}
+                          />
+                        ) : (
+                          <p className={readCls}>
+                            {shgUserData.user.phone || "-"}
+                          </p>
+                        )}
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                           Email
                         </label>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {shgUserData?.user.email || "-"}
-                        </p>
+                        {isEditingPersonal ? (
+                          <input
+                            type="email"
+                            value={personalForm.email}
+                            onChange={(e) =>
+                              setPersonalForm((p) => ({
+                                ...p,
+                                email: e.target.value,
+                              }))
+                            }
+                            className={inputCls}
+                          />
+                        ) : (
+                          <p className={`${readCls} truncate`}>
+                            {shgUserData.user.email || "-"}
+                          </p>
+                        )}
                       </div>
                     </div>
+
+                    {/* DOB + Gender */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          Date of Birth
+                        </label>
+                        {isEditingPersonal ? (
+                          <input
+                            type="date"
+                            value={personalForm.dob}
+                            onChange={(e) =>
+                              setPersonalForm((p) => ({
+                                ...p,
+                                dob: e.target.value,
+                              }))
+                            }
+                            className={inputCls}
+                          />
+                        ) : (
+                          <p className={readCls}>
+                            {shgUserData.dob
+                              ? new Date(shgUserData.dob).toLocaleDateString()
+                              : "-"}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          Gender
+                        </label>
+                        {isEditingPersonal ? (
+                          <select
+                            value={personalForm.gender}
+                            onChange={(e) =>
+                              setPersonalForm((p) => ({
+                                ...p,
+                                gender: e.target.value,
+                              }))
+                            }
+                            className={inputCls}
+                          >
+                            <option value="">Select</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        ) : (
+                          <p className={readCls}>{shgUserData.gender || "-"}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Blood Group + Marital Status */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          Blood Group
+                        </label>
+                        {isEditingPersonal ? (
+                          <input
+                            type="text"
+                            value={personalForm.blood_group}
+                            onChange={(e) =>
+                              setPersonalForm((p) => ({
+                                ...p,
+                                blood_group: e.target.value,
+                              }))
+                            }
+                            className={inputCls}
+                          />
+                        ) : (
+                          <p className={readCls}>
+                            {shgUserData.blood_group || "-"}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          Marital Status
+                        </label>
+                        {isEditingPersonal ? (
+                          <select
+                            value={personalForm.marital_status}
+                            onChange={(e) =>
+                              setPersonalForm((p) => ({
+                                ...p,
+                                marital_status: e.target.value,
+                              }))
+                            }
+                            className={inputCls}
+                          >
+                            <option value="">Select</option>
+                            <option value="Single">Single</option>
+                            <option value="Married">Married</option>
+                            <option value="Divorced">Divorced</option>
+                            <option value="Widowed">Widowed</option>
+                          </select>
+                        ) : (
+                          <p className={readCls}>
+                            {shgUserData.marital_status || "-"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Language */}
+                    <div>
+                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        Language
+                      </label>
+                      {isEditingPersonal ? (
+                        <input
+                          type="text"
+                          value={personalForm.language}
+                          onChange={(e) =>
+                            setPersonalForm((p) => ({
+                              ...p,
+                              language: e.target.value,
+                            }))
+                          }
+                          className={inputCls}
+                        />
+                      ) : (
+                        <p className={readCls}>{shgUserData.language || "-"}</p>
+                      )}
+                    </div>
+
+                    {/* Address */}
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                        Address
+                      </p>
+                      {isEditingPersonal ? (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            placeholder="Address Line 1"
+                            value={personalForm.address_line_1}
+                            onChange={(e) =>
+                              setPersonalForm((p) => ({
+                                ...p,
+                                address_line_1: e.target.value,
+                              }))
+                            }
+                            className={inputCls}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Address Line 2"
+                            value={personalForm.address_line_2}
+                            onChange={(e) =>
+                              setPersonalForm((p) => ({
+                                ...p,
+                                address_line_2: e.target.value,
+                              }))
+                            }
+                            className={inputCls}
+                          />
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              placeholder="Village"
+                              value={personalForm.village}
+                              onChange={(e) =>
+                                setPersonalForm((p) => ({
+                                  ...p,
+                                  village: e.target.value,
+                                }))
+                              }
+                              className={inputCls}
+                            />
+                            <input
+                              type="text"
+                              placeholder="District"
+                              value={personalForm.district}
+                              onChange={(e) =>
+                                setPersonalForm((p) => ({
+                                  ...p,
+                                  district: e.target.value,
+                                }))
+                              }
+                              className={inputCls}
+                            />
+                            <input
+                              type="text"
+                              placeholder="State"
+                              value={personalForm.state}
+                              onChange={(e) =>
+                                setPersonalForm((p) => ({
+                                  ...p,
+                                  state: e.target.value,
+                                }))
+                              }
+                              className={inputCls}
+                            />
+                            <input
+                              type="text"
+                              placeholder="PIN Code"
+                              value={personalForm.pin_code}
+                              onChange={(e) =>
+                                setPersonalForm((p) => ({
+                                  ...p,
+                                  pin_code: e.target.value,
+                                }))
+                              }
+                              className={inputCls}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 p-3 rounded-lg leading-relaxed">
+                          {getFullAddress()}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Save — full width on mobile */}
+                    {isEditingPersonal && (
+                      <div className="flex justify-end pt-2">
+                        <button
+                          type="button"
+                          onClick={handlePersonalSave}
+                          disabled={submitting}
+                          className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 w-full sm:w-auto"
+                        >
+                          <SaveIcon className="w-4 h-4" />
+                          {submitting ? "Saving..." : "Save Changes"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Card 2: Documents ─────────────────────────────── */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm flex flex-col">
+                  {/* Card header */}
+                  <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700">
+                    <h2 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+                      Documents
+                    </h2>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                      {
+                        shgUserData.documents.filter((d) => d.is_approved)
+                          .length
+                      }
+                      {" / "}
+                      {shgUserData.documents.length} verified
+                    </span>
                   </div>
 
-                  {/* Address */}
-                  <div>
-                    <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
-                      Address
-                    </h3>
-                    <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-                      {getFullAddress()}
-                    </p>
-                  </div>
+                  <div className="p-4 sm:p-6 flex-1">
+                    {shgUserData.documents.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
+                        No documents uploaded
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {shgUserData.documents.map((doc, index) => {
+                          const docId = doc.id ?? index;
+                          const isVerifying = docVerifying[docId] ?? false;
+                          return (
+                            <div
+                              key={docId}
+                              className="flex items-center gap-2 sm:gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
+                            >
+                              {/* Icon */}
+                              <div className="flex-shrink-0 w-8 h-8 bg-brand-50 dark:bg-brand-500/20 rounded-lg flex items-center justify-center">
+                                <FileText className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                              </div>
 
-                  {/* CM/CCM Details */}
-                  {/* <div>
-                    <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
-                      CM/CCM Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Registration Status
-                        </label>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {shgUserData?.registration_status || "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Profile Status
-                        </label>
-                        <span
-                          className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                            shgUserData?.is_submitted
-                              ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                              : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
-                          }`}
-                        >
-                          {shgUserData?.is_submitted ? "Submitted" : "Draft"}
-                        </span>
-                      </div>
-                    </div>
-                  </div> */}
-
-                  {/* Account Status */}
-                  {/* <div>
-                    <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
-                      Account Status
-                    </h3>
-                    <div className="flex flex-wrap gap-4">
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Active
-                        </label>
-                        <span
-                          className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                            shgUserData?.user.is_active
-                              ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                              : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
-                          }`}
-                        >
-                          {shgUserData?.user.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400">
-                          Approved
-                        </label>
-                        <span
-                          className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                            shgUserData?.user.is_approved
-                              ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                              : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
-                          }`}
-                        >
-                          {shgUserData?.user.is_approved
-                            ? "Approved"
-                            : "Pending"}
-                        </span>
-                      </div>
-                    </div>
-                  </div> */}
-
-                  {/* Documents */}
-                  {shgUserData?.documents &&
-                    shgUserData.documents.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-bold text-black dark:text-gray-400 mb-3">
-                          Documents
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {shgUserData.documents.map(
-                            (doc: any, index: number) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
-                              >
-                                <span className="text-sm text-gray-700 dark:text-gray-300">
-                                  {doc.document_type?.replace(/_/g, " ") ||
-                                    "Document"}
-                                </span>
+                              {/* Doc info */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
+                                  {DOC_TYPE_LABELS[doc.document_type] ??
+                                    doc.document_type.replace(/_/g, " ")}
+                                </p>
                                 <a
                                   href={doc.file}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-brand-600 hover:text-brand-700 dark:text-brand-400 text-sm font-medium"
+                                  className="text-xs text-brand-600 dark:text-brand-400 hover:underline"
                                 >
-                                  View
+                                  View file
                                 </a>
                               </div>
-                            ),
-                          )}
-                        </div>
+
+                              <span
+                                className={`hidden sm:inline-flex flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  doc.is_approved
+                                    ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                                    : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                                }`}
+                              >
+                                {doc.is_approved ? "Approved" : "Pending"}
+                              </span>
+
+                              {/* Approve / Reject */}
+                              {canEdit && (
+                                <div className="flex-shrink-0 flex items-center gap-0.5 sm:gap-1">
+                                  <button
+                                    onClick={() =>
+                                      handleDocumentVerify(doc, true)
+                                    }
+                                    disabled={isVerifying}
+                                    title="Approve"
+                                    className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                      doc.is_approved
+                                        ? "text-green-600 bg-green-50 dark:bg-green-500/10"
+                                        : "text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10"
+                                    }`}
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleDocumentVerify(doc, false)
+                                    }
+                                    disabled={isVerifying}
+                                    title="Reject"
+                                    className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                      !doc.is_approved
+                                        ? "text-red-600 bg-red-50 dark:bg-red-500/10"
+                                        : "text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                    }`}
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    )}
-                </div>
-              ) : (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                  No CM/CCM user data available
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Application Processing */}
-        {currentStep === 2 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={goToPreviousStep}
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Back
-                  </button>
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Application Processing Details
-                  </h2>
-                </div>
-                {canEdit && !isEditing && (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-brand-700 bg-brand-50 rounded-lg hover:bg-brand-100 dark:bg-brand-500/20 dark:text-brand-400"
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                    Edit Application
-                  </button>
-                )}
-              </div>
-
-              <form onSubmit={handleSubmit}>
-                <div className="space-y-4">
-                  {/* Status */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Status
-                    </label>
-                    {isEditing ? (
-                      <select
-                        name="status"
-                        value={formData.status}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        required
-                      >
-                        <option value="">Select Status</option>
-                        {statusOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <p className="text-gray-900 dark:text-white">
-                        {application?.status || "-"}
-                      </p>
                     )}
                   </div>
 
-                  {/* Assigned Trainer */}
+                  {/* Proceed to Step 2 — pinned to card bottom */}
+                  {(() => {
+                    const docs = shgUserData?.documents ?? [];
+                    const allApproved =
+                      docs.length > 0 && docs.every((d) => d.is_approved);
+                    return (
+                      <div className="flex flex-col items-stretch sm:items-end gap-1.5 px-4 sm:px-6 pb-4 sm:pb-5 pt-3 sm:pt-4 border-t border-gray-100 dark:border-gray-700 mt-auto">
+                        {!allApproved && docs.length > 0 && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 sm:text-right">
+                            All documents must be approved before proceeding
+                          </p>
+                        )}
+                        <button
+                          onClick={() => allApproved && setCurrentStep(2)}
+                          disabled={!allApproved}
+                          title={
+                            !allApproved ? "Approve all documents first" : ""
+                          }
+                          className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            allApproved
+                              ? "text-brand-700 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/20 dark:text-brand-400"
+                              : "text-gray-400 bg-gray-100 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                          }`}
+                        >
+                          Application Processing
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm p-8 text-center">
+                <p className="text-gray-500 dark:text-gray-400">
+                  No CM/CCM user data available
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════
+            STEP 2 — Application Processing
+        ══════════════════════════════════════════════════════════════ */}
+        {currentStep === 2 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
+            {/* Step 2 header */}
+            <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700">
+              <button
+                onClick={() => setCurrentStep(1)}
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 flex-shrink-0"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="hidden xs:inline">Back</span>
+              </button>
+              <h2 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
+                Application Processing Details
+              </h2>
+            </div>
+
+            <form onSubmit={handleProcessingSubmit} className="p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-5">
+                {/* Status — read-only */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Status
+                    <span className="ml-2 text-xs text-gray-400 font-normal">
+                      (auto-managed)
+                    </span>
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_COLORS[currentStatus] ?? STATUS_COLORS.submitted}`}
+                    >
+                      {STATUS_LABELS[currentStatus] ?? currentStatus}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      Updates automatically based on workflow
+                    </span>
+                  </div>
+                </div>
+
+                {/* Trainer + Financier — side by side on sm+ */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Assigned Trainer
                     </label>
-                    {isEditing ? (
-                      <select
-                        name="assigned_trainer"
-                        value={formData.assigned_trainer}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      >
-                        <option value="">Select Trainer</option>
-                        {trainers.map((trainer) => (
-                          <option key={trainer.value} value={trainer.value}>
-                            {trainer.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <p className="text-gray-900 dark:text-white">
-                        {application?.trainer_details || "Not Assigned"}
-                      </p>
-                    )}
+                    <select
+                      name="assigned_trainer"
+                      value={processingForm.assigned_trainer}
+                      onChange={(e) =>
+                        setProcessingForm((p) => ({
+                          ...p,
+                          assigned_trainer: e.target.value,
+                        }))
+                      }
+                      className={inputCls}
+                    >
+                      <option value="">Select Trainer</option>
+                      {trainers.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  {/* Assigned Financier */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Assigned Financier
                     </label>
-                    {isEditing ? (
-                      <select
-                        name="assigned_financier"
-                        value={formData.assigned_financier}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      >
-                        <option value="">Select Financier</option>
-                        {financiers.map((financier) => (
-                          <option key={financier.id} value={financier.id}>
-                            {financier.name}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <p className="text-gray-900 dark:text-white">
-                        {application?.assigned_financier_details ||
-                          "Not Assigned"}
-                      </p>
-                    )}
+                    <select
+                      name="assigned_financier"
+                      value={processingForm.assigned_financier}
+                      onChange={(e) =>
+                        setProcessingForm((p) => ({
+                          ...p,
+                          assigned_financier: e.target.value,
+                        }))
+                      }
+                      className={inputCls}
+                    >
+                      <option value="">Select Financier</option>
+                      {financiers.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                </div>
 
-                  {/* Payment Status */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Payment Status
-                    </label>
-                    {isEditing ? (
-                      <select
-                        name="payment_status"
-                        value={formData.payment_status}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        required
-                      >
-                        <option value="">Select Payment Status</option>
-                        {paymentOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <p className="text-gray-900 dark:text-white">
-                        {application?.payment_status || "-"}
-                      </p>
-                    )}
-                  </div>
+                {/* Payment Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Payment Status
+                  </label>
+                  <select
+                    name="payment_status"
+                    value={processingForm.payment_status}
+                    onChange={(e) =>
+                      setProcessingForm((p) => ({
+                        ...p,
+                        payment_status: e.target.value,
+                      }))
+                    }
+                    className={inputCls}
+                  >
+                    <option value="">Select Payment Status</option>
+                    {(paymentOptions.length > 0
+                      ? paymentOptions
+                      : [
+                          { value: "pending", label: "Pending" },
+                          { value: "cleared", label: "Cleared" },
+                        ]
+                    ).map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  {/* Public Notes */}
+                {/* Notes — stacked on mobile, side by side on sm+ */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Public Notes
                     </label>
-                    {isEditing ? (
-                      <textarea
-                        name="public_notes"
-                        value={formData.public_notes}
-                        onChange={handleInputChange}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        placeholder="Add public notes..."
-                      />
-                    ) : (
-                      <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-                        {application?.public_notes || "No public notes"}
-                      </p>
-                    )}
+                    <textarea
+                      name="public_notes"
+                      value={processingForm.public_notes}
+                      onChange={(e) =>
+                        setProcessingForm((p) => ({
+                          ...p,
+                          public_notes: e.target.value,
+                        }))
+                      }
+                      rows={4}
+                      placeholder="Visible to the applicant..."
+                      className={inputCls}
+                    />
                   </div>
-
-                  {/* Private Notes */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Private Notes
+                      <span className="ml-1.5 text-xs text-gray-400 font-normal">
+                        (internal only)
+                      </span>
                     </label>
-                    {isEditing ? (
-                      <textarea
-                        name="private_notes"
-                        value={formData.private_notes}
-                        onChange={handleInputChange}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        placeholder="Add private notes (internal only)..."
-                      />
-                    ) : (
-                      <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-                        {application?.private_notes || "No private notes"}
-                      </p>
-                    )}
+                    <textarea
+                      name="private_notes"
+                      value={processingForm.private_notes}
+                      onChange={(e) =>
+                        setProcessingForm((p) => ({
+                          ...p,
+                          private_notes: e.target.value,
+                        }))
+                      }
+                      rows={4}
+                      placeholder="Internal notes only..."
+                      className={inputCls}
+                    />
                   </div>
-
-                  {/* Edit Actions */}
-                  {isEditing && (
-                    <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                      <button
-                        type="button"
-                        onClick={handleCancel}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600"
-                      >
-                        <XIcon className="w-4 h-4" />
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={submitting}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <SaveIcon className="w-4 h-4" />
-                        {submitting ? "Saving..." : "Save Changes"}
-                      </button>
-                    </div>
-                  )}
                 </div>
-              </form>
-            </div>
+
+                {/* Save — full width on mobile */}
+                {canEdit && (
+                  <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                    >
+                      <SaveIcon className="w-4 h-4" />
+                      {submitting ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </form>
           </div>
         )}
       </div>
