@@ -38,7 +38,6 @@ export {
   createApplicationApi,
   updateApplicationApi,
   submitApplicationApi,
-  getApplicationsApi,
   productInterestApi,
   getshgsIdApi,
   getApplicationApi,
