@@ -9,11 +9,17 @@ import { toast } from "react-toastify";
 import PageMeta from "../../common/PageMeta";
 import {
   getRoleUsers,
+  sendInvitationApi,
+  SendInvitationRequest,
   updateUsersApi,
 } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import { getUserRole } from "../../../config/constants";
+import { RightSideModal } from "../../mui/RightSideModal";
+import Input from "../../form/input/InputField";
+import Label from "../../form/Label";
+import Button from "../../ui/button/Button";
 
 interface User {
   id: number;
@@ -33,11 +39,24 @@ interface User {
   user_permissions: any[];
 }
 
-
 interface ToolbarAction {
   label: string;
   onClick: () => void;
   icon?: React.ReactNode;
+}
+
+type OptionType = {
+  value: string;
+  label: string;
+};
+
+interface NewUserForm {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  role: string;
+  mnpUser: string; // This will store the manager ID as string
 }
 
 const ViewTrainer = () => {
@@ -49,6 +68,9 @@ const ViewTrainer = () => {
     pageIndex: 0,
     pageSize: 10,
   });
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [roleList, setRoleList] = useState<OptionType[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
@@ -62,29 +84,64 @@ const ViewTrainer = () => {
     isActive: boolean;
   } | null>(null);
 
+  const [formData, setFormData] = useState<NewUserForm>({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    role: "",
+    mnpUser: "",
+  });
 
+  // Field-specific error messages
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof NewUserForm, string>>
+  >({});
 
   // Check user roles
   const isSuperAdmin = userRole === "super_admin";
   const isAdmin = userRole === "admin";
-
+  const canAddUsers = isSuperAdmin || isAdmin;
   const canEditApproval = isSuperAdmin || isAdmin;
   const canEditStatus = isSuperAdmin || isAdmin;
+
+  // Reset form and errors when modal closes
+  useEffect(() => {
+    if (!isAddModalOpen) {
+      setFormData({
+        first_name: "",
+        last_name: "",
+        email: "",
+        phone: "",
+        role: "",
+        mnpUser: "",
+      });
+      setErrors({});
+    }
+  }, [isAddModalOpen]);
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
-
   const fetchUsers = async () => {
     setColumnFilters([]);
     try {
       setLoading(true);
-     const response = await getRoleUsers(["trainer"]); 
+      const response = await getRoleUsers(["trainer"]);
+      const adminRole = await getRoleUsers(["admin"]);
+      
+      // Transform admin role data to OptionType format
+      const adminData = adminRole?.data?.results || adminRole || [];
+      const formattedAdminList: OptionType[] = adminData.map((admin: any) => ({
+        value: admin.id?.toString() || "",
+        label: `${admin.first_name || ""} ${admin.last_name || ""}`.trim() || admin.email || "Unnamed",
+      }));
+      
       const userData = response?.data?.results || response || [];
       setUsers(userData);
+      setRoleList(formattedAdminList);
       setTotalCount(response?.data?.count || 0);
-
     } catch (error) {
       const errorMessage = handleAxiosError(error, "Failed to fetch users");
       toast.error(errorMessage);
@@ -128,10 +185,7 @@ const ViewTrainer = () => {
     }
   };
 
-  const handleStatusChange = async (
-    userId: number,
-    newStatus: boolean,
-  ) => {
+  const handleStatusChange = async (userId: number, newStatus: boolean) => {
     if (!canEditStatus) {
       toast.error("You don't have permission to edit user status");
       return;
@@ -158,6 +212,85 @@ const ViewTrainer = () => {
     } finally {
       setLoading(false);
       setEditingStatus(null);
+    }
+  };
+
+  const handleAddUser = () => setIsAddModalOpen(true);
+  const handleCloseModal = () => setIsAddModalOpen(false);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: undefined }));
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Partial<Record<keyof NewUserForm, string>> = {};
+
+    // Check required fields
+    if (!formData.first_name?.trim()) {
+      newErrors.first_name = "First name is required";
+    }
+
+    if (!formData.last_name?.trim()) {
+      newErrors.last_name = "Last name is required";
+    }
+
+    if (!formData.email?.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!formData.phone?.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^[0-9]{10}$/.test(formData.phone)) {
+      newErrors.phone = "Please enter a valid 10-digit phone number";
+    }
+
+    if (!formData.mnpUser?.trim()) {
+      newErrors.mnpUser = "Please select a MNP User";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setSubmitting(true);
+
+    try {
+      const payload: SendInvitationRequest = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        phone: `+91${formData.phone}`,
+        roles: ["trainer"],
+        manager: parseInt(formData.mnpUser),
+      };
+
+      const response = await sendInvitationApi([payload]);
+
+      const result = response?.data?.[0] || response?.[0];
+
+      if (result?.is_sent) {
+        toast.success("User invitation sent successfully");
+        handleCloseModal();
+        fetchUsers();
+      } 
+    } catch (error) {
+      const errorMessage = handleAxiosError(
+        error,
+        "Failed to send user invitation",
+      );
+      toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -466,6 +599,29 @@ const ViewTrainer = () => {
   );
 
   const toolbarActions: ToolbarAction[] = [
+    ...(canAddUsers
+      ? [
+          {
+            label: "Add Trainer",
+            onClick: handleAddUser,
+            icon: (
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            ),
+          },
+        ]
+      : []),
     {
       label: "Refresh",
       onClick: fetchUsers,
@@ -523,6 +679,165 @@ const ViewTrainer = () => {
           onColumnFiltersChange={setColumnFilters}
         />
       </div>
+
+      {canAddUsers && (
+        <RightSideModal
+          isOpen={isAddModalOpen}
+          onClose={handleCloseModal}
+          showCloseButton={true}
+          width=" "
+        >
+          <div className="p-6">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-4">
+              Add New Trainer
+            </h2>
+            <form onSubmit={handleSubmit} noValidate>
+              <div className="space-y-4">
+                {/* First Name */}
+                <div>
+                  <Label>
+                    First Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="first_name"
+                    value={formData.first_name}
+                    onChange={handleInputChange}
+                    placeholder="Enter first name"
+                    error={!!errors.first_name}
+                  />
+                  {errors.first_name && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {errors.first_name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Last Name */}
+                <div>
+                  <Label>
+                    Last Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="last_name"
+                    value={formData.last_name}
+                    onChange={handleInputChange}
+                    placeholder="Enter last name"
+                    className="w-full"
+                    error={!!errors.last_name}
+                  />
+                  {errors.last_name && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {errors.last_name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <Label>
+                    Email <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="Enter email address"
+                    className="w-full"
+                    error={!!errors.email}
+                  />
+                  {errors.email && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {errors.email}
+                    </p>
+                  )}
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <Label>
+                    Phone <span className="text-red-500">*</span>
+                  </Label>
+                  <div
+                    className={`flex items-center border rounded-lg overflow-hidden ${
+                      errors.phone
+                        ? "border-red-500 dark:border-red-500"
+                        : "border-gray-300 dark:border-gray-700"
+                    }`}
+                  >
+                    <span className="px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium border-r border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 select-none">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="Enter phone number"
+                      className="flex-1 px-3 py-2 text-sm h-11 outline-none bg-white dark:bg-gray-900 dark:text-white"
+                    />
+                  </div>
+                  {errors.phone && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {errors.phone}
+                    </p>
+                  )}
+                </div>
+
+                {/* MNP User Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    MNP User <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="mnpUser"
+                    value={formData.mnpUser}
+                    onChange={handleInputChange}
+                    required
+                    className={`w-full px-3 py-2 border ${
+                      errors.mnpUser
+                        ? "border-red-500 dark:border-red-500"
+                        : "border-gray-300 dark:border-gray-600"
+                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
+                  >
+                    <option value="" disabled>
+                      Select a MNP User
+                    </option>
+                    {roleList.map((admin) => (
+                      <option key={admin.value} value={admin.value}>
+                        {admin.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.mnpUser && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {errors.mnpUser}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="mt-6 flex justify-end space-x-3">
+                <Button
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={submitting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
+                >
+                  {submitting ? "Creating..." : "Create Trainer"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </RightSideModal>
+      )}
     </div>
   );
 };

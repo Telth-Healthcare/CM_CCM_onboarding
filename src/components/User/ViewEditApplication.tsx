@@ -902,18 +902,12 @@ const ViewEditApplication: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Status
-                    <span className="ml-2 text-xs text-gray-400 font-normal">
-                      (auto-managed)
-                    </span>
                   </label>
                   <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                     <span
                       className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_COLORS[currentStatus] ?? STATUS_COLORS.submitted}`}
                     >
                       {STATUS_LABELS[currentStatus] ?? currentStatus}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      Updates automatically based on workflow
                     </span>
                   </div>
                 </div>
@@ -1000,50 +994,30 @@ const ViewEditApplication: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Notes — stacked on mobile, side by side on sm+ */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Public Notes
-                    </label>
-                    <textarea
-                      name="public_notes"
-                      value={processingForm.public_notes}
-                      onChange={(e) =>
-                        setProcessingForm((p) => ({
-                          ...p,
-                          public_notes: e.target.value,
-                        }))
-                      }
-                      rows={4}
-                      placeholder="Visible to the applicant..."
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Private Notes
-                      <span className="ml-1.5 text-xs text-gray-400 font-normal">
-                        (internal only)
-                      </span>
-                    </label>
-                    <textarea
-                      name="private_notes"
-                      value={processingForm.private_notes}
-                      onChange={(e) =>
-                        setProcessingForm((p) => ({
-                          ...p,
-                          private_notes: e.target.value,
-                        }))
-                      }
-                      rows={4}
-                      placeholder="Internal notes only..."
-                      className={inputCls}
-                    />
-                  </div>
+                {/* Notes — Private Notes only */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Private Notes
+                    <span className="ml-1.5 text-xs text-gray-400 font-normal">
+                      (internal only)
+                    </span>
+                  </label>
+                  <textarea
+                    name="private_notes"
+                    value={processingForm.private_notes}
+                    onChange={(e) =>
+                      setProcessingForm((p) => ({
+                        ...p,
+                        private_notes: e.target.value,
+                      }))
+                    }
+                    rows={4}
+                    placeholder="Internal notes only..."
+                    className={inputCls}
+                  />
                 </div>
 
-                {/* Save — full width on mobile */}
+                {/* Save — Update button at bottom */}
                 {canEdit && (
                   <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-gray-700">
                     <button
@@ -1052,7 +1026,7 @@ const ViewEditApplication: React.FC = () => {
                       className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                     >
                       <SaveIcon className="w-4 h-4" />
-                      {submitting ? "Saving..." : "Save Changes"}
+                      {submitting ? "Updating..." : "Submited"}
                     </button>
                   </div>
                 )}

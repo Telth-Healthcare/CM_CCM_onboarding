@@ -8,6 +8,7 @@ import {
 import { toast } from "react-toastify";
 import {
   contactApi,
+  getAllRegionsApi,
   getRoleUsers,
   sendInvitationApi,
   SendInvitationRequest,
@@ -46,7 +47,8 @@ interface NewUserForm {
   last_name: string;
   email: string;
   phone: string;
-  role: string; // single selected role, will be sent as [role]
+  role: string;
+  region: string;
 }
 
 type OptionType = {
@@ -69,6 +71,7 @@ const ViewAdminList = () => {
     pageIndex: 0,
     pageSize: 10,
   });
+  const [regions, setRegions] = useState<OptionType[]>([]);
   const [roles, setRoles] = useState<OptionType[]>([]);
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
@@ -93,6 +96,7 @@ const ViewAdminList = () => {
     email: "",
     phone: "",
     role: "",
+    region: "",
   });
 
   // Field-specific error messages
@@ -117,6 +121,7 @@ const ViewAdminList = () => {
         email: "",
         phone: "",
         role: "",
+        region: "",
       });
       setErrors({});
     }
@@ -125,6 +130,7 @@ const ViewAdminList = () => {
   useEffect(() => {
     fetchUsers();
     fetchRoleInfo();
+    fetchRegions();
   }, []);
 
   const fetchRoleInfo = async () => {
@@ -133,12 +139,13 @@ const ViewAdminList = () => {
 
       // Add defensive check for response.roles
       const rolesData = response?.roles || [];
-      
+
       // Filter out super_admin from roles
       const filteredRoles = rolesData.filter(
         (role: OptionType) =>
           role.value !== "super_admin" &&
-          role.value !== "trainer" && role.value !== 'financier' && 
+          role.value !== "trainer" &&
+          role.value !== "financier" &&
           role.value !== "cm" &&
           role.value !== "ccm",
       );
@@ -148,6 +155,23 @@ const ViewAdminList = () => {
       const errorMessage = handleAxiosError(error, "Failed to fetch roles");
       toast.error(errorMessage);
       setRoles([]); // Set empty array on error
+    }
+  };
+
+  const fetchRegions = async () => {
+    try {
+      const response = await getAllRegionsApi();
+      const regionData = response?.results || response || [];
+
+      const formattedRegions = regionData.map((region: any) => ({
+        value: region.id.toString(),
+        label: region.name,
+      }));
+
+      setRegions(formattedRegions);
+    } catch (error) {
+      const errorMessage = handleAxiosError(error, "Failed to fetch regions");
+      toast.error(errorMessage);
     }
   };
 
@@ -201,10 +225,7 @@ const ViewAdminList = () => {
     }
   };
 
-  const handleStatusChange = async (
-    userId: number,
-    newStatus: boolean,
-  ) => {
+  const handleStatusChange = async (userId: number, newStatus: boolean) => {
     if (!canEditStatus) {
       toast.error("You don't have permission to edit user status");
       return;
@@ -578,9 +599,8 @@ const ViewAdminList = () => {
       newErrors.role = "Role is required";
     }
 
-    // Permission check for admin users
-    if (isAdmin && formData.role === "admin") {
-      newErrors.role = "You don't have permission to create admin users";
+    if (!formData.region?.trim()) {
+      newErrors.region = "Region is required for admin users";
     }
 
     setErrors(newErrors);
@@ -600,23 +620,9 @@ const ViewAdminList = () => {
         email: formData.email,
         phone: `+91${formData.phone}`,
         roles: [formData.role],
+        region: formData.region,
       };
 
-      if (isAdmin || isSuperAdmin) {
-        // Add null check for localStorage
-        const adminUserStr = localStorage.getItem("admin_user");
-        if (adminUserStr) {
-          try {
-            const adminUser = JSON.parse(adminUserStr);
-            if (adminUser?.id) {
-              payload.manager = adminUser.id;
-            }
-          } catch (parseError) {
-            console.error("Failed to parse admin_user from localStorage", parseError);
-          }
-        }
-      }
-      
       const response = await sendInvitationApi([payload]);
 
       const result = response?.data?.[0] || response?.[0];
@@ -858,6 +864,36 @@ const ViewAdminList = () => {
                   {errors.role && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                       {errors.role}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Region <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="region"
+                    value={formData.region}
+                    onChange={handleInputChange}
+                    required
+                    className={`w-full px-3 py-2 border ${
+                      errors.region
+                        ? "border-red-500 dark:border-red-500"
+                        : "border-gray-300 dark:border-gray-600"
+                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
+                  >
+                    <option value="" disabled>
+                      Select a region
+                    </option>
+                    {regions.map((region) => (
+                      <option key={region.value} value={region.value}>
+                        {region.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.region && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      {errors.region}
                     </p>
                   )}
                 </div>

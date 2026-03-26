@@ -5,7 +5,7 @@ import {
   type MRT_ColumnDef,
 } from "material-react-table";
 import { toast } from "react-toastify";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, XCircle } from "lucide-react";
 import { getApplicationsApi, updateApplicationStatusApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { CloseIcon, PencilIcon } from "../../icons";
@@ -126,22 +126,41 @@ const Applications = () => {
   };
 
   const handleEdit = useCallback((row: Application) => {
+     updateApplicationStatusApi(row.id, {
+      status: "under_review"
+     })
     navigate(`/applications/edit/${row.id}`);
   }, [navigate]);
+
+  const handleRejected = useCallback((row: Application) => {
+     updateApplicationStatusApi(row.id, {
+      status: "rejected"
+     })
+       setApplications(prevApps =>
+          prevApps.map(app =>
+            app.id === row.id ? { ...app, status: "rejected" } : app
+          )
+        );
+    toast.success("Application rejected successfully!")
+  }, [])
 
   const rowActionsList = useMemo(() => {
     const actions = [];
 
-    // Edit action - available to all roles that can edit
     actions.push({
       label: "Edit",
       className: "text-brand-700 hover:text-brand-900 dark:text-brand-600",
       icon: <PencilIcon className="w-4 h-4 fill-current" />,
       onClick: handleEdit,
     });
-
+    actions.push({
+      label: "Rejected",
+      className: "text-red-700 hover:text-red-900 dark:text-red-600",
+      icon: <XCircle className="w-4 h-4 fill-currect" />,
+      onClick: handleRejected,
+    })
     return actions;
-  }, [handleEdit]);
+  }, [handleEdit, handleRejected]);
 
   const columns = useMemo<MRT_ColumnDef<Application>[]>(
     () => [
