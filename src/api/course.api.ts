@@ -132,3 +132,14 @@ export const updateEnrollApi = (enrollId: number, payload: any) => {
   return client.patch(`trainer/app/course-enrollments/${enrollId}`, payload)
   .then(res => res.data)
 }
+
+
+ export const documentVerifyApi = (id: number, payload: { is_approved: boolean }) => {
+   return client
+    .patch(`partners/app/documents/${id}/`, payload, {
+           headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    })
+    .then((res) => res.data);
+};

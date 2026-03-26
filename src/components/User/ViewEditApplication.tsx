@@ -7,8 +7,8 @@ import {
   getApplicationByIdApi,
   getSHGUserByIdApi,
   updateApplicationStatusApi,
-  documentVerifyApi,
   updateApplicationApi,
+  documentVerifyApi,
 } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 import { getUserRole } from "../../config/constants";
