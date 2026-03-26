@@ -18,9 +18,6 @@ const getApplicationStatusApi=(appid:number,)=>client.get(`applications/app/${ap
 const getApplicationApi = (pk: number) =>
   client.get(`partners/app/cm-ccm/${pk}/`).then(res => res.data)
 
-const getApplicationsApi = () =>
-  client.get('admin/applications/').then(res => res.data)
-
 // ccmonboard.api.ts — replace your postDocumentsApi with this:
 export const uploadDocumentApi = (file: File, docType: string, appId: number) => {
   const form = new FormData()
