@@ -51,9 +51,15 @@ const ViewCourseDetails: React.FC<ViewCourseDetailsProps> = ({
     );
   };
 
+  // Fix: parse date as UTC to avoid off-by-one-day shifts caused by local timezone offset
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("en-US", {
+    const date = new Date(dateString);
+    return new Date(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+    ).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -206,9 +212,17 @@ const ViewCourseDetails: React.FC<ViewCourseDetailsProps> = ({
                 key={subject.id}
                 className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
               >
-                {/* Subject row */}
+                {/* Subject row — Fix: added role, tabIndex, and onKeyDown for keyboard accessibility */}
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggleSubject(subject.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleSubject(subject.id);
+                    }
+                  }}
                   className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
                 >
                   <div className="flex items-center gap-2.5">
@@ -255,7 +269,7 @@ const ViewCourseDetails: React.FC<ViewCourseDetailsProps> = ({
                               <div className="shrink-0">
                                 {material.file ? (
                                   <a
-                                    href={material.file}
+                                    href={`https://docs.google.com/viewer?url=${encodeURIComponent(material.file)}&embedded=false`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
