@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { getApplicationApi } from "../../../api/ccmonboard.api";
+import { getApplicationApi, reuploadDocumentApi } from "../../../api/ccmonboard.api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tab = "notes" | "submissions" | "certificates";
+type DocStatus = "pending" | "approved" | "rejected" | "reuploaded";
 
 interface Note {
   id: string;
@@ -15,16 +16,18 @@ interface Note {
 }
 
 interface Submission {
-  id: string;
-  name: string;
-  file: File | null;
-  fileName: string;
-  fileSize: string;
-  fileType: string;
-  status: "pending" | "submitted" | "approved" | "rejected";
-  uploadedAt: string;
+  id: number;               // real doc id from API
+  docType: string;          // raw key e.g. "pan", "aadhar_front"
+  name: string;             // human label
   category: string;
-  fileUrl?: string;
+  fileUrl: string;          // S3 URL
+  fileName: string;         // last segment of URL
+  fileType: string;         // "PDF" | "Image" | ext
+  status: DocStatus;        // from API: pending | approved | rejected | reuploaded
+  uploadedAt: string;
+  appId: number;            // shg id — needed for reupload
+  uploading?: boolean;      // local flag — spinner while PATCH in-progress
+  uploadError?: string;     // local flag — inline error under row
 }
 
 interface Certificate {
@@ -54,6 +57,30 @@ const DOC_LABEL: Record<string, { name: string; category: string }> = {
   experience_certificate: { name: "Experience Certificate", category: "Other"                   },
 };
 
+/** Maps one raw API doc object → Submission shape */
+function mapDoc(doc: any, appId: number): Submission {
+  const label    = DOC_LABEL[doc.document_type] ?? { name: doc.document_type, category: "Other" };
+  const fileUrl  = doc.file as string;
+  const ext      = fileUrl.split(".").pop()?.toUpperCase() ?? "FILE";
+  const fileType = ext === "PDF" ? "PDF" : ["JPG","JPEG","PNG","WEBP"].includes(ext) ? "Image" : ext;
+  return {
+    id:         doc.id,
+    docType:    doc.document_type,
+    name:       label.name,
+    category:   label.category,
+    fileUrl,
+    fileName:   fileUrl.split("/").pop() ?? fileUrl,   // last path segment of S3 URL
+    fileType,
+    status:     doc.status as DocStatus,               // string from API
+    uploadedAt: doc.uploaded_at,
+    appId,
+  };
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 // ─── Mock certificates ────────────────────────────────────────────────────────
 
 const CERTIFICATES: Certificate[] = [
@@ -70,17 +97,7 @@ const NOTE_COLORS = [
   "bg-pink-50 border-pink-200 dark:bg-pink-900/10 dark:border-pink-800",
 ];
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-// ─── NOTES TAB ───────────────────────────────────────────────────────────────
+// ─── NOTES TAB ────────────────────────────────────────────────────────────────
 
 function NotesTab() {
   const [notes, setNotes] = useState<Note[]>([
@@ -204,23 +221,7 @@ function NotesTab() {
   );
 }
 
-// ─── SUBMISSIONS TAB ──────────────────────────────────────────────────────────
-
-const SUBMISSION_CATEGORIES = ["Identity Proof", "Address Proof", "Educational Certificate", "Medical Certificate", "Other"];
-
-const STATUS_STYLES: Record<Submission["status"], string> = {
-  pending:   "bg-yellow-50 text-yellow-600 border-yellow-200",
-  submitted: "bg-blue-50 text-blue-600 border-blue-200",
-  approved:  "bg-green-50 text-green-600 border-green-200",
-  rejected:  "bg-red-50 text-red-600 border-red-200",
-};
-
-const STATUS_ICONS: Record<Submission["status"], React.ReactNode> = {
-  pending:   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-  submitted: <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>,
-  approved:  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
-  rejected:  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
-};
+// ─── File type icon ───────────────────────────────────────────────────────────
 
 function FileIcon({ type }: { type: string }) {
   if (type === "PDF")   return <div className="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-red-500 text-[10px] font-bold">PDF</div>;
@@ -228,46 +229,156 @@ function FileIcon({ type }: { type: string }) {
   return <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 text-[10px] font-bold">{type}</div>;
 }
 
-// ── Receives data from parent Documents — no fetch here, no remount issue ──
-function SubmissionsTab({ submissions, setSubmissions, loadingDocs }: {
+// ─── Status badge — maps all 4 API statuses to colour + icon ─────────────────
+
+function ApprovalBadge({ status }: { status: string }) {
+  const config: Record<string, { cls: string; label: string; icon: string }> = {
+    approved:   { cls: "bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:border-green-800",   label: "approved",   icon: "M5 13l4 4L19 7" },
+    rejected:   { cls: "bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-800",             label: "rejected",   icon: "M6 18L18 6M6 6l12 12" },
+    pending:    { cls: "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800",   label: "pending",    icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+    reuploaded: { cls: "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800",        label: "reuploaded", icon: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" },
+  }
+  const c = config[status] ?? config.pending   // fallback to pending if unknown value
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${c.cls}`}>
+      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={c.icon} />
+      </svg>
+      {c.label}
+    </span>
+  )
+}
+
+// ─── Single document row with reupload ────────────────────────────────────────
+
+function SubmissionRow({
+  sub,
+  onReupload,
+}: {
+  sub: Submission;
+  onReupload: (docType: string, appId: number, docId: number, file: File) => void;  // docId for PATCH
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onReupload(sub.docType, sub.appId, sub.id, file);  // sub.id → PATCH correct doc
+    e.target.value = "";                                          // reset so same file re-triggers
+  };
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] px-5 py-4 flex items-center gap-4">
+      <FileIcon type={sub.fileType} />
+
+      {/* Doc name + meta */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-semibold text-gray-800 dark:text-white/90 truncate">{sub.name}</p>
+          <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+            {sub.category}
+          </span>
+        </div>
+        <p className="text-xs text-gray-400 mt-0.5">
+          {sub.fileName} · {formatDate(sub.uploadedAt)}
+        </p>
+        {/* Inline error shown if PATCH fails */}
+        {sub.uploadError && (
+          <p className="text-xs text-red-500 mt-1">{sub.uploadError}</p>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+        {/* Opens S3 file in new tab */}
+        <a href={sub.fileUrl} target="_blank" rel="noreferrer"
+          className="text-xs font-medium text-brand-500 hover:text-brand-600 hover:underline transition">
+          View
+        </a>
+
+        {/* Triggers hidden file input */}
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={sub.uploading}
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/[0.03] disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          {sub.uploading ? (
+            // Spinner while PATCH in-progress
+            <>
+              <span className="w-3 h-3 border-2 border-gray-300 border-t-brand-500 rounded-full animate-spin" />
+              Uploading…
+            </>
+          ) : (
+            <>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Re-upload
+            </>
+          )}
+        </button>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {/* Status badge driven by doc.status from API */}
+        <ApprovalBadge status={sub.status} />
+      </div>
+    </div>
+  );
+}
+
+// ─── SUBMISSIONS TAB ──────────────────────────────────────────────────────────
+
+function SubmissionsTab({
+  submissions,
+  setSubmissions,
+  loadingDocs,
+}: {
   submissions: Submission[];
   setSubmissions: React.Dispatch<React.SetStateAction<Submission[]>>;
   loadingDocs: boolean;
 }) {
-  const [showUpload,     setShowUpload]     = useState(false);
-  const [uploadName,     setUploadName]     = useState("");
-  const [uploadCategory, setUploadCategory] = useState(SUBMISSION_CATEGORIES[0]);
-  const [selectedFile,   setSelectedFile]   = useState<File | null>(null);
-  const [dragOver,       setDragOver]       = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (file: File) => {
-    setSelectedFile(file);
-    if (!uploadName) setUploadName(file.name.replace(/\.[^.]+$/, ""));
-  };
+  // PATCH the specific doc — called from SubmissionRow
+  const handleReupload = async (docType: string, appId: number, docId: number, file: File) => {
+    // Match by id (not docType) — same docType can have multiple docs e.g. pan has ids 31,39,40
+    setSubmissions(prev =>
+      prev.map(s => s.id === docId ? { ...s, uploading: true, uploadError: undefined } : s)
+    );
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault(); setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileSelect(file);
-  };
+    try {
+      const updated = await reuploadDocumentApi(file, docType, appId, docId);  // PATCH call
 
-  const submitDocument = () => {
-    if (!selectedFile || !uploadName.trim()) return;
-    const ext = selectedFile.name.split(".").pop()?.toUpperCase() || "FILE";
-    const newSub: Submission = {
-      id:         `s${Date.now()}`,
-      name:       uploadName,
-      file:       selectedFile,
-      fileName:   selectedFile.name,
-      fileSize:   formatBytes(selectedFile.size),
-      fileType:   ext === "PDF" ? "PDF" : ["JPG","JPEG","PNG"].includes(ext) ? "Image" : ext,
-      status:     "submitted",
-      uploadedAt: new Date().toISOString(),
-      category:   uploadCategory,
-    };
-    setSubmissions(prev => [newSub, ...prev]);
-    setShowUpload(false); setSelectedFile(null); setUploadName(""); setUploadCategory(SUBMISSION_CATEGORIES[0]);
+      // Patch only this row with fresh data from API response
+      setSubmissions(prev =>
+        prev.map(s =>
+          s.id === docId
+            ? {
+                ...s,
+                uploading:  false,
+                status:     updated.status as DocStatus,               // "reuploaded" from API
+                fileUrl:    updated.file,
+                fileName:   updated.file.split("/").pop() ?? updated.file,
+                uploadedAt: updated.uploaded_at,
+              }
+            : s
+        )
+      );
+    } catch {
+      // Inline error under the row
+      setSubmissions(prev =>
+        prev.map(s =>
+          s.id === docId ? { ...s, uploading: false, uploadError: "Upload failed. Please try again." } : s
+        )
+      );
+    }
   };
 
   if (loadingDocs) {
@@ -278,96 +389,100 @@ function SubmissionsTab({ submissions, setSubmissions, loadingDocs }: {
     );
   }
 
+  // Per-status counts for summary pills + banners
+  const totalDocs      = submissions.length;
+  const approvedDocs   = submissions.filter(s => s.status === "approved").length;
+  const pendingDocs    = submissions.filter(s => s.status === "pending").length;
+  const rejectedDocs   = submissions.filter(s => s.status === "rejected").length;
+  const reuploadedDocs = submissions.filter(s => s.status === "reuploaded").length;
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+
+      {/* Header + summary pills */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {submissions.length} document{submissions.length !== 1 ? "s" : ""} submitted
+          {totalDocs} document{totalDocs !== 1 ? "s" : ""} submitted
         </p>
-        <button onClick={() => setShowUpload(v => !v)}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-xl hover:bg-brand-600 transition">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-          Upload Document
-        </button>
+        {totalDocs > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {approvedDocs > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-green-50 text-green-600 border border-green-200">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                {approvedDocs} approved
+              </span>
+            )}
+            {pendingDocs > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                {pendingDocs} pending
+              </span>
+            )}
+            {rejectedDocs > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-200">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                {rejectedDocs} rejected
+              </span>
+            )}
+            {reuploadedDocs > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                {reuploadedDocs} reuploaded
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {showUpload && (
-        <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] p-5 space-y-4">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Upload New Document</h4>
-          <div
-            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => fileRef.current?.click()}
-            className={`rounded-xl border-2 border-dashed cursor-pointer flex flex-col items-center justify-center gap-2 py-10 transition ${
-              dragOver ? "border-brand-400 bg-brand-50 dark:bg-brand-900/10" : "border-gray-200 dark:border-gray-700 hover:border-brand-300 hover:bg-gray-50 dark:hover:bg-white/[0.02]"
-            }`}
-          >
-            <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-            {selectedFile
-              ? <p className="text-sm font-medium text-brand-500">{selectedFile.name}</p>
-              : <><p className="text-sm text-gray-500">Drag & drop or click to browse</p><p className="text-xs text-gray-400">PDF, JPG, PNG up to 10MB</p></>
-            }
-            <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" className="hidden"
-              onChange={e => e.target.files?.[0] && handleFileSelect(e.target.files[0])} />
+      {/* rejected alert — prompts re-upload */}
+      {rejectedDocs > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-800 px-4 py-3 flex items-start gap-3">
+          <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <div>
+            <p className="text-xs font-semibold text-red-700 dark:text-red-400">{rejectedDocs} Document{rejectedDocs > 1 ? "s" : ""} rejected</p>
+            <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">Please re-upload the rejected documents with correct files.</p>
           </div>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Document Name</label>
-              <input type="text" placeholder="e.g. Aadhar Card" value={uploadName} onChange={e => setUploadName(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 text-sm text-gray-800 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Category</label>
-              <select value={uploadCategory} onChange={e => setUploadCategory(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/30">
-                {SUBMISSION_CATEGORIES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
+      {/* pending alert */}
+      {pendingDocs > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-4 py-3 flex items-start gap-3">
+          <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Documents pending Review</p>
+            <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+              {pendingDocs} document{pendingDocs > 1 ? "s are" : " is"} awaiting admin approval.
+            </p>
           </div>
+        </div>
+      )}
 
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => { setShowUpload(false); setSelectedFile(null); setUploadName(""); }}
-              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition">Cancel</button>
-            <button onClick={submitDocument} disabled={!selectedFile || !uploadName.trim()}
-              className="px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition">Submit</button>
-          </div>
+      {/* All approved banner */}
+      {totalDocs > 0 && approvedDocs === totalDocs && (
+        <div className="rounded-xl border border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-800 px-4 py-3 flex items-center gap-3">
+          <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-xs font-medium text-green-700 dark:text-green-400">All documents approved!</p>
         </div>
       )}
 
       {submissions.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <svg className="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          <svg className="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
           <p className="text-sm">No documents submitted yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {submissions.map(sub => (
-            <div key={sub.id} className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] px-5 py-4 flex items-center gap-4">
-              <FileIcon type={sub.fileType} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-gray-800 dark:text-white/90 truncate">{sub.name}</p>
-                  <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">{sub.category}</span>
-                </div>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {sub.fileName} {sub.fileSize !== "—" && `· ${sub.fileSize}`} · {formatDate(sub.uploadedAt)}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {sub.fileUrl && (
-                  <a href={sub.fileUrl} target="_blank" rel="noreferrer"
-                    className="text-xs font-medium text-brand-500 hover:text-brand-600 hover:underline transition">
-                    View
-                  </a>
-                )}
-                <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${STATUS_STYLES[sub.status]}`}>
-                  {STATUS_ICONS[sub.status]}
-                  {sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
-                </span>
-              </div>
-            </div>
+            <SubmissionRow key={sub.id} sub={sub} onReupload={handleReupload} />
           ))}
         </div>
       )}
@@ -380,11 +495,15 @@ function SubmissionsTab({ submissions, setSubmissions, loadingDocs }: {
 function CertificatesTab() {
   return (
     <div className="space-y-5">
-      <p className="text-sm text-gray-500 dark:text-gray-400">Certificates are unlocked when you complete 100% of a module's videos.</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        Certificates are unlocked when you complete 100% of a module's videos.
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {CERTIFICATES.map(cert => (
           <div key={cert.id} className={`rounded-2xl border p-5 flex flex-col gap-4 transition ${
-            cert.status === "earned" ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/10" : "border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]"
+            cert.status === "earned"
+              ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/10"
+              : "border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]"
           }`}>
             <div className="flex items-start justify-between">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${cert.status === "earned" ? "bg-green-100 dark:bg-green-900/30" : "bg-gray-100 dark:bg-gray-800"}`}>
@@ -442,43 +561,29 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode; desc: string }[] =
   },
 ];
 
-// ─── PAGE — fetch once here, pass down to SubmissionsTab as props ─────────────
+// ─── PAGE ─────────────────────────────────────────────────────────────────────
 
 function Documents() {
   const [activeTab,   setActiveTab]   = useState<Tab>("notes");
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [loadingDocs, setLoadingDocs] = useState(true);   // single fetch, lives here
+  const [loadingDocs, setLoadingDocs] = useState(true);
 
-  // ── Runs once on mount — tab switches don't re-trigger this ──
+  // Fetch once on mount — tab switches never re-trigger
   useEffect(() => {
     const pk = localStorage.getItem(getDraftKey());
     if (!pk) { setLoadingDocs(false); return; }
 
     getApplicationApi(parseInt(pk))
       .then(data => {
-        const mapped: Submission[] = (data.documents ?? []).map((doc: any) => {
-          const label    = DOC_LABEL[doc.document_type] ?? { name: doc.document_type, category: "Other" };
-          const fileUrl  = doc.file as string;
-          const ext      = fileUrl.split(".").pop()?.toUpperCase() ?? "FILE";
-          const fileType = ext === "PDF" ? "PDF" : ["JPG","JPEG","PNG"].includes(ext) ? "Image" : ext;
-          return {
-            id:         doc.document_type,
-            name:       label.name,
-            file:       null,
-            fileName:   fileUrl.split("/").pop() ?? fileUrl,   // filename from S3 URL
-            fileSize:   "—",                                   // not in API response
-            fileType,
-            status:     "submitted" as const,
-            uploadedAt: data.created_at,
-            category:   label.category,
-            fileUrl,                                           // S3 URL for View button
-          };
-        });
+        const appId = data.id as number;               // shg id passed down for reupload
+        const mapped: Submission[] = (data.documents ?? []).map((doc: any) =>
+          mapDoc(doc, appId)
+        );
         setSubmissions(mapped);
       })
       .catch(() => {})
       .finally(() => setLoadingDocs(false));
-  }, []);   // [] = once only, never re-runs on tab switch
+  }, []);
 
   const active = TABS.find(t => t.key === activeTab)!;
 
@@ -486,7 +591,9 @@ function Documents() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">Documents</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your notes, submitted documents, and earned certificates.</p>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Manage your notes, submitted documents, and earned certificates.
+        </p>
       </div>
 
       {/* Tab toggle */}
@@ -494,7 +601,9 @@ function Documents() {
         {TABS.map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-              activeTab === tab.key ? "bg-brand-500 text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.03]"
+              activeTab === tab.key
+                ? "bg-brand-500 text-white shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.03]"
             }`}>
             {tab.icon}
             <span className="hidden sm:inline">{tab.label}</span>
@@ -504,7 +613,11 @@ function Documents() {
 
       {/* Active tab label */}
       <div className="flex items-center gap-2">
-        <span className={`p-1.5 rounded-lg ${activeTab === "notes" ? "bg-yellow-100 text-yellow-600" : activeTab === "submissions" ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"}`}>
+        <span className={`p-1.5 rounded-lg ${
+          activeTab === "notes"       ? "bg-yellow-100 text-yellow-600" :
+          activeTab === "submissions" ? "bg-blue-100 text-blue-600"    :
+                                        "bg-green-100 text-green-600"
+        }`}>
           {active.icon}
         </span>
         <div>
@@ -514,9 +627,8 @@ function Documents() {
       </div>
 
       <div>
-        {activeTab === "notes" && <NotesTab />}
+        {activeTab === "notes"       && <NotesTab />}
         {activeTab === "submissions" && (
-          // data + setter passed as props — SubmissionsTab never fetches itself
           <SubmissionsTab
             submissions={submissions}
             setSubmissions={setSubmissions}

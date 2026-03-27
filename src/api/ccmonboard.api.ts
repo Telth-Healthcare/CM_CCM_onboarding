@@ -19,11 +19,19 @@ const getApplicationApi = (pk: number) =>
   client.get(`partners/app/cm-ccm/${pk}/`).then(res => res.data)
 
 // ccmonboard.api.ts — replace your postDocumentsApi with this:
-export const uploadDocumentApi = (file: File, docType: string, appId: number) => {
+export const uploadDocumentApi = (
+  file: File,
+  docType: string,
+  appId: number,
+  status?: string        // optional — only passed during reupload
+) => {
   const form = new FormData()
   form.append('file', file)
   form.append('document_type', docType)
   form.append('shg', String(appId))
+  
+  if (status) form.append('status', status)   // only appended when reupload
+
   return client.post('partners/app/documents/', form).then(res => res.data)
 }
 
@@ -32,6 +40,16 @@ const productInterestApi = () =>
 
 const getshgsIdApi = (shgId: number) =>
   client.get(`partners/${shgId}/`).then(res => res.data)
+
+export const reuploadDocumentApi = (file: File, docType: string, appId: number, docId: number) => {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('document_type', docType)
+  form.append('shg', String(appId))
+  form.append('status', 'reuploaded')          // tells backend it's a reupload
+  return client.patch(`partners/app/documents/${docId}/`, form).then(res => res.data)
+  //                                      ↑ docId needed for PATCH
+}
 
 
 export {

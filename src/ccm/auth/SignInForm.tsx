@@ -133,7 +133,7 @@ export default function CCMSignInForm() {
   };
 
 const handleLoginSuccess = (data: any) => {
-  const user    = data?.data?.user          // ← extract user once
+  const user    = data?.data?.user
   const roles   = user?.roles ?? []
   const isAdmin = roles.includes("admin")
   const type    = isAdmin ? "admin" : "ccm"
@@ -141,23 +141,23 @@ const handleLoginSuccess = (data: any) => {
   setToken(type, {
     access:  data.meta?.access_token,
     refresh: data.meta?.refresh_token,
-    user:    data.data,                     // ← store { user: {...} } shape
+    user:    user,                              // ✅ was data.data → now user directly
   });
 
   const profileId = user?.profile_id ?? null
 
   if (profileId) {
-    localStorage.setItem(`ccm_draft_pk_${user.id}`, String(profileId))  // ← user.id not data.id
+    localStorage.setItem(`ccm_draft_pk_${user.id}`, String(profileId))
   }
 
-  localStorage.setItem("ccm_user", JSON.stringify(data.data))  // ← store { user:{...} } only — matches Onboard.tsx expectation
+  localStorage.setItem("ccm_user", JSON.stringify(user))  // ✅ was data.data → now user directly
 
   toast.success("Signed in successfully!")
 
   if (isAdmin) {
     navigate("/dashboard", { replace: true })
   } else {
-    const appStatus = user?.application_status?.status    // ← was data.application_status
+    const appStatus = user?.application_status?.status
     if (appStatus === "SUBMITTED") {
       navigate("/ccm-dashboard",              { replace: true })
     } else if (profileId) {
