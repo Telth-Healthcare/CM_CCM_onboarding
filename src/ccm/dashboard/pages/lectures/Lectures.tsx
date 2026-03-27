@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Coursefetchapi } from '../../../api/ccm/ccm.api'
+import { Coursefetchapi } from '../../../../api/ccm/ccm.api'
 
 // ─── API Types ─────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 // api/shgonboard.api.ts
-import { ccmClient as client} from './client'
+import { ccmClient as client} from '../client'
 
 // ── Application CRUD ──────────────────────────────────────────────────────────
 const createApplicationApi = (data: Record<string, any>) =>

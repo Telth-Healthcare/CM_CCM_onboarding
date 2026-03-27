@@ -1,6 +1,6 @@
 // src/ccm/pages/home/announcements.tsx
 import { useState, useEffect } from "react";
-import type { AppData } from "../Home";
+import type { AppData } from "./Home";
 
 type AnnouncementType = "broadcast" | "personal";
 

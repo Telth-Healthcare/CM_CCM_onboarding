@@ -1,10 +1,10 @@
 // src/ccm/pages/Home.tsx
 import { useState, useEffect } from "react";
-import HomeHeader    from "./home/header";
-import Announcements from "./home/announcements";
-import Analytics     from "./home/analytics";
-import Tuts          from "./home/tuts";
-import { getApplicationStatusApi } from "../../../api/ccmonboard.api";
+import HomeHeader    from "./header";
+import Announcements from "./announcements";
+import Analytics     from "./analytics";
+import Tuts          from "./tuts";
+import { getApplicationStatusApi } from "../../../../api/ccm/ccmonboard.api";
 
 export interface AppData {
   id: number;

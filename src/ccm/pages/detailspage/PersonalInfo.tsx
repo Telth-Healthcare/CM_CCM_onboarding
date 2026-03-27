@@ -19,17 +19,17 @@ const LANGUAGE_OPTIONS = [
 ]
 
 const MARITAL_STATUS_OPTIONS = [
-  { value: 'Single',   label: 'Single' },
-  { value: 'Married',  label: 'Married' },
-  { value: 'Divorced', label: 'Divorced' },
-  { value: 'Widowed',  label: 'Widowed' },
+  { value: 'single',   label: 'single' },
+  { value: 'married',  label: 'married' },
+  { value: 'divorced', label: 'divorced' },
+  { value: 'widowed',  label: 'widowed' },
 ]
 
 const GENDER_OPTIONS = [
-  { value: 'Male',           label: 'Male' },
-  { value: 'Female',         label: 'Female' },
-  { value: 'Other',          label: 'Other' },
-  { value: 'Prefer_not_say', label: 'Prefer not to say' },
+  { value: 'male',           label: 'male' },
+  { value: 'female',         label: 'female' },
+  { value: 'other',          label: 'other' },
+  { value: 'prefer_not_say', label: 'prefer not to say' },
 ]
 
 const BLOOD_GROUP_OPTIONS = [

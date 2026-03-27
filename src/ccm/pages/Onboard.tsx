@@ -15,7 +15,7 @@ import {
   submitApplicationApi,
   getApplicationApi,
   uploadDocumentApi,
-} from '../../api/ccmonboard.api'
+} from '../../api/ccm/ccmonboard.api'
 import { handleAxiosError } from '../../utils/handleAxiosError'
 
 // ── Steps (contact-info removed — mobile & email now inside personal-info) ───
@@ -157,7 +157,7 @@ const [replacedDocs, setReplacedDocs] = useState<Set<string>>(new Set())
           firstName:     data.user?.first_name   ?? prev.firstName,
           lastName:      data.user?.last_name    ?? prev.lastName,
           dob:           data.dob                ?? prev.dob,
-          gender:        ['Male','Female','Other','Prefer_not_say'].find(
+          gender:        ['male','female','other','prefer_not_say'].find(
                            v => v.toLowerCase() === (data.gender ?? '').toLowerCase()
                          ) ?? prev.gender,
           bloodGroup:    ['A+','A-','B+','B-','AB+','AB-','O+','O-'].find(
@@ -166,7 +166,7 @@ const [replacedDocs, setReplacedDocs] = useState<Set<string>>(new Set())
           language:      ['english','hindi','tamil','telugu','kannada','malayalam','marathi','bengali','gujarati','punjabi'].find(
                            v => v.toLowerCase() === (data.language ?? '').toLowerCase()
                          ) ?? prev.language,
-          maritalStatus: ['Single','Married','Divorced','Widowed'].find(
+          maritalStatus: ['single','married','divorced','widowed'].find(
                            v => v.toLowerCase() === (data.marital_status ?? '').toLowerCase()
                          ) ?? prev.maritalStatus,
           mobile:        data.user?.phone        ?? prev.mobile,    // nested in user.phone

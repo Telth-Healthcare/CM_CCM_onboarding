@@ -1,12 +1,12 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import DashboardLayout from "./layout/DashboardLayout";
-import Home from "./pages/Home";
-import Lectures from "./pages/Lectures";
-import Settings from "./pages/Settings";
-import UserProfile from "./pages/UserProfile";
-import Reports from "./pages/Reports";
-import Tasks from "./pages/Tasks";
-import Documents from "./pages/Documents";
+import Home from "./pages/home/Home";
+import Lectures from "./pages/lectures/Lectures";
+import Settings from "./pages/accountsettings/Settings";
+import UserProfile from "./pages/accountsettings/UserProfile";
+import Reports from "./pages/reports/Reports";
+import Tasks from "./pages/tasks/Tasks";
+import Documents from "./pages/documents/Documents";
 
 const DashboardRoutes = () => {
   return (

@@ -1,5 +1,5 @@
 // src/ccm/pages/Analytics.tsx
-import type { AppData } from "../Home";
+import type { AppData } from "./Home";
 
 interface Props {
   appData?: AppData | null;

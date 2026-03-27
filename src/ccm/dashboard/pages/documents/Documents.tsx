@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getApplicationApi, reuploadDocumentApi } from "../../../api/ccmonboard.api";
+import { getApplicationApi, reuploadDocumentApi } from "../../../../api/ccm/ccmonboard.api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

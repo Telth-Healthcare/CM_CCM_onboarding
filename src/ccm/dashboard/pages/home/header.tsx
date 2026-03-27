@@ -1,5 +1,5 @@
 // src/ccm/pages/home/header.tsx
-import type { AppData } from "../Home";
+import type { AppData } from "./Home";
 
 function getBaseUser() {
   try {

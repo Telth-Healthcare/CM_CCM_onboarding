@@ -1,6 +1,6 @@
 // src/ccm/pages/Tuts.tsx
 import { useState } from "react";
-import type { AppData } from "../Home";
+import type { AppData } from "./Home";
 
 interface Tutorial {
   id: string;
