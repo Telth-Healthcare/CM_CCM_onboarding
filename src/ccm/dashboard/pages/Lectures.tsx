@@ -40,12 +40,6 @@ interface Enrollment {
   enrollment_date: string
   course_details: CourseDetails
 }
-
-interface ApiResponse {
-  count: number
-  results: Enrollment[]
-}
-
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -104,7 +98,6 @@ function MaterialCard({
   const thumb = getThumbnail(subject, material)
   const actionUrl = getActionUrl(material)
   const isLink = !!material.url        // opens external URL
-  const isFile = !!material.file       // download / open file
 
   return (
     <a
