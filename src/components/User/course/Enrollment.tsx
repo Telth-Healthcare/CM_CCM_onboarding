@@ -524,16 +524,28 @@ const Enrollments = () => {
         Cell: ({ row }) => row.index + 1,
       },
       {
-        accessorKey: "course_name",
+        accessorKey: "course_details.aurthor",
         header: "Course",
         size: 220,
         Cell: ({ cell }) => cell.getValue<string>() || "-",
+        enableColumnFilter: true,
       },
       {
         accessorKey: "user_name",
         header: "Student Name",
         size: 180,
         Cell: ({ cell }) => cell.getValue<string>() || "-",
+          enableColumnFilter: true,
+      },
+      {
+        accessorKey: "enrollment_date",
+        header: "Enrollment",
+        size: 180,
+        Cell: ({ cell }) =>{
+          const value = cell.getValue<string>();
+        return value ? new Date(value).toLocaleDateString() : "-";
+        }
+        
       },
     ],
     [],

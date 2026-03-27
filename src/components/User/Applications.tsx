@@ -26,7 +26,7 @@ interface Application {
   updated_at: string;
   user_details?: string;
   trainer_details?: string;
-  assigned_financier_details?: string;
+  financier_details?: string;
   documents?: Array<{
     document_type: string;
     file: string;
@@ -126,9 +126,11 @@ const Applications = () => {
   };
 
   const handleEdit = useCallback((row: Application) => {
-     updateApplicationStatusApi(row.id, {
-      status: "under_review"
-     })
+    if(row.status !== "under_review"){
+      updateApplicationStatusApi(row.id, {
+       status: "under_review"
+      })
+    }
     navigate(`/applications/edit/${row.id}`);
   }, [navigate]);
 
@@ -194,26 +196,9 @@ const Applications = () => {
           value: item.value,
         })),
       },
-      {
-        accessorFn: (row) => row?.trainer_details ?? "-",
-        id: "trainer_details",
-        header: "Trainer",
-        size: 120,
-        filterVariant: "text",
-      },
-      {
-        accessorFn: (row) =>
-          row?.created_at
-            ? new Date(row.created_at).toLocaleDateString()
-            : "-",
-        id: "created_at",
-        header: "Created Date",
-        size: 150,
-        enableColumnFilter: false,
-      },
-      {
-        accessorFn: (row) => row?.assigned_financier_details ?? "-",
-        id: "assigned_financier_details",
+         {
+        accessorFn: (row) => row?.financier_details ?? "-",
+        id: "financier_details",
         header: "Financier",
         size: 150,
       },
@@ -308,6 +293,24 @@ const Applications = () => {
           value: item.value,
         })),
       },
+      {
+        accessorFn: (row) => row?.trainer_details ?? "-",
+        id: "trainer_details",
+        header: "Trainer",
+        size: 120,
+        filterVariant: "text",
+      },
+      {
+        accessorFn: (row) =>
+          row?.created_at
+            ? new Date(row.created_at).toLocaleDateString()
+            : "-",
+        id: "created_at",
+        header: "Created Date",
+        size: 150,
+        enableColumnFilter: false,
+      },
+   
     ],
     [pagination.pageIndex, pagination.pageSize, editingPaymentStatus, canEditPaymentStatus],
   );

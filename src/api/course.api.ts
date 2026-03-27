@@ -134,7 +134,7 @@ export const updateEnrollApi = (enrollId: number, payload: any) => {
 }
 
 
- export const documentVerifyApi = (id: number, payload: { is_approved: boolean }) => {
+ export const documentVerifyApi = (id: number, payload: { status: string }) => {
    return client
     .patch(`partners/app/documents/${id}/`, payload, {
            headers: {

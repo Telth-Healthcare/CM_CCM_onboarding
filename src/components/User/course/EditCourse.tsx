@@ -23,8 +23,8 @@ interface Material {
   title: string;
   description: string;
   type: string;
-  file: string | null;       // existing path from backend — never put raw into FormData
-  newFile?: File | null;     // newly picked File object — goes into FormData
+  file: string | null;
+  newFile?: File | null;
   fileChanged?: boolean;
   url: string | null;
   uploaded_at?: string;
@@ -42,6 +42,8 @@ interface Subject {
   id?: number;
   name: string;
   course: number;
+  description?: string;
+  img?: string | null;
   materials: Material[];
   isNew?: boolean;
 }
@@ -50,11 +52,34 @@ interface Course {
   id: number;
   name: string;
   description?: string;
+  aurthor?: string;
   trainer_name?: string;
   created_by?: number;
   duration?: string;
   status?: string;
+  img?: string | null;
+  created_at?: string;
   subjects?: Subject[];
+}
+
+function extractFilePath(fileUrl: string | null): string | null {
+  if (!fileUrl) return null;
+  try {
+    const parsed = new URL(fileUrl);
+    return parsed.pathname;
+  } catch {
+    return fileUrl;
+  }
+}
+
+function getFileName(fileUrl: string | null): string {
+  if (!fileUrl) return "";
+  try {
+    const parsed = new URL(fileUrl);
+    return parsed.pathname.split("/").pop() || fileUrl;
+  } catch {
+    return fileUrl.split("/").pop() || fileUrl;
+  }
 }
 
 interface EditCourseProps {
@@ -65,36 +90,61 @@ interface EditCourseProps {
 
 type SectionStatus = "idle" | "saving" | "saved" | "error";
 
-// ── Shared styles ─────────────────────────────────────────────────────────────
-
 const inputCls =
   "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg " +
   "focus:outline-none focus:ring-2 focus:ring-blue-500 " +
   "dark:bg-gray-800 dark:text-white placeholder-gray-400";
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
 const CheckIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+  <svg
+    className="w-4 h-4"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2.5}
+  >
     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
   </svg>
 );
 
 const SpinnerIcon = () => (
   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8v8H4z"
+    />
   </svg>
 );
 
 const PlusIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  <svg
+    className="w-4 h-4"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
   </svg>
 );
 
 const TrashIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  <svg
+    className="w-4 h-4"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -133,7 +183,6 @@ const StatusBadge = ({ status }: { status: SectionStatus }) => {
   return null;
 };
 
-
 const Section = ({
   index,
   title,
@@ -154,7 +203,9 @@ const Section = ({
           <span className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center bg-blue-600 text-white">
             {index}
           </span>
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{title}</h3>
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            {title}
+          </h3>
         </div>
         <div className="flex items-center gap-3">
           {status && <StatusBadge status={status} />}
@@ -167,13 +218,14 @@ const Section = ({
 );
 
 function normaliseMaterial(m: Material): Material {
+  const filePath = extractFilePath(m.file);
   return {
     ...m,
-    inputType: m.url ? "url" : m.file ? "file" : "",
+    inputType: m.url ? "url" : filePath ? "file" : "",
     newFile: null,
     fileChanged: false,
     originalUrl: m.url,
-    originalFile: m.file,
+    originalFile: filePath,
     originalTitle: m.title,
     originalType: m.type,
     originalDescription: m.description,
@@ -182,15 +234,26 @@ function normaliseMaterial(m: Material): Material {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel }) => {
+const EditCourse: React.FC<EditCourseProps> = ({
+  course,
+  onComplete,
+  onCancel,
+}) => {
   const userRole = getUserRole("admin");
-  const isAdminOrSuperAdmin = userRole === "super_admin" || userRole === "admin";
+  const isAdminOrSuperAdmin =
+    userRole === "super_admin" || userRole === "admin";
 
-  const [materialTypes, setMaterialTypes] = useState<{ value: string; label: string }[]>([]);
-  const [trainers, setTrainers] = useState<{ value: number; label: string }[]>([]);
+  const [materialTypes, setMaterialTypes] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const [trainers, setTrainers] = useState<{ value: number; label: string }[]>(
+    [],
+  );
 
   const [courseName, setCourseName] = useState(course.name);
-  const [selectedTrainer, setSelectedTrainer] = useState<number | null>(course.created_by ?? null);
+  const [selectedTrainer, setSelectedTrainer] = useState<number | null>(
+    course.created_by ?? null,
+  );
   const [courseStatus, setCourseStatus] = useState<SectionStatus>("idle");
   const courseNameRef = useRef<HTMLInputElement>(null);
 
@@ -200,21 +263,37 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
       materials: (s.materials || []).map(normaliseMaterial),
     })),
   );
-  const [expandedSubjects, setExpandedSubjects] = useState<number[]>([]);
-  const [subjectStatuses, setSubjectStatuses] = useState<Record<number, SectionStatus>>({});
 
-  const [materialStatuses, setMaterialStatuses] = useState<Record<string, SectionStatus>>({});
-  const setMatStatus = (si: number, mi: number, status: SectionStatus) =>
-    setMaterialStatuses((prev) => ({ ...prev, [`${si}-${mi}`]: status }));
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<number>>(
+    new Set(),
+  );
 
+  const [subjectStatuses, setSubjectStatuses] = useState<
+    Record<number, SectionStatus>
+  >({});
+  const [materialStatuses, setMaterialStatuses] = useState<
+    Record<string, SectionStatus>
+  >({});
   const [saving, setSaving] = useState(false);
 
+  const subjectsRef = useRef<Subject[]>(subjects);
+  useEffect(() => {
+    subjectsRef.current = subjects;
+  }, [subjects]);
+
+  const setMatStatus = useCallback(
+    (si: number, mi: number, status: SectionStatus) =>
+      setMaterialStatuses((prev) => ({ ...prev, [`${si}-${mi}`]: status })),
+    [],
+  );
 
   const fetchMaterialTypes = useCallback(async () => {
     try {
       const res = await contactApi();
       setMaterialTypes(res.material_document_type || []);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const fetchTrainers = useCallback(async () => {
@@ -224,7 +303,9 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
       setTrainers(
         data.map((item: any) => ({
           value: item.id,
-          label: `${item.first_name || ""} ${item.last_name || ""}`.trim() || `Trainer ${item.id}`,
+          label:
+            `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
+            `Trainer ${item.id}`,
         })),
       );
     } catch {
@@ -237,14 +318,11 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
     if (isAdminOrSuperAdmin) fetchTrainers();
   }, [fetchMaterialTypes, fetchTrainers, isAdminOrSuperAdmin]);
 
-  // ── Course Info: build payload ────────────────────────────────────────
-
   const buildCoursePayload = useCallback(() => {
     const payload: Record<string, unknown> = { name: courseName.trim() };
     if (selectedTrainer) payload.created_by = selectedTrainer;
     return payload;
   }, [courseName, selectedTrainer]);
-
 
   const saveCourseInfo = useCallback(async () => {
     if (!courseName.trim()) return;
@@ -263,7 +341,6 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        // Only auto-save on Enter for trainer role
         if (!isAdminOrSuperAdmin) saveCourseInfo();
       }
     },
@@ -271,18 +348,19 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
   );
 
   const handleCourseBlur = useCallback(() => {
-    // Only auto-save on blur for trainer role
     if (!isAdminOrSuperAdmin) saveCourseInfo();
   }, [isAdminOrSuperAdmin, saveCourseInfo]);
 
-  // ── Subject helpers ───────────────────────────────────────────────────
+  const toggleExpand = useCallback((si: number) => {
+    setExpandedSubjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(si)) next.delete(si);
+      else next.add(si);
+      return next;
+    });
+  }, []);
 
-  const toggleExpand = (si: number) =>
-    setExpandedSubjects((prev) =>
-      prev.includes(si) ? prev.filter((i) => i !== si) : [...prev, si],
-    );
-
-  const addSubject = useCallback(async () => {
+  const addSubject = useCallback(() => {
     const newSubject: Subject = {
       name: "",
       course: course.id,
@@ -291,43 +369,50 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
     };
 
     setSubjects((prev) => {
-      const nextIdx = prev.length;
-      setExpandedSubjects((exp) => [...exp, nextIdx]);
+      const nextIndex = prev.length;
+      setTimeout(() => {
+        setExpandedSubjects((exp) => {
+          const next = new Set(exp);
+          next.add(nextIndex);
+          return next;
+        });
+      }, 0);
       return [...prev, newSubject];
     });
   }, [course.id]);
 
-  const updateSubjectName = (si: number, value: string) =>
+  const updateSubjectName = useCallback((si: number, value: string) => {
     setSubjects((prev) => {
       const updated = [...prev];
       updated[si] = { ...updated[si], name: value };
       return updated;
     });
+  }, []);
 
   const saveSubjectName = useCallback(
     async (si: number) => {
-      const subject = subjects[si];
+      const subject = subjectsRef.current[si];
+      if (!subject) return;
       if (!subject.name.trim()) return;
 
       setSubjectStatuses((prev) => ({ ...prev, [si]: "saving" }));
 
       try {
         if (subject.isNew || !subject.id) {
-          // ── New subject → create via API ───────────────────────────────
-          const res = await createCourseSubApi({ name: subject.name.trim(), course: course.id });
+          const res = await createCourseSubApi({
+            name: subject.name.trim(),
+            course: course.id,
+          });
           const created: Subject = res?.data || res;
+
           setSubjects((prev) => {
             const updated = [...prev];
-            updated[si] = {
-              ...updated[si],
-              id: created.id,
-              isNew: false,
-            };
+            if (!updated[si]) return prev; // guard against stale index
+            updated[si] = { ...updated[si], id: created.id, isNew: false };
             return updated;
           });
           toast.success("Subject created!");
         } else {
-          // ── Existing subject → update ──────────────────────────────────
           await updateCourseSubApi(subject.id, { name: subject.name.trim() });
           toast.success("Subject updated!");
         }
@@ -337,48 +422,82 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
         toast.error(handleAxiosError(error, "Failed to save subject"));
       }
     },
-    [subjects, course.id],
+    [course.id],
   );
 
-  const removeSubject = useCallback(
-    async (si: number) => {
-      const subject = subjects[si];
-      if (subject.id && !subject.isNew) {
-        try {
-          await deleteCourseSubApi(subject.id);
-          toast.success("Subject removed");
-        } catch (error) {
-          toast.error(handleAxiosError(error, "Failed to remove subject"));
-          return;
-        }
+  // ── FIX: removeSubject — rebuild expandedSubjects + materialStatuses by shifting indices ──
+  const removeSubject = useCallback(async (si: number) => {
+    const subject = subjectsRef.current[si];
+    if (!subject) return;
+
+    if (subject.id && !subject.isNew) {
+      try {
+        await deleteCourseSubApi(subject.id);
+        toast.success("Subject removed");
+      } catch (error) {
+        toast.error(handleAxiosError(error, "Failed to remove subject"));
+        return;
       }
-      setSubjects((prev) => prev.filter((_, i) => i !== si));
-      setExpandedSubjects((prev) => prev.filter((i) => i !== si).map((i) => (i > si ? i - 1 : i)));
-    },
-    [subjects],
-  );
+    }
 
-  // ── Material helpers ──────────────────────────────────────────────────
+    setSubjects((prev) => prev.filter((_, i) => i !== si));
+
+    // Shift expanded indices: remove si, decrement all indices > si
+    setExpandedSubjects((prev) => {
+      const next = new Set<number>();
+      prev.forEach((idx) => {
+        if (idx < si) next.add(idx);
+        else if (idx > si) next.add(idx - 1);
+        // idx === si is dropped
+      });
+      return next;
+    });
+
+    // Shift subject status keys
+    setSubjectStatuses((prev) => {
+      const next: Record<number, SectionStatus> = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const k = Number(key);
+        if (k < si) next[k] = val;
+        else if (k > si) next[k - 1] = val;
+      });
+      return next;
+    });
+
+    // Shift material status keys: "si-mi" pattern
+    setMaterialStatuses((prev) => {
+      const next: Record<string, SectionStatus> = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const [ks, km] = key.split("-").map(Number);
+        if (ks < si) next[`${ks}-${km}`] = val;
+        else if (ks > si) next[`${ks - 1}-${km}`] = val;
+        // ks === si is dropped
+      });
+      return next;
+    });
+  }, []);
 
   const updateMaterial = useCallback(
-    (si: number, mi: number, field: keyof Material, value: any) =>
+    (si: number, mi: number, field: keyof Material, value: any) => {
       setSubjects((prev) => {
         const updated = [...prev];
-        const mats = [...(updated[si].materials || [])];
+        const mats = [...(updated[si]?.materials || [])];
         mats[mi] = { ...mats[mi], [field]: value };
         updated[si] = { ...updated[si], materials: mats };
         return updated;
-      }),
+      });
+    },
     [],
   );
 
   const addMaterial = useCallback((si: number) => {
     setSubjects((prev) => {
       const updated = [...prev];
+      const currentMaterials = updated[si]?.materials || [];
       updated[si] = {
         ...updated[si],
         materials: [
-          ...(updated[si].materials || []),
+          ...currentMaterials,
           {
             title: "",
             description: "",
@@ -387,7 +506,7 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
             file: null,
             newFile: null,
             fileChanged: false,
-            subject: updated[si].id || 0,
+            subject: updated[si]?.id || 0,
             isNew: true,
             inputType: "",
           },
@@ -395,33 +514,55 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
       };
       return updated;
     });
-    // Ensure the subject panel is expanded
-    setExpandedSubjects((prev) => (prev.includes(si) ? prev : [...prev, si]));
+
+    setTimeout(() => {
+      setExpandedSubjects((prev) => {
+        if (prev.has(si)) return prev;
+        const next = new Set(prev);
+        next.add(si);
+        return next;
+      });
+    }, 0);
   }, []);
 
-  const removeMaterial = useCallback(
-    async (si: number, mi: number) => {
-      const material = subjects[si]?.materials?.[mi];
-      if (material?.id && !material.isNew) {
-        try {
-          await deleteSubMaterialApi(material.id);
-          toast.success("Material removed");
-        } catch (error) {
-          toast.error(handleAxiosError(error, "Failed to remove material"));
-          return;
-        }
+  const removeMaterial = useCallback(async (si: number, mi: number) => {
+    const material = subjectsRef.current[si]?.materials?.[mi];
+    if (!material) return;
+
+    if (material.id && !material.isNew) {
+      try {
+        await deleteSubMaterialApi(material.id);
+        toast.success("Material removed");
+      } catch (error) {
+        toast.error(handleAxiosError(error, "Failed to remove material"));
+        return;
       }
-      setSubjects((prev) => {
-        const updated = [...prev];
-        updated[si] = {
-          ...updated[si],
-          materials: updated[si].materials.filter((_, i) => i !== mi),
-        };
-        return updated;
+    }
+
+    setSubjects((prev) => {
+      const updated = [...prev];
+      updated[si] = {
+        ...updated[si],
+        materials: updated[si].materials.filter((_, i) => i !== mi),
+      };
+      return updated;
+    });
+
+    setMaterialStatuses((prev) => {
+      const next: Record<string, SectionStatus> = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const [ks, km] = key.split("-").map(Number);
+        if (ks !== si) {
+          next[key] = val; // different subject — keep as-is
+        } else {
+          if (km < mi) next[`${ks}-${km}`] = val;
+          else if (km > mi) next[`${ks}-${km - 1}`] = val;
+          // km === mi is dropped
+        }
       });
-    },
-    [subjects],
-  );
+      return next;
+    });
+  }, []);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>, si: number, mi: number) => {
@@ -436,23 +577,37 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
 
   const saveMaterial = useCallback(
     async (si: number, mi: number) => {
-      const subject = subjects[si];
+      const subject = subjectsRef.current[si];
       const material = subject?.materials?.[mi];
-
       if (!material) return;
 
-      // ── Validation ─────────────────────────────────────────────────────
-      if (!material.title.trim()) { toast.error("Material title is required"); return; }
-      if (!material.type)         { toast.error("Select a document type"); return; }
-      if (!material.inputType)    { toast.error("Choose URL or File Upload"); return; }
-      if (material.inputType === "url" && !material.url?.trim()) {
-        toast.error("Please enter a URL"); return;
+      if (!material.title.trim()) {
+        toast.error("Material title is required");
+        return;
       }
-      if (material.inputType === "file" && !material.newFile && !material.file) {
-        toast.error("Please select a file"); return;
+      if (!material.type) {
+        toast.error("Select a document type");
+        return;
+      }
+      if (!material.inputType) {
+        toast.error("Choose URL or File Upload");
+        return;
+      }
+      if (material.inputType === "url" && !material.url?.trim()) {
+        toast.error("Please enter a URL");
+        return;
+      }
+      if (
+        material.inputType === "file" &&
+        !material.newFile &&
+        !material.file
+      ) {
+        toast.error("Please select a file");
+        return;
       }
       if (!subject.id) {
-        toast.error("Save the subject name first"); return;
+        toast.error("Save the subject name first");
+        return;
       }
 
       setMatStatus(si, mi, "saving");
@@ -461,78 +616,86 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
         let saved: any;
 
         if (material.isNew || !material.id) {
-          // ── Create new material ──────────────────────────────────────────
           if (material.inputType === "file" && material.newFile) {
             const formData = new FormData();
-            formData.append("title",       material.title);
-            formData.append("type",        material.type);
-            formData.append("subject",     subject.id.toString());
+            formData.append("title", material.title);
+            formData.append("type", material.type);
+            formData.append("subject", subject.id.toString());
             formData.append("description", material.description || "");
-            formData.append("file",        material.newFile);
+            formData.append("file", material.newFile);
             const res = await createSubMaterialImgApi(formData);
             saved = res?.data || res;
           } else {
             const res = await createSubMaterialApi({
-              title:       material.title,
-              type:        material.type,
-              subject:     subject.id,
+              title: material.title,
+              type: material.type,
+              subject: subject.id,
               description: material.description || "",
-              url:         material.url!.trim(),
+              url: material.url!.trim(),
             });
             saved = res?.data || res;
           }
           toast.success("Material created!");
         } else {
-          // ── Update existing material ─────────────────────────────────────
-          const titleChanged = material.title       !== material.originalTitle;
-          const typeChanged  = material.type        !== material.originalType;
-          const descChanged  = material.description !== material.originalDescription;
-          const urlChanged   = material.inputType === "url" && material.url !== material.originalUrl;
-          const fileChanged  = material.fileChanged === true;
+          const titleChanged = material.title !== material.originalTitle;
+          const typeChanged = material.type !== material.originalType;
+          const descChanged =
+            material.description !== material.originalDescription;
+          const urlChanged =
+            material.inputType === "url" &&
+            material.url !== material.originalUrl;
+          const fileChanged = material.fileChanged === true;
 
-          if (!titleChanged && !typeChanged && !descChanged && !urlChanged && !fileChanged) {
+          if (
+            !titleChanged &&
+            !typeChanged &&
+            !descChanged &&
+            !urlChanged &&
+            !fileChanged
+          ) {
             toast.info("No changes to save");
             setMatStatus(si, mi, "idle");
             return;
           }
 
-          if (material.inputType === "file" && fileChanged && material.newFile) {
-            // New file picked → multipart
+          if (
+            material.inputType === "file" &&
+            fileChanged &&
+            material.newFile
+          ) {
             const formData = new FormData();
-            formData.append("title",       material.title);
-            formData.append("type",        material.type);
-            formData.append("subject",     subject.id.toString());
+            formData.append("title", material.title);
+            formData.append("type", material.type);
+            formData.append("subject", subject.id.toString());
             formData.append("description", material.description || "");
-            formData.append("file",        material.newFile);
+            formData.append("file", material.newFile);
             const res = await updateSubMaterialImgApi(material.id, formData);
             saved = res?.data || res;
           } else if (material.inputType === "file") {
-            // Metadata-only change — pass existing file path so backend validation passes
             const res = await updateSubMaterialApi(material.id, {
-              title:       material.title,
-              type:        material.type,
-              subject:     subject.id,
+              title: material.title,
+              type: material.type,
+              subject: subject.id,
               description: material.description || "",
-              file:        material.file,
+              file: extractFilePath(material.file),
             });
             saved = res?.data || res;
           } else {
-            // URL material
             const res = await updateSubMaterialApi(material.id, {
-              title:       material.title,
-              type:        material.type,
-              subject:     subject.id,
+              title: material.title,
+              type: material.type,
+              subject: subject.id,
               description: material.description || "",
-              url:         material.url!.trim(),
+              url: material.url!.trim(),
             });
             saved = res?.data || res;
           }
           toast.success("Material updated!");
         }
 
-        // ── Merge saved response back into local state ─────────────────────
         setSubjects((prev) => {
           const copy = [...prev];
+          if (!copy[si]) return prev;
           const mats = [...copy[si].materials];
           mats[mi] = normaliseMaterial({ ...mats[mi], ...saved, isNew: false });
           copy[si] = { ...copy[si], materials: mats };
@@ -544,61 +707,76 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
         toast.error(handleAxiosError(error, "Failed to save material"));
       }
     },
-    [subjects],
+    [setMatStatus],
   );
-
-  // ── Save All & complete ───────────────────────────────────────────────
-  // Only persists items that already have IDs (new items must be saved individually).
 
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      // 1. Course info
       await updateCourseApi(course.id, buildCoursePayload());
 
-      // 2. Subjects (skip new/unsaved ones — they were created on-demand)
-      for (const subject of subjects) {
+      for (const subject of subjectsRef.current) {
         if (!subject.id || subject.isNew) continue;
         await updateCourseSubApi(subject.id, { name: subject.name.trim() });
 
-        // 3. Materials (skip new/unsaved ones — they were created on-demand)
         for (const material of subject.materials || []) {
           if (!material.id || material.isNew) continue;
-          if (!material.title.trim() || !material.type || !material.inputType) continue;
-          if (material.inputType === "url"  && !material.url?.trim()) continue;
-          if (material.inputType === "file" && !material.newFile && !material.file) continue;
+          if (!material.title.trim() || !material.type || !material.inputType)
+            continue;
+          if (material.inputType === "url" && !material.url?.trim()) continue;
+          if (
+            material.inputType === "file" &&
+            !material.newFile &&
+            !material.file
+          )
+            continue;
 
-          const titleChanged = material.title       !== material.originalTitle;
-          const typeChanged  = material.type        !== material.originalType;
-          const descChanged  = material.description !== material.originalDescription;
-          const urlChanged   = material.inputType === "url"  && material.url  !== material.originalUrl;
-          const fileChanged  = material.inputType === "file" && !!material.newFile;
+          const titleChanged = material.title !== material.originalTitle;
+          const typeChanged = material.type !== material.originalType;
+          const descChanged =
+            material.description !== material.originalDescription;
+          const urlChanged =
+            material.inputType === "url" &&
+            material.url !== material.originalUrl;
+          const fileChanged =
+            material.inputType === "file" && !!material.newFile;
 
-          if (!titleChanged && !typeChanged && !descChanged && !urlChanged && !fileChanged) continue;
+          if (
+            !titleChanged &&
+            !typeChanged &&
+            !descChanged &&
+            !urlChanged &&
+            !fileChanged
+          )
+            continue;
 
-          if (material.inputType === "file" && fileChanged && material.newFile) {
+          if (
+            material.inputType === "file" &&
+            fileChanged &&
+            material.newFile
+          ) {
             const formData = new FormData();
-            formData.append("title",       material.title);
-            formData.append("type",        material.type);
-            formData.append("subject",     String(subject.id));
+            formData.append("title", material.title);
+            formData.append("type", material.type);
+            formData.append("subject", String(subject.id));
             formData.append("description", material.description || "");
-            formData.append("file",        material.newFile);
+            formData.append("file", material.newFile);
             await updateSubMaterialImgApi(material.id, formData);
           } else if (material.inputType === "file") {
             await updateSubMaterialApi(material.id, {
-              title:       material.title,
-              type:        material.type,
-              subject:     subject.id,
+              title: material.title,
+              type: material.type,
+              subject: subject.id,
               description: material.description || "",
-              file:        material.file,
+              file: extractFilePath(material.file),
             });
           } else {
             await updateSubMaterialApi(material.id, {
-              title:       material.title,
-              type:        material.type,
-              subject:     subject.id,
+              title: material.title,
+              type: material.type,
+              subject: subject.id,
               description: material.description || "",
-              url:         material.url!.trim(),
+              url: material.url!.trim(),
             });
           }
         }
@@ -613,15 +791,14 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────
-
   return (
     <div className="max-w-2xl mx-auto p-6">
-
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Edit Course</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            Edit Course
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             Update course info, subjects, and materials.
           </p>
@@ -635,11 +812,8 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
       </div>
 
       <div className="space-y-3">
-
-        {/* ── Section 1: Course Info ─────────────────────────────────── */}
         <Section index={1} title="Course Info" status={courseStatus}>
           <div className="space-y-3">
-
             <div>
               <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                 Course Name <span className="text-red-500">*</span>
@@ -648,7 +822,10 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                 ref={courseNameRef}
                 type="text"
                 value={courseName}
-                onChange={(e) => { setCourseName(e.target.value); setCourseStatus("idle"); }}
+                onChange={(e) => {
+                  setCourseName(e.target.value);
+                  setCourseStatus("idle");
+                }}
                 onBlur={handleCourseBlur}
                 onKeyDown={handleCourseKeyDown}
                 placeholder={
@@ -668,20 +845,23 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                 <select
                   value={selectedTrainer ?? ""}
                   onChange={(e) => {
-                    setSelectedTrainer(e.target.value ? Number(e.target.value) : null);
+                    setSelectedTrainer(
+                      e.target.value ? Number(e.target.value) : null,
+                    );
                     setCourseStatus("idle");
                   }}
                   className={inputCls}
                 >
                   <option value="">Select trainer</option>
                   {trainers.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
                   ))}
                 </select>
               </div>
             )}
 
-            {/* Manual Update button — admin / super_admin only */}
             {isAdminOrSuperAdmin && (
               <button
                 type="button"
@@ -689,14 +869,18 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                 disabled={courseStatus === "saving" || !courseName.trim()}
                 className="w-full py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
-                {courseStatus === "saving" ? <><SpinnerIcon /> Saving…</> : "Update Course"}
+                {courseStatus === "saving" ? (
+                  <>
+                    <SpinnerIcon /> Saving…
+                  </>
+                ) : (
+                  "Update Course"
+                )}
               </button>
             )}
-
           </div>
         </Section>
 
-        {/* ── Section 2: Subjects & Materials ───────────────────────── */}
         <Section
           index={2}
           title="Subjects & Materials"
@@ -712,7 +896,9 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
         >
           {subjects.length === 0 ? (
             <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-              <p className="text-sm text-gray-400">No subjects yet. Click "Add Subject" to begin.</p>
+              <p className="text-sm text-gray-400">
+                No subjects yet. Click "Add Subject" to begin.
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -721,16 +907,14 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                   key={subject.id ?? `new-${si}`}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
                 >
-
                   {/* Subject row */}
                   <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 dark:bg-gray-800/50">
-
                     <button
                       type="button"
                       onClick={() => toggleExpand(si)}
                       className="p-0.5 shrink-0"
                     >
-                      <ChevronRightIcon open={expandedSubjects.includes(si)} />
+                      <ChevronRightIcon open={expandedSubjects.has(si)} />
                     </button>
 
                     <input
@@ -739,7 +923,10 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                       onChange={(e) => updateSubjectName(si, e.target.value)}
                       onBlur={() => saveSubjectName(si)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") { e.preventDefault(); saveSubjectName(si); }
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          saveSubjectName(si);
+                        }
                       }}
                       placeholder="Subject name — press Enter to save"
                       className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400"
@@ -747,12 +934,13 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
 
                     <StatusBadge status={subjectStatuses[si] || "idle"} />
 
-                    {/* Add material — only enabled once subject has a real id */}
                     <button
                       type="button"
                       onClick={() => addMaterial(si)}
                       disabled={!subject.id}
-                      title={subject.id ? "Add material" : "Save subject name first"}
+                      title={
+                        subject.id ? "Add material" : "Save subject name first"
+                      }
                       className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <PlusIcon />
@@ -769,7 +957,7 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                   </div>
 
                   {/* Materials list */}
-                  {expandedSubjects.includes(si) && (
+                  {expandedSubjects.has(si) && (
                     <div className="px-3 py-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
                       {subject.materials.length === 0 ? (
                         <p className="text-xs text-gray-400 text-center py-2">
@@ -785,24 +973,39 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                               key={material.id ?? `newmat-${si}-${mi}`}
                               className="bg-gray-50 dark:bg-gray-800/40 rounded-lg p-3 space-y-2"
                             >
-
-                              {/* Title + type + status + delete */}
+                              {/* Title + type + delete */}
                               <div className="flex gap-2 items-start">
                                 <input
                                   type="text"
                                   value={material.title}
-                                  onChange={(e) => updateMaterial(si, mi, "title", e.target.value)}
+                                  onChange={(e) =>
+                                    updateMaterial(
+                                      si,
+                                      mi,
+                                      "title",
+                                      e.target.value,
+                                    )
+                                  }
                                   placeholder="Material title"
                                   className="flex-1 px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400"
                                 />
                                 <select
                                   value={material.type}
-                                  onChange={(e) => updateMaterial(si, mi, "type", e.target.value)}
+                                  onChange={(e) =>
+                                    updateMaterial(
+                                      si,
+                                      mi,
+                                      "type",
+                                      e.target.value,
+                                    )
+                                  }
                                   className="w-40 px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
                                 >
                                   <option value="">Type</option>
                                   {materialTypes.map((t) => (
-                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                    <option key={t.value} value={t.value}>
+                                      {t.label}
+                                    </option>
                                   ))}
                                 </select>
                                 <button
@@ -824,7 +1027,12 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                                       updateMaterial(si, mi, "inputType", type);
                                       if (type === "url") {
                                         updateMaterial(si, mi, "newFile", null);
-                                        updateMaterial(si, mi, "fileChanged", false);
+                                        updateMaterial(
+                                          si,
+                                          mi,
+                                          "fileChanged",
+                                          false,
+                                        );
                                       } else {
                                         updateMaterial(si, mi, "url", null);
                                       }
@@ -845,7 +1053,14 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                                 <input
                                   type="url"
                                   value={material.url || ""}
-                                  onChange={(e) => updateMaterial(si, mi, "url", e.target.value)}
+                                  onChange={(e) =>
+                                    updateMaterial(
+                                      si,
+                                      mi,
+                                      "url",
+                                      e.target.value,
+                                    )
+                                  }
                                   placeholder="https://example.com/resource"
                                   className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400"
                                 />
@@ -862,24 +1077,29 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                                       {material.newFile
                                         ? material.newFile.name
                                         : material.file
-                                          ? "Current: " + material.file.split("/").pop()
+                                          ? "Current: " +
+                                            getFileName(material.file)
                                           : "Click to choose file"}
                                     </span>
                                   </label>
                                   <input
                                     id={`mat-file-${si}-${mi}`}
                                     type="file"
-                                    onChange={(e) => handleFileChange(e, si, mi)}
+                                    onChange={(e) =>
+                                      handleFileChange(e, si, mi)
+                                    }
                                     className="hidden"
                                     accept=".pdf,.doc,.docx,.txt,.zip,.mp4,.jpg,.png"
                                   />
                                   {material.file && !material.newFile && (
-                                    <p className="text-xs text-green-600 mt-1">✓ Current file will be kept</p>
+                                    <p className="text-xs text-green-600 mt-1">
+                                      ✓ Current file will be kept
+                                    </p>
                                   )}
                                 </div>
                               )}
 
-                              {/* Save / Update Material button + status */}
+                              {/* Save / Update button + status */}
                               <div className="flex items-center justify-between gap-2 pt-1">
                                 <StatusBadge status={matStatus} />
                                 <button
@@ -888,27 +1108,28 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
                                   disabled={matStatus === "saving"}
                                   className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                 >
-                                  {matStatus === "saving"
-                                    ? <><SpinnerIcon /> Saving…</>
-                                    : material.isNew
-                                      ? "Save Material"
-                                      : "Update Material"}
+                                  {matStatus === "saving" ? (
+                                    <>
+                                      <SpinnerIcon /> Saving…
+                                    </>
+                                  ) : material.isNew ? (
+                                    "Save Material"
+                                  ) : (
+                                    "Update Material"
+                                  )}
                                 </button>
                               </div>
-
                             </div>
                           );
                         })
                       )}
                     </div>
                   )}
-
                 </div>
               ))}
             </div>
           )}
         </Section>
-
       </div>
 
       {/* Footer */}
@@ -926,10 +1147,15 @@ const EditCourse: React.FC<EditCourseProps> = ({ course, onComplete, onCancel })
           disabled={saving}
           className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
         >
-          {saving ? <><SpinnerIcon /> Saving…</> : "Save Changes →"}
+          {saving ? (
+            <>
+              <SpinnerIcon /> Saving…
+            </>
+          ) : (
+            "Save Changes →"
+          )}
         </button>
       </div>
-
     </div>
   );
 };

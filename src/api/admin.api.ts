@@ -81,7 +81,7 @@ export const getAllRegionsApi = () => {
 }
 
 export const getSHGUserByIdApi = (userId: number) => {
-    return client.get(`partners/app/${userId}/`)
+    return client.get(`partners/app/cm-ccm/${userId}/`)
     .then(res => res.data)
 }  
 

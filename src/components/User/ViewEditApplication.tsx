@@ -41,7 +41,7 @@ interface AppDocument {
   id?: number;
   document_type: string;
   file: string;
-  is_approved: boolean;
+  status: string;
 }
 interface SHGUserData {
   id: number;
@@ -67,7 +67,7 @@ interface SHGUserData {
     email: string;
     phone: string;
     is_active: boolean;
-    is_approved: boolean;
+    status: string;
     region: number | null;
     roles: string[];
   };
@@ -277,21 +277,23 @@ const ViewEditApplication: React.FC = () => {
     }
   };
 
-  const handleDocumentVerify = async (doc: AppDocument, approved: boolean) => {
+  const handleDocumentVerify = async (doc: AppDocument, status: string) => {
     if (!doc.id) {
       toast.error("Document ID not available");
       return;
     }
     setDocVerifying((prev) => ({ ...prev, [doc.id!]: true }));
     try {
-      await documentVerifyApi(doc.id, { is_approved: approved });
-      toast.success(`Document ${approved ? "approved" : "rejected"}`);
+      await documentVerifyApi(doc.id, { status: status });
+      toast.success(
+        `Document ${status === "approved" ? "approved" : "rejected"}`,
+      );
       setShgUserData((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
           documents: prev.documents.map((d) =>
-            d.id === doc.id ? { ...d, is_approved: approved } : d,
+            d.id === doc.id ? { ...d, status: status } : d,
           ),
         };
       });
@@ -302,21 +304,27 @@ const ViewEditApplication: React.FC = () => {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // Processing save
-  // ---------------------------------------------------------------------------
   const handleProcessingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
+      let derivedStatus = application?.status;
+      if (processingForm.assigned_trainer) {
+        derivedStatus = "training";
+      } else if (processingForm.assigned_financier) {
+        derivedStatus = "assigned";
+      }
+
       await updateApplicationStatusApi(parseInt(id!), {
         assigned_trainer: processingForm.assigned_trainer || null,
         assigned_financier: processingForm.assigned_financier || null,
         public_notes: processingForm.public_notes,
         private_notes: processingForm.private_notes,
         payment_status: processingForm.payment_status,
+        status: derivedStatus,
       });
       toast.success("Application updated successfully");
+      navigate("/applications")
       fetchApplicationDetails(parseInt(id!));
     } catch (err) {
       toast.error(handleAxiosError(err, "Failed to update application"));
@@ -740,10 +748,7 @@ const ViewEditApplication: React.FC = () => {
                       Documents
                     </h2>
                     <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                      {
-                        shgUserData.documents.filter((d) => d.is_approved)
-                          .length
-                      }
+                      {shgUserData.documents.filter((d) => d.status).length}
                       {" / "}
                       {shgUserData.documents.length} verified
                     </span>
@@ -787,12 +792,14 @@ const ViewEditApplication: React.FC = () => {
 
                               <span
                                 className={`hidden sm:inline-flex flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  doc.is_approved
+                                  doc.status === "approved"
                                     ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
-                                    : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                                    : doc.status === "rejected"
+                                      ? "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+                                      : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
                                 }`}
                               >
-                                {doc.is_approved ? "Approved" : "Pending"}
+                                {doc.status || "pending"}
                               </span>
 
                               {/* Approve / Reject */}
@@ -800,12 +807,12 @@ const ViewEditApplication: React.FC = () => {
                                 <div className="flex-shrink-0 flex items-center gap-0.5 sm:gap-1">
                                   <button
                                     onClick={() =>
-                                      handleDocumentVerify(doc, true)
+                                      handleDocumentVerify(doc, "approved")
                                     }
                                     disabled={isVerifying}
                                     title="Approve"
                                     className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                                      doc.is_approved
+                                      doc.status
                                         ? "text-green-600 bg-green-50 dark:bg-green-500/10"
                                         : "text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10"
                                     }`}
@@ -814,12 +821,12 @@ const ViewEditApplication: React.FC = () => {
                                   </button>
                                   <button
                                     onClick={() =>
-                                      handleDocumentVerify(doc, false)
+                                      handleDocumentVerify(doc, "rejected")
                                     }
                                     disabled={isVerifying}
                                     title="Reject"
                                     className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                                      !doc.is_approved
+                                      !doc.status
                                         ? "text-red-600 bg-red-50 dark:bg-red-500/10"
                                         : "text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
                                     }`}
@@ -839,7 +846,7 @@ const ViewEditApplication: React.FC = () => {
                   {(() => {
                     const docs = shgUserData?.documents ?? [];
                     const allApproved =
-                      docs.length > 0 && docs.every((d) => d.is_approved);
+                      docs.length > 0 && docs.every((d) => d.status === "approved");
                     return (
                       <div className="flex flex-col items-stretch sm:items-end gap-1.5 px-4 sm:px-6 pb-4 sm:pb-5 pt-3 sm:pt-4 border-t border-gray-100 dark:border-gray-700 mt-auto">
                         {!allApproved && docs.length > 0 && (
@@ -877,9 +884,6 @@ const ViewEditApplication: React.FC = () => {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════
-            STEP 2 — Application Processing
-        ══════════════════════════════════════════════════════════════ */}
         {currentStep === 2 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
             {/* Step 2 header */}
@@ -916,30 +920,6 @@ const ViewEditApplication: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Assigned Trainer
-                    </label>
-                    <select
-                      name="assigned_trainer"
-                      value={processingForm.assigned_trainer}
-                      onChange={(e) =>
-                        setProcessingForm((p) => ({
-                          ...p,
-                          assigned_trainer: e.target.value,
-                        }))
-                      }
-                      className={inputCls}
-                    >
-                      <option value="">Select Trainer</option>
-                      {trainers.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Assigned Financier
                     </label>
                     <select
@@ -961,39 +941,62 @@ const ViewEditApplication: React.FC = () => {
                       ))}
                     </select>
                   </div>
+                  {/* Payment Status */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Payment Status
+                    </label>
+                    <select
+                      name="payment_status"
+                      value={processingForm.payment_status}
+                      onChange={(e) =>
+                        setProcessingForm((p) => ({
+                          ...p,
+                          payment_status: e.target.value,
+                        }))
+                      }
+                      className={inputCls}
+                    >
+                      <option value="">Select Payment Status</option>
+                      {(paymentOptions.length > 0
+                        ? paymentOptions
+                        : [
+                            { value: "pending", label: "Pending" },
+                            { value: "cleared", label: "Cleared" },
+                          ]
+                      ).map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {application?.payment_status === "cleared" &&(
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Assigned Trainer
+                    </label>
+                    <select
+                      name="assigned_trainer"
+                      value={processingForm.assigned_trainer}
+                      onChange={(e) =>
+                        setProcessingForm((p) => ({
+                          ...p,
+                          assigned_trainer: e.target.value,
+                        }))
+                      }
+                      className={inputCls}
+                    >
+                      <option value="">Select Trainer</option>
+                      {trainers.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  )}
                 </div>
-
-                {/* Payment Status */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Payment Status
-                  </label>
-                  <select
-                    name="payment_status"
-                    value={processingForm.payment_status}
-                    onChange={(e) =>
-                      setProcessingForm((p) => ({
-                        ...p,
-                        payment_status: e.target.value,
-                      }))
-                    }
-                    className={inputCls}
-                  >
-                    <option value="">Select Payment Status</option>
-                    {(paymentOptions.length > 0
-                      ? paymentOptions
-                      : [
-                          { value: "pending", label: "Pending" },
-                          { value: "cleared", label: "Cleared" },
-                        ]
-                    ).map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 {/* Notes — Private Notes only */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
