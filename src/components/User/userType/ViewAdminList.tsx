@@ -39,6 +39,7 @@ interface User {
   groups: any[];
   roles: string[];
   user_permissions: any[];
+   invite_accepted?: boolean | null;
 }
 
 // Form state – matches the required payload
@@ -548,6 +549,45 @@ const ViewAdminList = () => {
         ],
         enableColumnFilter: true,
       },
+      {
+        accessorFn: (row) =>
+          row.invite_accepted === true
+            ? "accepted"
+            : row.invite_accepted === false
+              ? "pending"
+              : "",
+        id: "invite_accepted",
+        header: "Invite Accepted",
+        size: 200,
+
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+
+          return (
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                value === "accepted"
+                  ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                  : value === "pending"
+                    ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                    : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {value === "accepted"
+                ? "Accepted"
+                : value === "pending"
+                  ? "Pending"
+                  : "-"}
+            </span>
+          );
+        },
+
+        filterVariant: "select",
+        filterSelectOptions: [
+          { text: "Accepted", value: "accepted" },
+          { text: "Pending", value: "pending" },
+        ],
+      },
     ],
     [
       pagination.pageIndex,
@@ -623,17 +663,11 @@ const ViewAdminList = () => {
         region: formData.region,
       };
 
-      const response = await sendInvitationApi([payload]);
+      await sendInvitationApi([payload]);
 
-      const result = response?.data?.[0] || response?.[0];
-
-      if (result?.is_sent) {
-        toast.success("User invitation sent successfully");
-        handleCloseModal();
-        fetchUsers();
-      } else {
-        toast.warning("Email was not sent. Please check the email address.");
-      }
+      toast.success("User invitation sent successfully");
+      handleCloseModal();
+      fetchUsers();
     } catch (error) {
       const errorMessage = handleAxiosError(
         error,

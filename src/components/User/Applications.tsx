@@ -54,7 +54,9 @@ const Applications = () => {
 
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
+    [],
+  );
   const [totalCount, setTotalCount] = useState<number>(0);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -69,7 +71,11 @@ const Applications = () => {
 
   // Check if user can edit payment status
   const canEditPaymentStatus = useMemo(() => {
-    return userRole === "super_admin" || userRole === "admin" || userRole === "financier";
+    return (
+      userRole === "super_admin" ||
+      userRole === "admin" ||
+      userRole === "financier"
+    );
   }, [userRole]);
 
   useEffect(() => {
@@ -90,7 +96,7 @@ const Applications = () => {
     } catch (err) {
       const errorMessage = handleAxiosError(
         err,
-        "Failed to fetch applications"
+        "Failed to fetch applications",
       );
       toast.error(errorMessage);
       setApplications([]);
@@ -100,7 +106,10 @@ const Applications = () => {
     }
   };
 
-  const handleUpdatePaymentStatus = async (rowId: number, newStatus: string) => {
+  const handleUpdatePaymentStatus = async (
+    rowId: number,
+    newStatus: string,
+  ) => {
     try {
       setLoading(true);
       const response = await updateApplicationStatusApi(rowId, {
@@ -110,41 +119,47 @@ const Applications = () => {
       if (response) {
         toast.success("Payment status updated successfully");
         // Update local state
-        setApplications(prevApps =>
-          prevApps.map(app =>
-            app.id === rowId ? { ...app, payment_status: newStatus } : app
-          )
+        setApplications((prevApps) =>
+          prevApps.map((app) =>
+            app.id === rowId ? { ...app, payment_status: newStatus } : app,
+          ),
         );
         setEditingPaymentStatus(null);
       }
     } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to update payment status");
+      const errorMessage = handleAxiosError(
+        error,
+        "Failed to update payment status",
+      );
       toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = useCallback((row: Application) => {
-    if(row.status !== "under_review"){
-      updateApplicationStatusApi(row.id, {
-       status: "under_review"
-      })
-    }
-    navigate(`/applications/edit/${row.id}`);
-  }, [navigate]);
+  const handleEdit = useCallback(
+    (row: Application) => {
+      if (row.status !== "under_review") {
+        updateApplicationStatusApi(row.id, {
+          status: "under_review",
+        });
+      }
+      navigate(`/applications/edit/${row.id}`);
+    },
+    [navigate],
+  );
 
   const handleRejected = useCallback((row: Application) => {
-     updateApplicationStatusApi(row.id, {
-      status: "rejected"
-     })
-       setApplications(prevApps =>
-          prevApps.map(app =>
-            app.id === row.id ? { ...app, status: "rejected" } : app
-          )
-        );
-    toast.success("Application rejected successfully!")
-  }, [])
+    updateApplicationStatusApi(row.id, {
+      status: "rejected",
+    });
+    setApplications((prevApps) =>
+      prevApps.map((app) =>
+        app.id === row.id ? { ...app, status: "rejected" } : app,
+      ),
+    );
+    toast.success("Application rejected successfully!");
+  }, []);
 
   const rowActionsList = useMemo(() => {
     const actions = [];
@@ -160,7 +175,7 @@ const Applications = () => {
       className: "text-red-700 hover:text-red-900 dark:text-red-600",
       icon: <XCircle className="w-4 h-4 fill-currect" />,
       onClick: handleRejected,
-    })
+    });
     return actions;
   }, [handleEdit, handleRejected]);
 
@@ -196,7 +211,7 @@ const Applications = () => {
           value: item.value,
         })),
       },
-         {
+      {
         accessorFn: (row) => row?.financier_details ?? "-",
         id: "financier_details",
         header: "Financier",
@@ -207,91 +222,23 @@ const Applications = () => {
         id: "payment_status",
         header: "Payment Status",
         size: 150,
-        Cell: ({ row }) => {
-          const paymentStatus = row.original.payment_status;
-          const isEditing = editingPaymentStatus?.rowId === row.original.id;
+        Cell: ({ cell }) => {
+          const status = cell.getValue<string>() ?? "pending";
 
-          // If currently editing this row
-          if (isEditing && canEditPaymentStatus) {
-            return (
-              <div className="flex items-center gap-2">
-                <select
-                  value={editingPaymentStatus.currentValue}
-                  onChange={(e) => 
-                    setEditingPaymentStatus({
-                      rowId: row.original.id,
-                      currentValue: e.target.value,
-                    })
-                  }
-                  className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white"
-                  autoFocus
-                >
-                  {paymentStatusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => 
-                    handleUpdatePaymentStatus(row.original.id, editingPaymentStatus.currentValue)
-                  }
-                  className="p-1 text-success-600 hover:text-success-700 dark:text-success-400"
-                  title="Save"
-                >
-                  <CheckIcon className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setEditingPaymentStatus(null)}
-                  className="p-1 text-error-600 hover:text-error-700 dark:text-error-400"
-                  title="Cancel"
-                >
-                  <CloseIcon className="w-4 h-4" />
-                </button>
-              </div>
-            );
-          }
-
-          // Display mode
-          const match = paymentStatusOptions.find(
-            (option) => option.value === paymentStatus
-          );
-          
           return (
-            <div className="flex items-center gap-2">
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  paymentStatus === "cleared"
-                    ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                    : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
-                }`}
-              >
-                {match?.label ?? paymentStatus}
-              </span>
-              
-              {/* Edit button for payment status - only shown to authorized roles */}
-              {canEditPaymentStatus && (
-                <button
-                  onClick={() => 
-                    setEditingPaymentStatus({
-                      rowId: row.original.id,
-                      currentValue: paymentStatus,
-                    })
-                  }
-                  className="p-1 text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
-                  title="Edit payment status"
-                >
-                  <PencilIcon className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                status === "cleared"
+                  ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                  : status === "failed"
+                    ? "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+                    : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+              }`}
+            >
+              {status}
+            </span>
           );
         },
-        filterVariant: "select",
-        filterSelectOptions: paymentStatusOptions.map((item) => ({
-          text: item.label,
-          value: item.value,
-        })),
       },
       {
         accessorFn: (row) => row?.trainer_details ?? "-",
@@ -302,17 +249,19 @@ const Applications = () => {
       },
       {
         accessorFn: (row) =>
-          row?.created_at
-            ? new Date(row.created_at).toLocaleDateString()
-            : "-",
+          row?.created_at ? new Date(row.created_at).toLocaleDateString() : "-",
         id: "created_at",
         header: "Created Date",
         size: 150,
         enableColumnFilter: false,
       },
-   
     ],
-    [pagination.pageIndex, pagination.pageSize, editingPaymentStatus, canEditPaymentStatus],
+    [
+      pagination.pageIndex,
+      pagination.pageSize,
+      editingPaymentStatus,
+      canEditPaymentStatus,
+    ],
   );
 
   return (
@@ -326,7 +275,8 @@ const Applications = () => {
         </p>
         {!loading && (
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-            Total Applications: <span className="font-semibold">{totalCount}</span>
+            Total Applications:{" "}
+            <span className="font-semibold">{totalCount}</span>
           </p>
         )}
       </div>

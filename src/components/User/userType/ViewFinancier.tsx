@@ -37,6 +37,7 @@ interface User {
   groups: any[];
   roles: string[];
   user_permissions: any[];
+  invite_accepted?: boolean | null;
 }
 
 interface ToolbarAction {
@@ -56,33 +57,35 @@ interface NewUserForm {
   email: string;
   phone: string;
   role: string;
-  mnpUser: string; // This will store the manager ID as string
+  mnpUser: string; // Made required instead of optional
 }
 
-const ViewFinancier = () => {
+interface EditingState {
+  userId: number;
+  isActive?: boolean;
+  isApproved?: boolean;
+}
+
+const ViewFinancier: React.FC = () => {
   const userRole = getUserRole("admin");
   const [users, setUsers] = useState<User[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
   });
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [roleList, setRoleList] = useState<OptionType[]>([]);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
 
-  const [editingApproval, setEditingApproval] = useState<{
-    userId: number;
-    isApproved: boolean;
-  } | null>(null);
-  const [editingStatus, setEditingStatus] = useState<{
-    userId: number;
-    isActive: boolean;
-  } | null>(null);
+  const [editingApproval, setEditingApproval] = useState<EditingState | null>(
+    null,
+  );
+  const [editingStatus, setEditingStatus] = useState<EditingState | null>(null);
 
   const [formData, setFormData] = useState<NewUserForm>({
     first_name: "",
@@ -99,11 +102,11 @@ const ViewFinancier = () => {
   >({});
 
   // Check user roles
-  const isSuperAdmin = userRole === "super_admin";
-  const isAdmin = userRole === "admin";
-  const canAddUsers = isSuperAdmin || isAdmin;
-  const canEditApproval = isSuperAdmin || isAdmin;
-  const canEditStatus = isSuperAdmin || isAdmin;
+  const isSuperAdmin: boolean = userRole === "super_admin";
+  const isAdmin: boolean = userRole === "admin";
+  const canAddUsers: boolean = isSuperAdmin || isAdmin;
+  const canEditApproval: boolean = isSuperAdmin || isAdmin;
+  const canEditStatus: boolean = isSuperAdmin || isAdmin;
 
   // Reset form and errors when modal closes
   useEffect(() => {
@@ -122,22 +125,26 @@ const ViewFinancier = () => {
 
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (): Promise<void> => {
     setColumnFilters([]);
     try {
       setLoading(true);
       const response = await getRoleUsers(["financier"]);
       const adminRole = await getRoleUsers(["admin"]);
-      
+
       // Transform admin role data to OptionType format
       const adminData = adminRole?.data?.results || adminRole || [];
       const formattedAdminList: OptionType[] = adminData.map((admin: any) => ({
         value: admin.id?.toString() || "",
-        label: `${admin.first_name || ""} ${admin.last_name || ""}`.trim() || admin.email || "Unnamed",
+        label:
+          `${admin.first_name || ""} ${admin.last_name || ""}`.trim() ||
+          admin.email ||
+          "Unnamed",
       }));
-      
+
       const userData = response?.data?.results || response || [];
       setUsers(userData);
       setRoleList(formattedAdminList);
@@ -155,7 +162,7 @@ const ViewFinancier = () => {
   const handleApprovalChange = async (
     userId: number,
     newApprovalStatus: boolean,
-  ) => {
+  ): Promise<void> => {
     if (!canEditApproval) {
       toast.error("You don't have permission to edit approval status");
       return;
@@ -185,7 +192,10 @@ const ViewFinancier = () => {
     }
   };
 
-  const handleStatusChange = async (userId: number, newStatus: boolean) => {
+  const handleStatusChange = async (
+    userId: number,
+    newStatus: boolean,
+  ): Promise<void> => {
     if (!canEditStatus) {
       toast.error("You don't have permission to edit user status");
       return;
@@ -215,12 +225,12 @@ const ViewFinancier = () => {
     }
   };
 
-  const handleAddUser = () => setIsAddModalOpen(true);
-  const handleCloseModal = () => setIsAddModalOpen(false);
+  const handleAddUser = (): void => setIsAddModalOpen(true);
+  const handleCloseModal = (): void => setIsAddModalOpen(false);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
+  ): void => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -250,7 +260,8 @@ const ViewFinancier = () => {
       newErrors.phone = "Please enter a valid 10-digit phone number";
     }
 
-    if (!formData.mnpUser?.trim()) {
+    // Check MNP User - only for non-admin users
+    if (!isAdmin && !formData.mnpUser?.trim()) {
       newErrors.mnpUser = "Please select a MNP User";
     }
 
@@ -258,32 +269,46 @@ const ViewFinancier = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setSubmitting(true);
+    const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
 
     try {
-      // Convert mnpUser string to number and send only the ID
+      // Calculate manager ID safely
+      let managerId: number;
+      if (isAdmin) {
+        managerId = adminUser.id;
+      } else {
+        // Ensure mnpUser exists and is a valid string before parsing
+        if (!formData.mnpUser) {
+          toast.error("MNP User is required");
+          setSubmitting(false);
+          return;
+        }
+        managerId = parseInt(formData.mnpUser, 10);
+        if (isNaN(managerId)) {
+          toast.error("Invalid MNP User selected");
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const payload: SendInvitationRequest = {
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
         phone: `+91${formData.phone}`,
         roles: ["financier"],
-        manager:  parseInt(formData.mnpUser), 
+        manager: managerId,
       };
 
-      const response = await sendInvitationApi([payload]);
-
-      const result = response?.data?.[0] || response?.[0];
-
-      if (result?.is_sent) {
-        toast.success("User invitation sent successfully");
-        handleCloseModal();
-        fetchUsers();
-      }
+      await sendInvitationApi([payload]);
+      toast.success("User invitation sent successfully");
+      handleCloseModal();
+      fetchUsers();
     } catch (error) {
       const errorMessage = handleAxiosError(
         error,
@@ -301,7 +326,7 @@ const ViewFinancier = () => {
         accessorKey: "first_name",
         header: "First Name",
         size: 120,
-        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+        Cell: ({ cell }: { cell: MRT_Cell<User> }) => {
           const value = cell.getValue() as string | null;
           return value || "-";
         },
@@ -312,7 +337,7 @@ const ViewFinancier = () => {
         accessorKey: "last_name",
         header: "Last Name",
         size: 120,
-        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+        Cell: ({ cell }: { cell: MRT_Cell<User> }) => {
           const value = cell.getValue() as string | null;
           return value || "-";
         },
@@ -330,7 +355,7 @@ const ViewFinancier = () => {
         accessorKey: "email",
         header: "Email",
         size: 200,
-        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+        Cell: ({ cell }: { cell: MRT_Cell<User> }) => {
           const value = cell.getValue() as string | null;
           return value || "-";
         },
@@ -341,8 +366,8 @@ const ViewFinancier = () => {
         accessorKey: "roles",
         header: "Role",
         size: 150,
-        accessorFn: (row) => row.roles?.[0] || "",
-        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
+        accessorFn: (row: User) => row.roles?.[0] || "",
+        Cell: ({ cell }: { cell: MRT_Cell<User> }) => {
           const row = cell.row.original;
           const roles = row.roles;
           if (!roles || roles.length === 0) return "-";
@@ -354,7 +379,7 @@ const ViewFinancier = () => {
         accessorKey: "created_at",
         header: "Created Date",
         size: 150,
-        Cell: ({ cell }) => {
+        Cell: ({ cell }: { cell: MRT_Cell<User> }) => {
           const value = cell.getValue<string>();
           return value ? new Date(value).toLocaleDateString() : "-";
         },
@@ -364,7 +389,7 @@ const ViewFinancier = () => {
         accessorKey: "is_active",
         header: "Status",
         size: 150,
-        accessorFn: (row) => (row.is_active ? "active" : "inactive"),
+        accessorFn: (row: User) => (row.is_active ? "active" : "inactive"),
         Cell: ({ row }: { row: MRT_Row<User> }) => {
           const userId = row.original.id;
           const isActive = row.original.is_active;
@@ -374,7 +399,7 @@ const ViewFinancier = () => {
             return (
               <div className="flex items-center gap-2">
                 <select
-                  value={editingStatus.isActive ? "active" : "inactive"}
+                  value={editingStatus?.isActive ? "active" : "inactive"}
                   onChange={(e) => {
                     const newValue = e.target.value === "active";
                     setEditingStatus({
@@ -390,7 +415,8 @@ const ViewFinancier = () => {
                 </select>
                 <button
                   onClick={() =>
-                    handleStatusChange(userId, editingStatus.isActive)
+                    editingStatus &&
+                    handleStatusChange(userId, editingStatus.isActive || false)
                   }
                   className="p-1 text-success-600 hover:text-success-700 dark:text-success-400"
                   title="Save"
@@ -478,7 +504,7 @@ const ViewFinancier = () => {
         accessorKey: "is_approved",
         header: "Approval",
         size: 150,
-        accessorFn: (row) => (row.is_approved ? "approved" : "pending"),
+        accessorFn: (row: User) => (row.is_approved ? "approved" : "pending"),
         Cell: ({ row }: { row: MRT_Row<User> }) => {
           const userId = row.original.id;
           const isApproved = row.original.is_approved;
@@ -488,7 +514,7 @@ const ViewFinancier = () => {
             return (
               <div className="flex items-center gap-2">
                 <select
-                  value={editingApproval.isApproved ? "approved" : "pending"}
+                  value={editingApproval?.isApproved ? "approved" : "pending"}
                   onChange={(e) => {
                     const newValue = e.target.value === "approved";
                     setEditingApproval({
@@ -504,7 +530,11 @@ const ViewFinancier = () => {
                 </select>
                 <button
                   onClick={() =>
-                    handleApprovalChange(userId, editingApproval.isApproved)
+                    editingApproval &&
+                    handleApprovalChange(
+                      userId,
+                      editingApproval.isApproved || false,
+                    )
                   }
                   className="p-1 text-success-600 hover:text-success-700 dark:text-success-400"
                   title="Save"
@@ -588,15 +618,47 @@ const ViewFinancier = () => {
         ],
         enableColumnFilter: true,
       },
+      {
+        accessorFn: (row) =>
+          row.invite_accepted === true
+            ? "accepted"
+            : row.invite_accepted === false
+              ? "pending"
+              : "",
+        id: "invite_accepted",
+        header: "Invite Accepted",
+        size: 200,
+
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+
+          return (
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                value === "accepted"
+                  ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                  : value === "pending"
+                    ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                    : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {value === "accepted"
+                ? "Accepted"
+                : value === "pending"
+                  ? "Pending"
+                  : "-"}
+            </span>
+          );
+        },
+
+        filterVariant: "select",
+        filterSelectOptions: [
+          { text: "Accepted", value: "accepted" },
+          { text: "Pending", value: "pending" },
+        ],
+      },
     ],
-    [
-      pagination.pageIndex,
-      pagination.pageSize,
-      canEditApproval,
-      canEditStatus,
-      editingApproval,
-      editingStatus,
-    ],
+    [canEditApproval, canEditStatus, editingApproval, editingStatus],
   );
 
   const toolbarActions: ToolbarAction[] = [
@@ -788,36 +850,38 @@ const ViewFinancier = () => {
                 </div>
 
                 {/* MNP User Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    MNP User <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="mnpUser"
-                    value={formData.mnpUser}
-                    onChange={handleInputChange}
-                    required
-                    className={`w-full px-3 py-2 border ${
-                      errors.mnpUser
-                        ? "border-red-500 dark:border-red-500"
-                        : "border-gray-300 dark:border-gray-600"
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
-                  >
-                    <option value="" disabled>
-                      Select a MNP User
-                    </option>
-                    {roleList.map((admin) => (
-                      <option key={admin.value} value={admin.value}>
-                        {admin.label}
+                {!isAdmin && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      MNP User <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="mnpUser"
+                      value={formData.mnpUser}
+                      onChange={handleInputChange}
+                      required={!isAdmin}
+                      className={`w-full px-3 py-2 border ${
+                        errors.mnpUser
+                          ? "border-red-500 dark:border-red-500"
+                          : "border-gray-300 dark:border-gray-600"
+                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
+                    >
+                      <option value="" disabled>
+                        Select a MNP User
                       </option>
-                    ))}
-                  </select>
-                  {errors.mnpUser && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {errors.mnpUser}
-                    </p>
-                  )}
-                </div>
+                      {roleList.map((admin) => (
+                        <option key={admin.value} value={admin.value}>
+                          {admin.label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.mnpUser && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {errors.mnpUser}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Form Actions */}
@@ -832,7 +896,7 @@ const ViewFinancier = () => {
                   disabled={submitting}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
                 >
-                  {submitting ? "Creating..." : "Create Trainer"}
+                  {submitting ? "Creating..." : "Create Financier"}
                 </Button>
               </div>
             </form>
