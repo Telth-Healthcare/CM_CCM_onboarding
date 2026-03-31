@@ -17,10 +17,47 @@ import PageMeta from "../../common/PageMeta";
 import { RightSideModal } from "../../mui/RightSideModal";
 import Button from "../../ui/button/Button";
 import CommonTable from "../../mui/MuiTable";
-import { PencilIcon, Users, User } from "lucide-react";
+import {
+  PencilIcon,
+  Users,
+  User,
+  Eye,
+} from "lucide-react";
 import { getGroupApi } from "../../../api/group.api";
+import ViewEnrollment from "./ViewEnrollment";
+import type { EnrollmentDetail } from "./ViewEnrollment";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+interface Material {
+  id: number;
+  title: string;
+  description: string;
+  type: "lecture_notes" | "reference_material" | "assignment" | string;
+  url: string | null;
+  file: string | null;
+  is_completed: boolean;
+  uploaded_at: string;
+  subject: number;
+}
+
+interface Subject {
+  id: number;
+  name: string;
+  description: string;
+  img: string | null;
+  course: number;
+  materials: Material[];
+}
+
+interface CourseDetails {
+  id: number;
+  name: string;
+  description: string;
+  img: string | null;
+  aurthor: string;
+  created_at: string;
+  created_by: number;
+  subjects: Subject[];
+}
 
 interface Invitation {
   id: number;
@@ -40,6 +77,10 @@ interface Invitation {
   user_name?: string;
   group?: number;
   group_name?: string;
+  course_details?: CourseDetails;
+  enrollment_date?: string;
+  is_completed?: boolean;
+  application_id?: number;
 }
 
 interface Student {
@@ -73,8 +114,6 @@ interface GroupEnrollPayload {
 
 type EnrollmentMode = "user" | "group";
 
-// ── State Types ─────────────────────────────────────────────────────────────────
-
 interface EnrollmentsState {
   invitations: Invitation[];
   loading: boolean;
@@ -83,6 +122,7 @@ interface EnrollmentsState {
   isAddModalOpen: boolean;
   isEditModalOpen: boolean;
   selectedEnrollment: Invitation | null;
+  viewingEnrollment: Invitation | null;
   enrollmentMode: EnrollmentMode;
   availableStudents: Student[];
   availableGroups: Group[];
@@ -105,6 +145,8 @@ type EnrollmentsAction =
   | { type: "SET_COLUMN_FILTERS"; payload: MRT_ColumnFiltersState }
   | { type: "OPEN_ADD_MODAL" }
   | { type: "OPEN_EDIT_MODAL"; payload: Invitation }
+  | { type: "OPEN_VIEW"; payload: Invitation }
+  | { type: "CLOSE_VIEW" }
   | { type: "CLOSE_MODAL" }
   | { type: "SET_ENROLLMENT_MODE"; payload: EnrollmentMode }
   | { type: "SET_AVAILABLE_STUDENTS"; payload: Student[] }
@@ -118,8 +160,6 @@ type EnrollmentsAction =
   | { type: "SET_ERRORS"; payload: Partial<EnrollmentsState["errors"]> }
   | { type: "RESET_FORM" };
 
-// ── Reducer ─────────────────────────────────────────────────────────────────────
-
 const initialState: EnrollmentsState = {
   invitations: [],
   loading: true,
@@ -128,6 +168,7 @@ const initialState: EnrollmentsState = {
   isAddModalOpen: false,
   isEditModalOpen: false,
   selectedEnrollment: null,
+  viewingEnrollment: null,
   enrollmentMode: "user",
   availableStudents: [],
   availableGroups: [],
@@ -146,13 +187,10 @@ const enrollmentsReducer = (
   switch (action.type) {
     case "SET_INVITATIONS":
       return { ...state, invitations: action.payload };
-
     case "SET_LOADING":
       return { ...state, loading: action.payload };
-
     case "SET_PAGINATION":
       return { ...state, pagination: action.payload };
-
     case "SET_COLUMN_FILTERS":
       return { ...state, columnFilters: action.payload };
 
@@ -161,6 +199,7 @@ const enrollmentsReducer = (
         ...state,
         isAddModalOpen: true,
         isEditModalOpen: false,
+        viewingEnrollment: null,
         selectedEnrollment: null,
         selectedStudents: [],
         selectedCourse: "",
@@ -173,12 +212,24 @@ const enrollmentsReducer = (
         ...state,
         isEditModalOpen: true,
         isAddModalOpen: false,
+        viewingEnrollment: null,
         selectedEnrollment: action.payload,
-        selectedCourse: action.payload.course, 
-        selectedStudents: [], 
+        selectedCourse: action.payload.course,
+        selectedStudents: [],
         selectedGroup: "",
         errors: {},
       };
+
+    case "OPEN_VIEW":
+      return {
+        ...state,
+        viewingEnrollment: action.payload,
+        isAddModalOpen: false,
+        isEditModalOpen: false,
+      };
+
+    case "CLOSE_VIEW":
+      return { ...state, viewingEnrollment: null };
 
     case "CLOSE_MODAL":
       return {
@@ -204,10 +255,8 @@ const enrollmentsReducer = (
 
     case "SET_AVAILABLE_STUDENTS":
       return { ...state, availableStudents: action.payload };
-
     case "SET_AVAILABLE_GROUPS":
       return { ...state, availableGroups: action.payload };
-
     case "SET_AVAILABLE_COURSES":
       return { ...state, availableCourses: action.payload };
 
@@ -224,19 +273,16 @@ const enrollmentsReducer = (
       return {
         ...state,
         selectedStudents: state.selectedStudents.filter(
-          (student) => student.id !== action.payload,
+          (s) => s.id !== action.payload,
         ),
       };
 
     case "SET_SELECTED_COURSE":
       return { ...state, selectedCourse: action.payload };
-
     case "SET_SELECTED_GROUP":
       return { ...state, selectedGroup: action.payload };
-
     case "SET_SUBMITTING":
       return { ...state, submitting: action.payload };
-
     case "SET_ERRORS":
       return { ...state, errors: { ...state.errors, ...action.payload } };
 
@@ -255,8 +301,6 @@ const enrollmentsReducer = (
   }
 };
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 const Enrollments = () => {
   const [state, dispatch] = useReducer(enrollmentsReducer, initialState);
   const {
@@ -267,6 +311,7 @@ const Enrollments = () => {
     isAddModalOpen,
     isEditModalOpen,
     selectedEnrollment,
+    viewingEnrollment,
     enrollmentMode,
     availableStudents,
     availableGroups,
@@ -278,7 +323,7 @@ const Enrollments = () => {
     errors,
   } = state;
 
-  // Fetch data on mount
+  // Fetch on mount
   useEffect(() => {
     fetchInvitations();
     fetchStudents();
@@ -286,17 +331,15 @@ const Enrollments = () => {
     fetchCourses();
   }, []);
 
-  // Update selected student when editing (separate from course)
+  // Pre-fill student when editing
   useEffect(() => {
     if (isEditModalOpen && selectedEnrollment && availableStudents.length > 0) {
-      // Find the student object from availableStudents
       const student = availableStudents.find(
         (s) => s.id === selectedEnrollment.user,
       );
       if (student) {
         dispatch({ type: "ADD_STUDENT", payload: student });
       } else if (selectedEnrollment.user_name || selectedEnrollment.email) {
-        // Create a temporary student object if not found
         dispatch({
           type: "ADD_STUDENT",
           payload: {
@@ -328,10 +371,12 @@ const Enrollments = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await getRoleUsers(["ccm", "cm"]);
+      const response = await getRoleUsers(["ccm"]);
       const studentsData = response?.data || response || [];
-      const students = studentsData?.results || studentsData || [];
-      dispatch({ type: "SET_AVAILABLE_STUDENTS", payload: students });
+      dispatch({
+        type: "SET_AVAILABLE_STUDENTS",
+        payload: studentsData?.results || studentsData || [],
+      });
     } catch (error) {
       console.error("Failed to fetch students:", error);
       toast.error("Failed to fetch students");
@@ -342,8 +387,10 @@ const Enrollments = () => {
     try {
       const response = await getGroupApi();
       const groupData = response?.data || response || [];
-      const groups = groupData?.results || groupData || [];
-      dispatch({ type: "SET_AVAILABLE_GROUPS", payload: groups });
+      dispatch({
+        type: "SET_AVAILABLE_GROUPS",
+        payload: groupData?.results || groupData || [],
+      });
     } catch (error) {
       console.error("Failed to fetch groups:", error);
       toast.error("Failed to fetch groups");
@@ -364,17 +411,14 @@ const Enrollments = () => {
     }
   };
 
-  const handleOpenAddModal = () => {
-    dispatch({ type: "OPEN_ADD_MODAL" });
-  };
-
-  const handleOpenEditModal = (enrollment: Invitation) => {
+  const handleOpenAddModal = () => dispatch({ type: "OPEN_ADD_MODAL" });
+  const handleOpenEditModal = (enrollment: Invitation) =>
     dispatch({ type: "OPEN_EDIT_MODAL", payload: enrollment });
-  };
+  const handleCloseModal = () => dispatch({ type: "CLOSE_MODAL" });
 
-  const handleCloseModal = () => {
-    dispatch({ type: "CLOSE_MODAL" });
-  };
+  const handleOpenView = (enrollment: Invitation) =>
+    dispatch({ type: "OPEN_VIEW", payload: enrollment });
+  const handleCloseView = () => dispatch({ type: "CLOSE_VIEW" });
 
   const handleModeToggle = () => {
     const newMode = enrollmentMode === "user" ? "group" : "user";
@@ -385,76 +429,50 @@ const Enrollments = () => {
     const id = parseInt(studentId);
     if (id) {
       const student = availableStudents.find((s) => s.id === id);
-      if (student) {
-        dispatch({ type: "ADD_STUDENT", payload: student });
-      }
+      if (student) dispatch({ type: "ADD_STUDENT", payload: student });
     }
   };
 
-  const removeStudent = (studentId: number) => {
+  const removeStudent = (studentId: number) =>
     dispatch({ type: "REMOVE_STUDENT", payload: studentId });
-  };
 
   const validateForm = () => {
     const newErrors: Partial<EnrollmentsState["errors"]> = {};
-
-    if (!selectedCourse) {
-      newErrors.course = "Please select a course";
-    }
-
+    if (!selectedCourse) newErrors.course = "Please select a course";
     if (enrollmentMode === "user") {
-      if (selectedStudents.length === 0) {
+      if (selectedStudents.length === 0)
         newErrors.students = "Please select at least one student";
-      }
     } else {
-      if (!selectedGroup) {
-        newErrors.group = "Please select a group";
-      }
+      if (!selectedGroup) newErrors.group = "Please select a group";
     }
-
     dispatch({ type: "SET_ERRORS", payload: newErrors });
     return Object.keys(newErrors).length === 0;
   };
 
   const handleCreateEnrollments = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
+    if (!validateForm()) return;
     dispatch({ type: "SET_SUBMITTING", payload: true });
-
     try {
       if (enrollmentMode === "user") {
-        // Create payload array for multiple students
         const payload: EnrollPayload[] = selectedStudents.map((student) => ({
           user: student.id,
           course: selectedCourse as number,
         }));
-
-        // Send each enrollment individually
-        const promises = payload.map((enrollment) =>
-          createCourseEnrollApi(enrollment),
-        );
-
-        await Promise.all(promises);
+        await Promise.all(payload.map((p) => createCourseEnrollApi(p)));
         toast.success(
           `Successfully enrolled ${selectedStudents.length} student(s)`,
         );
       } else {
-        // Create group enrollment
         const payload: GroupEnrollPayload = {
           group: selectedGroup as number,
           course: selectedCourse as number,
         };
-
         await createGroupEnrollApi(payload);
         toast.success("Successfully enrolled group");
       }
-
       handleCloseModal();
-      fetchInvitations(); // Refresh the list
+      fetchInvitations();
     } catch (error) {
       toast.error(handleAxiosError(error, "Failed to create enrollments"));
     } finally {
@@ -464,25 +482,17 @@ const Enrollments = () => {
 
   const handleUpdateEnrollment = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm() || !selectedEnrollment) {
-      return;
-    }
-
+    if (!validateForm() || !selectedEnrollment) return;
     dispatch({ type: "SET_SUBMITTING", payload: true });
-
     try {
-      // For update, we only update the first student (since edit is for single enrollment)
       const payload = {
         user: selectedStudents[0].id,
         course: selectedCourse as number,
       };
-
       await updateEnrollApi(selectedEnrollment.id, payload);
-
       toast.success("Enrollment updated successfully");
       handleCloseModal();
-      fetchInvitations(); // Refresh the list
+      fetchInvitations();
     } catch (error) {
       toast.error(handleAxiosError(error, "Failed to update enrollment"));
     } finally {
@@ -490,42 +500,27 @@ const Enrollments = () => {
     }
   };
 
-  // Pagination handler
   const handlePaginationChange = (
-    updater: React.SetStateAction<{ pageIndex: number; pageSize: number }>
+    updater: React.SetStateAction<{ pageIndex: number; pageSize: number }>,
   ) => {
-    if (typeof updater === 'function') {
-      const newPagination = updater(pagination);
-      dispatch({ type: "SET_PAGINATION", payload: newPagination });
-    } else {
-      dispatch({ type: "SET_PAGINATION", payload: updater });
-    }
+    const newPagination =
+      typeof updater === "function" ? updater(pagination) : updater;
+    dispatch({ type: "SET_PAGINATION", payload: newPagination });
   };
 
-  // Column filters handler
   const handleColumnFiltersChange = (
-    updater: React.SetStateAction<MRT_ColumnFiltersState>
+    updater: React.SetStateAction<MRT_ColumnFiltersState>,
   ) => {
-    if (typeof updater === 'function') {
-      const newFilters = updater(columnFilters);
-      dispatch({ type: "SET_COLUMN_FILTERS", payload: newFilters });
-    } else {
-      dispatch({ type: "SET_COLUMN_FILTERS", payload: updater });
-    }
+    const newFilters =
+      typeof updater === "function" ? updater(columnFilters) : updater;
+    dispatch({ type: "SET_COLUMN_FILTERS", payload: newFilters });
   };
 
   const columns = useMemo<MRT_ColumnDef<Invitation>[]>(
     () => [
       {
-        accessorKey: "id",
-        header: "S.No",
-        size: 70,
-        enableColumnFilter: false,
-        Cell: ({ row }) => row.index + 1,
-      },
-      {
-        accessorKey: "course_details.aurthor",
-        header: "Course",
+        accessorKey: "course_details.name",
+        header: "Course Name",
         size: 220,
         Cell: ({ cell }) => cell.getValue<string>() || "-",
         enableColumnFilter: true,
@@ -535,17 +530,16 @@ const Enrollments = () => {
         header: "Student Name",
         size: 180,
         Cell: ({ cell }) => cell.getValue<string>() || "-",
-          enableColumnFilter: true,
+        enableColumnFilter: true,
       },
       {
         accessorKey: "enrollment_date",
         header: "Enrollment",
         size: 180,
-        Cell: ({ cell }) =>{
+        Cell: ({ cell }) => {
           const value = cell.getValue<string>();
-        return value ? new Date(value).toLocaleDateString() : "-";
-        }
-        
+          return value ? new Date(value).toLocaleDateString() : "-";
+        },
       },
     ],
     [],
@@ -558,11 +552,44 @@ const Enrollments = () => {
 
   const rowActions = [
     {
+      label: "View",
+      icon: <Eye className="w-4 h-4 text-blue-500" />,
+      onClick: (row: Invitation) => handleOpenView(row),
+    },
+    {
       label: "Edit",
       icon: <PencilIcon className="w-4 h-4 text-green-500" />,
       onClick: (row: Invitation) => handleOpenEditModal(row),
     },
   ];
+
+  if (viewingEnrollment) {
+    // Convert Invitation to EnrollmentDetail for ViewEnrollment
+    const enrollmentDetail: EnrollmentDetail = {
+      id: viewingEnrollment.id,
+      user_name: viewingEnrollment.user_name || "",
+      user: viewingEnrollment.user,
+      enrollment_date: viewingEnrollment.enrollment_date || new Date().toISOString(),
+      course_details: viewingEnrollment.course_details!,
+      is_completed: viewingEnrollment.is_completed || false,
+      application_id: viewingEnrollment.application_id,
+    };
+
+    return (
+      <div className="p-3">
+        <PageMeta
+          title="Telth Partner Console"
+          description="View enrollment details"
+        />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
+          <ViewEnrollment
+            enrollment={enrollmentDetail}
+            onBack={handleCloseView}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3">
@@ -600,11 +627,12 @@ const Enrollments = () => {
         width="500px"
       >
         <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90">
               {isEditModalOpen ? "Edit Enrollment" : "Add New Enrollment"}
             </h2>
-
+          </div>
+          <div className="flex justify-between items-center mb-2">
             {!isEditModalOpen && (
               <div className="flex gap-2">
                 <button
@@ -634,7 +662,6 @@ const Enrollments = () => {
               </div>
             )}
           </div>
-
           <form
             onSubmit={
               isEditModalOpen ? handleUpdateEnrollment : handleCreateEnrollments
@@ -673,14 +700,11 @@ const Enrollments = () => {
                 )}
               </div>
 
-              {/* User Enrollment Section */}
               {enrollmentMode === "user" && !isEditModalOpen && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Students <span className="text-red-500">*</span>
                   </label>
-
-                  {/* Student search and dropdown */}
                   <div className="flex gap-2 items-start mb-3">
                     <div className="flex-1">
                       <select
@@ -698,15 +722,14 @@ const Enrollments = () => {
                           )
                           .map((student) => (
                             <option key={student.id} value={student.id}>
-                              {student.email}{" "}
-                              {student.name ? `(${student.name})` : ""}
+                              {student.email}
+                              {student.name ? ` (${student.name})` : ""}
                             </option>
                           ))}
                       </select>
                     </div>
                   </div>
 
-                  {/* Selected students tags */}
                   <div
                     className={`flex flex-wrap gap-2 items-center min-h-[60px] p-3 border ${
                       errors.students
@@ -724,8 +747,8 @@ const Enrollments = () => {
                           key={student.id}
                           className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-md text-sm font-medium"
                         >
-                          {student.email}{" "}
-                          {student.name ? `(${student.name})` : ""}
+                          {student.email}
+                          {student.name ? ` (${student.name})` : ""}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -748,7 +771,6 @@ const Enrollments = () => {
                     </p>
                   )}
 
-                  {/* Count hint */}
                   {selectedStudents.length > 0 && (
                     <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
                       {selectedStudents.length} student
@@ -758,7 +780,6 @@ const Enrollments = () => {
                 </div>
               )}
 
-              {/* Edit Mode - Show single student */}
               {enrollmentMode === "user" && isEditModalOpen && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -767,9 +788,9 @@ const Enrollments = () => {
                   <div className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800/50">
                     {selectedStudents[0] && (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-md text-sm font-medium">
-                        {selectedStudents[0].email}{" "}
+                        {selectedStudents[0].email}
                         {selectedStudents[0].name
-                          ? `(${selectedStudents[0].name})`
+                          ? ` (${selectedStudents[0].name})`
                           : ""}
                       </span>
                     )}
@@ -777,7 +798,7 @@ const Enrollments = () => {
                 </div>
               )}
 
-              {/* Group Enrollment Section */}
+              {/* Group Enrollment */}
               {enrollmentMode === "group" && !isEditModalOpen && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

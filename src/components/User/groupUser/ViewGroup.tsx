@@ -79,6 +79,7 @@ const ViewGroup = () => {
   >({});
 
   const isSuperAdmin = userRole === "super_admin";
+  const userRoleData = userRole === "trainer" || userRole === "admin";
 
   // Reset form when modal closes
   useEffect(() => {
@@ -100,7 +101,6 @@ const ViewGroup = () => {
       });
       setSelectedStudents(editingGroup.student_data?.map(s => s.id) || []);
 
-      // ✅ Merge existing students into availableStudents so name lookup works
       setAvailableStudents(prev => {
         const existingIds = new Set(prev.map(s => s.id));
         const missing = (editingGroup.student_data || []).filter(
@@ -113,9 +113,9 @@ const ViewGroup = () => {
 
   useEffect(() => {
     fetchGroups();
-    if (isSuperAdmin) {
+    // if (isSuperAdmin) {
       fetchStudents();
-    }
+    // }
   }, [isSuperAdmin]);
 
   const fetchGroups = async () => {
@@ -135,7 +135,7 @@ const ViewGroup = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await getRoleUsers(["ccm", "cm"]); // You'll need to implement this
+      const response = await getRoleUsers(["ccm"]); // You'll need to implement this
       const studentsData = response?.data || response || [];
       setAvailableStudents(studentsData?.results || []);
     } catch (error) {
@@ -315,7 +315,7 @@ const ViewGroup = () => {
   };
 
   const toolbarActions = [
-    ...(isSuperAdmin
+    ...(isSuperAdmin || userRoleData
       ? [{ label: "Add Group", onClick: handleAddGroup }]
       : []),
     { label: "Refresh", onClick: fetchGroups },
@@ -369,7 +369,7 @@ const ViewGroup = () => {
       </div>
 
       {/* Add/Edit Group Modal */}
-      {(isSuperAdmin && (isAddModalOpen || isEditModalOpen)) && (
+      {((isSuperAdmin || userRoleData) && (isAddModalOpen || isEditModalOpen)) && (
         <RightSideModal
           isOpen={isAddModalOpen || isEditModalOpen}
           onClose={handleCloseModal}
@@ -445,13 +445,6 @@ const ViewGroup = () => {
                       selectedStudents.map((studentId) => {
                         const fromAvailable = availableStudents.find((s) => s.id === studentId);
                         const fromEditData = editingGroup?.student_data?.find((s) => s.id === studentId);
-
-                        console.log("Looking for ID:", studentId);
-                        console.log("availableStudents:", availableStudents);        // ← is it populated?
-                        console.log("editingGroup.student_data:", editingGroup?.student_data); // ← has names?
-                        console.log("Found from available:", fromAvailable);
-                        console.log("Found from edit data:", fromEditData);
-
                         const student = fromAvailable || fromEditData;
                         return (
                           <span

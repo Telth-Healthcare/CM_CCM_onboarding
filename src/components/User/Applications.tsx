@@ -5,10 +5,10 @@ import {
   type MRT_ColumnDef,
 } from "material-react-table";
 import { toast } from "react-toastify";
-import { CheckIcon, XCircle } from "lucide-react";
+import { XCircle } from "lucide-react";
 import { getApplicationsApi, updateApplicationStatusApi } from "../../api";
 import { handleAxiosError } from "../../utils/handleAxiosError";
-import { CloseIcon, PencilIcon } from "../../icons";
+import { PencilIcon } from "../../icons";
 import CommonTable from "../mui/MuiTable";
 import { getUserRole } from "../../config/constants";
 
@@ -36,8 +36,7 @@ interface Application {
 
 const Applications = () => {
   const navigate = useNavigate();
-  const userRole = getUserRole("admin");
-
+  const userRole = getUserRole("admin") ?? "";
   const statusOptions = [
     { value: "submitted", label: "Submitted" },
     { value: "under_review", label: "Under Review" },
@@ -45,11 +44,6 @@ const Applications = () => {
     { value: "training", label: "Training" },
     { value: "production", label: "Production" },
     { value: "rejected", label: "Rejected" },
-  ];
-
-  const paymentStatusOptions = [
-    { value: "pending", label: "Pending" },
-    { value: "cleared", label: "Cleared" },
   ];
 
   const [applications, setApplications] = useState<Application[]>([]);
@@ -62,12 +56,6 @@ const Applications = () => {
     pageIndex: 0,
     pageSize: 10,
   });
-
-  // State for inline payment status editing
-  const [editingPaymentStatus, setEditingPaymentStatus] = useState<{
-    rowId: number;
-    currentValue: string;
-  } | null>(null);
 
   // Check if user can edit payment status
   const canEditPaymentStatus = useMemo(() => {
@@ -106,36 +94,36 @@ const Applications = () => {
     }
   };
 
-  const handleUpdatePaymentStatus = async (
-    rowId: number,
-    newStatus: string,
-  ) => {
-    try {
-      setLoading(true);
-      const response = await updateApplicationStatusApi(rowId, {
-        payment_status: newStatus,
-      });
+  // const handleUpdatePaymentStatus = async (
+  //   rowId: number,
+  //   newStatus: string,
+  // ) => {
+  //   try {
+  //     setLoading(true);
+  //     const response = await updateApplicationStatusApi(rowId, {
+  //       payment_status: newStatus,
+  //     });
 
-      if (response) {
-        toast.success("Payment status updated successfully");
-        // Update local state
-        setApplications((prevApps) =>
-          prevApps.map((app) =>
-            app.id === rowId ? { ...app, payment_status: newStatus } : app,
-          ),
-        );
-        setEditingPaymentStatus(null);
-      }
-    } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        "Failed to update payment status",
-      );
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     if (response) {
+  //       toast.success("Payment status updated successfully");
+  //       // Update local state
+  //       setApplications((prevApps) =>
+  //         prevApps.map((app) =>
+  //           app.id === rowId ? { ...app, payment_status: newStatus } : app,
+  //         ),
+  //       );
+  //       setEditingPaymentStatus(null);
+  //     }
+  //   } catch (error) {
+  //     const errorMessage = handleAxiosError(
+  //       error,
+  //       "Failed to update payment status",
+  //     );
+  //     toast.error(errorMessage);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleEdit = useCallback(
     (row: Application) => {
@@ -162,22 +150,25 @@ const Applications = () => {
   }, []);
 
   const rowActionsList = useMemo(() => {
-    const actions = [];
+    const allActions = [
+      {
+        label: "Edit",
+        roles: ["super_admin", "admin"],
+        className: "text-blue-700 hover:text-blue-900 dark:text-blue-600",
+        icon: <PencilIcon className="w-4 h-4" />,
+        onClick: handleEdit,
+      },
+      {
+        label: "Rejected",
+        roles: ["super_admin", "admin"],
+        icon: <XCircle className="w-4 h-4" />,
+        className: "text-red-700 hover:text-red-900 dark:text-red-600",
+        onClick: handleRejected,
+      },
+    ];
 
-    actions.push({
-      label: "Edit",
-      className: "text-brand-700 hover:text-brand-900 dark:text-brand-600",
-      icon: <PencilIcon className="w-4 h-4 fill-current" />,
-      onClick: handleEdit,
-    });
-    actions.push({
-      label: "Rejected",
-      className: "text-red-700 hover:text-red-900 dark:text-red-600",
-      icon: <XCircle className="w-4 h-4 fill-currect" />,
-      onClick: handleRejected,
-    });
-    return actions;
-  }, [handleEdit, handleRejected]);
+    return allActions.filter((action) => action.roles.includes(userRole));
+  }, [handleEdit, handleRejected, userRole]);
 
   const columns = useMemo<MRT_ColumnDef<Application>[]>(
     () => [
@@ -259,7 +250,6 @@ const Applications = () => {
     [
       pagination.pageIndex,
       pagination.pageSize,
-      editingPaymentStatus,
       canEditPaymentStatus,
     ],
   );

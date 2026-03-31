@@ -143,3 +143,10 @@ export const updateEnrollApi = (enrollId: number, payload: any) => {
     })
     .then((res) => res.data);
 };
+
+
+export const completionVerifyApi = ( payload: {course: number, is_completed: boolean }) => {
+  return client
+    .post("trainer/app/course-completions/", payload)
+    .then((res) => res.data);
+}
