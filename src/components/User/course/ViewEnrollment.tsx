@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import Button from "../../ui/button/Button";
-import { completionVerifyApi } from "../../../api";
+import { completionVerifyApi, updateApplicationStatusApi } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 
 export interface Material {
@@ -53,6 +53,7 @@ export interface CourseDetails {
   created_at: string;
   created_by: number;
   subjects: Subject[];
+  is_completed: boolean;
 }
 
 export interface EnrollmentDetail {
@@ -61,8 +62,8 @@ export interface EnrollmentDetail {
   user: number;
   enrollment_date: string;
   course_details: CourseDetails;
-  is_completed: boolean;
   application_id?: number;
+  is_completed: boolean;
 }
 
 interface ViewState {
@@ -76,7 +77,8 @@ type ViewAction =
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "TOGGLE_SUBJECT"; payload: number }
   | { type: "EXPAND_ALL"; payload: number[] }
-  | { type: "COLLAPSE_ALL" };
+  | { type: "COLLAPSE_ALL" }
+  | { type: "SET_COURSE_COMPLETED" };
 
 const viewReducer = (state: ViewState, action: ViewAction): ViewState => {
   switch (action.type) {
@@ -95,6 +97,19 @@ const viewReducer = (state: ViewState, action: ViewAction): ViewState => {
       return { ...state, expandedSubjects: new Set(action.payload) };
     case "COLLAPSE_ALL":
       return { ...state, expandedSubjects: new Set() };
+    case "SET_COURSE_COMPLETED": {
+      if (!state.enrollment) return state;
+      return {
+        ...state,
+        enrollment: {
+          ...state.enrollment,
+          course_details: {
+            ...state.enrollment.course_details,
+            is_completed: true,
+          },
+        },
+      };
+    }
     default:
       return state;
   }
@@ -137,6 +152,8 @@ const formatDateShort = (iso: string) =>
     month: "short",
     day: "numeric",
   });
+
+// ── Progress Ring ─────────────────────────────────────────────────────────────
 
 const ProgressRing = ({
   percent,
@@ -183,7 +200,6 @@ const MaterialRow = ({ material }: { material: Material }) => {
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-gray-100 dark:border-gray-700/50 last:border-0 group">
-      {/* Completion icon */}
       <div className="shrink-0">
         {material.is_completed ? (
           <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -192,14 +208,12 @@ const MaterialRow = ({ material }: { material: Material }) => {
         )}
       </div>
 
-      {/* Type icon */}
       <div
         className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${config.colorClass}`}
       >
         {config.icon}
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <p
           className={`text-sm font-medium truncate ${
@@ -215,7 +229,6 @@ const MaterialRow = ({ material }: { material: Material }) => {
         </p>
       </div>
 
-      {/* Action */}
       {hasResource && (
         <a
           href={material.file || material.url || "#"}
@@ -240,6 +253,8 @@ const MaterialRow = ({ material }: { material: Material }) => {
   );
 };
 
+// ── Subject Card ──────────────────────────────────────────────────────────────
+
 const SubjectCard = ({
   subject,
   isExpanded,
@@ -254,6 +269,7 @@ const SubjectCard = ({
   const done = subject.materials.filter((m) => m.is_completed).length;
   const total = subject.materials.length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const allDone = total > 0 && done === total;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -262,12 +278,16 @@ const SubjectCard = ({
         onClick={onToggle}
         className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
       >
-        {/* Number badge */}
-        <span className="shrink-0 w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold flex items-center justify-center">
-          {index + 1}
+        <span
+          className={`shrink-0 w-7 h-7 rounded-full text-xs font-semibold flex items-center justify-center transition-colors ${
+            allDone
+              ? "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400"
+              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+          }`}
+        >
+          {allDone ? <Check className="w-3.5 h-3.5" /> : index + 1}
         </span>
 
-        {/* Name + mini progress */}
         <div className="flex-1 min-w-0 text-left">
           <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">
             {subject.name}
@@ -275,7 +295,9 @@ const SubjectCard = ({
           <div className="flex items-center gap-2 mt-1">
             <div className="flex-1 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 rounded-full transition-all duration-500"
+                className={`h-full rounded-full transition-all duration-500 ${
+                  allDone ? "bg-green-500" : "bg-blue-500"
+                }`}
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -285,7 +307,6 @@ const SubjectCard = ({
           </div>
         </div>
 
-        {/* Chevron */}
         <div className="shrink-0 text-gray-400 dark:text-gray-500">
           {isExpanded ? (
             <ChevronDown className="w-4 h-4" />
@@ -358,6 +379,8 @@ const ViewEnrollment = ({
     expandedSubjects: new Set<number>(),
   });
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showCourseModal, setShowCourseModal] = useState(false);
+
   const [updating, setUpdating] = useState(false);
 
   const { enrollment, loading, expandedSubjects } = state;
@@ -377,27 +400,48 @@ const ViewEnrollment = ({
     }
   }, [enrollmentProp, enrollmentId, fetchEnrollmentById]);
 
-  const handleStatusUpdate = async () => {
+  // Fixed: Add guard clause for undefined application_id
+  const handleMarkComplete = async () => {
     if (!enrollment) return;
+    
+    if (!enrollment.application_id) {
+      toast.error("Application ID not found");
+      return;
+    }
     
     setUpdating(true);
     try {
-        const response = {
-            course: enrollment?.course_details?.id,
-            is_completed: true
-        }
-        await completionVerifyApi( response);      
-      // Update local state
-      dispatch({
-        type: "SET_ENROLLMENT",
-        payload: { ...enrollment, is_completed: true },
+      await updateApplicationStatusApi(enrollment.application_id, {
+        status: "production",
       });
-      
-      toast.success("Enrollment status updated successfully");
+      dispatch({ type: "SET_COURSE_COMPLETED" });
+      toast.success("Move to production");
       setShowStatusModal(false);
     } catch (error) {
-      const message =  handleAxiosError(error, "Failed to update status");
-      toast.error(message);
+      toast.error(handleAxiosError(error, "Failed to update status"));
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Fixed: Add guard clause for undefined course id
+  const handleCourseComplete = async () => {
+    if (!enrollment?.course_details?.id) {
+      toast.error("Course ID not found");
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await completionVerifyApi({
+        course: enrollment.course_details.id,
+        is_completed: true,
+      });
+      dispatch({ type: "SET_COURSE_COMPLETED" });
+      toast.success("Course marked as completed");
+      setShowCourseModal(false);
+    } catch (error) {
+      toast.error(handleAxiosError(error, "Failed to course Complete"));
     } finally {
       setUpdating(false);
     }
@@ -424,6 +468,7 @@ const ViewEnrollment = ({
   }
 
   const { course_details } = enrollment;
+  const isCompleted = course_details.is_completed;
   const allSubjectIds = course_details.subjects.map((s) => s.id);
   const totalMat = course_details.subjects.reduce(
     (a, s) => a + s.materials.length,
@@ -435,8 +480,6 @@ const ViewEnrollment = ({
   );
   const progress = totalMat > 0 ? Math.round((doneMat / totalMat) * 100) : 0;
   const allExpanded = allSubjectIds.every((id) => expandedSubjects.has(id));
-  
-  const isStatusLocked = enrollment.is_completed;
 
   return (
     <>
@@ -453,6 +496,7 @@ const ViewEnrollment = ({
           </button>
         )}
 
+        {/* ── Hero card ──────────────────────────────────────────────────── */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
           <div className="flex items-start gap-4">
             {/* Progress ring */}
@@ -483,35 +527,35 @@ const ViewEnrollment = ({
               </p>
             </div>
 
-            {/* Status Button */}
-            <div className="flex items-start">
-              <Button
-                onClick={() => !isStatusLocked && setShowStatusModal(true)}
-                disabled={isStatusLocked}
-                className={`py-2 px-4 text-sm font-medium rounded-lg transition-all duration-200 ${
-                  isStatusLocked
-                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                }`}
-              >
-                {isStatusLocked ? (
-                  <span className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Completed
-                  </span>
-                ) : (
+            {/* Course status button */}
+            <div className="shrink-0">
+              {isCompleted ? (
+                <Button
+                  onClick={() => setShowStatusModal(true)}
+                  className="py-2 px-4 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                >
                   <span className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
                     Mark as Complete
                   </span>
-                )}
-              </Button>
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setShowCourseModal(true)}
+                  className="py-2 px-4 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    Course Complete
+                  </span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
 
+        {/* ── Info pills ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-3">
-          {/* Student */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
               <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -526,7 +570,6 @@ const ViewEnrollment = ({
             </div>
           </div>
 
-          {/* Enrolled date */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center shrink-0">
               <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />
@@ -541,7 +584,6 @@ const ViewEnrollment = ({
             </div>
           </div>
 
-          {/* Subjects */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
               <Layers className="w-4 h-4 text-purple-600 dark:text-purple-400" />
@@ -557,8 +599,8 @@ const ViewEnrollment = ({
           </div>
         </div>
 
+        {/* ── Subjects & Materials ──────────────────────────────────────── */}
         <div>
-          {/* Section header */}
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
               <BookOpen className="w-4 h-4 text-gray-400 dark:text-gray-500" />
@@ -579,7 +621,6 @@ const ViewEnrollment = ({
             )}
           </div>
 
-          {/* Subject list */}
           {course_details.subjects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-gray-500 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
               <BookOpen className="w-8 h-8 mb-2 opacity-30" />
@@ -602,6 +643,7 @@ const ViewEnrollment = ({
           )}
         </div>
 
+        {/* Footer meta */}
         <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 pt-1">
           <User className="w-3 h-3" />
           <span>Author: {course_details.aurthor}</span>
@@ -611,16 +653,16 @@ const ViewEnrollment = ({
         </div>
       </div>
 
-      {/* Status Update Modal */}
+      {/* ── Confirm completion modal ───────────────────────────────────── */}
       {showStatusModal && (
         <div className="fixed inset-0 z-[999999] flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => !updating && setShowStatusModal(false)}
           />
-          
+
           <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-fadeIn">
-            {/* Modal Header */}
+            {/* Header */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -628,7 +670,7 @@ const ViewEnrollment = ({
                     <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Update Enrollment Status
+                    Confirm Completion
                   </h3>
                 </div>
                 <button
@@ -641,59 +683,56 @@ const ViewEnrollment = ({
               </div>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6">
-              <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">
-                      Important Notice
-                    </p>
-                    <p className="text-sm text-amber-700 dark:text-amber-400">
-                      Once you change the status to "Completed", you cannot change it again. 
-                      Please ensure all materials are properly reviewed before confirming.
-                    </p>
-                  </div>
-                </div>
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  This action is irreversible. Once marked as completed, the
+                  status cannot be changed again.
+                </p>
               </div>
 
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Are you sure you want to mark this enrollment as completed?
-                </p>
-                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 space-y-3">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
                     Student
                   </p>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {enrollment.user_name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 mb-1">
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
                     Course
                   </p>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {course_details.name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 mb-1">
-                    Completion Progress
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Material Progress
                   </p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-green-500 rounded-full transition-all duration-500"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 tabular-nums">
                       {progress}%
                     </span>
                   </div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    {doneMat} of {totalMat} materials completed
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Modal Footer */}
+            {/* Footer */}
             <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3">
               <button
                 onClick={() => setShowStatusModal(false)}
@@ -703,7 +742,116 @@ const ViewEnrollment = ({
                 Cancel
               </button>
               <button
-                onClick={handleStatusUpdate}
+                onClick={handleMarkComplete}
+                disabled={updating}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {updating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Confirm Completion
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCourseModal && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !updating && setShowCourseModal(false)}
+          />
+
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-fadeIn">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Confirm Completion
+                  </h3>
+                </div>
+                <button
+                  onClick={() => !updating && setShowCourseModal(false)}
+                  disabled={updating}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  This action is irreversible. Once marked as completed, the
+                  status cannot be changed again.
+                </p>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 space-y-3">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                    Student
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {enrollment.user_name}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                    Course
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {course_details.name}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Material Progress
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 rounded-full transition-all duration-500"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 tabular-nums">
+                      {progress}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    {doneMat} of {totalMat} materials completed
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+              <button
+                onClick={() => setShowCourseModal(false)}
+                disabled={updating}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCourseComplete}
                 disabled={updating}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
@@ -726,18 +874,10 @@ const ViewEnrollment = ({
 
       <style>{`
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
+          from { opacity: 0; transform: scale(0.95); }
+          to   { opacity: 1; transform: scale(1); }
         }
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out forwards;
-        }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out forwards; }
       `}</style>
     </>
   );

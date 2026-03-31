@@ -269,7 +269,7 @@ const ViewCourseDetails: React.FC<ViewCourseDetailsProps> = ({
                               <div className="shrink-0">
                                 {material.file ? (
                                   <a
-                                    href={`https://docs.google.com/viewer?url=${encodeURIComponent(material.file)}&embedded=false`}
+                                    href={(material.file)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"

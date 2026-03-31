@@ -57,6 +57,7 @@ interface CourseDetails {
   created_at: string;
   created_by: number;
   subjects: Subject[];
+  is_completed: boolean;
 }
 
 interface Invitation {
@@ -570,7 +571,10 @@ const Enrollments = () => {
       user_name: viewingEnrollment.user_name || "",
       user: viewingEnrollment.user,
       enrollment_date: viewingEnrollment.enrollment_date || new Date().toISOString(),
-      course_details: viewingEnrollment.course_details!,
+      course_details: {
+        ...viewingEnrollment.course_details!,
+        is_completed: viewingEnrollment.is_completed || false,
+      },
       is_completed: viewingEnrollment.is_completed || false,
       application_id: viewingEnrollment.application_id,
     };
