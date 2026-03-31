@@ -42,6 +42,7 @@ export interface AuthResponse {
 export const signinApi = (payload: SignInRequest): Promise<AuthResponse> =>
   client.post("_allauth/app/v1/auth/login", payload).then((r) => r.data);
 
-
+export const signoutApi = (): Promise<void> =>
+  client.delete("_allauth/app/v1/auth/session").then((res) => res.data);
 
 

@@ -10,13 +10,11 @@ import { baseUrl } from "../config/env";
 
 // const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
-
 const defaultHeaders = {
   Accept: "application/json",
   "X-Client-ID": "app",
   "ngrok-skip-browser-warning": "true",
 };
-
 
 function createAuthClient(authType: AuthType) {
   const instance = axios.create({
@@ -36,8 +34,17 @@ function createAuthClient(authType: AuthType) {
   instance.interceptors.response.use(
     (response: AxiosResponse) => response,
     (error: AxiosError) => {
-      if (error.response?.status === 401) {
-        const message = handleAxiosError(error, "Session expired. Please sign in again.");
+      const data = error.response?.data as any;
+
+      if (data?.meta?.is_authenticated === false) {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/admin/signin";
+      } else {
+        const message = handleAxiosError(
+          error,
+          "Session expired. Please sign in again.",
+        );
         toast.error(message);
       }
       return Promise.reject(error);
@@ -47,9 +54,8 @@ function createAuthClient(authType: AuthType) {
   return instance;
 }
 
-export const client    = createAuthClient("admin"); 
-export const ccmClient = createAuthClient("ccm"); 
-
+export const client = createAuthClient("admin");
+export const ccmClient = createAuthClient("ccm");
 
 export const otpClient = axios.create({
   baseURL: baseUrl,
@@ -64,7 +70,6 @@ otpClient.interceptors.request.use(
   },
   (error) => Promise.reject(error),
 );
-
 
 export const logoutClient = axios.create({
   baseURL: baseUrl,

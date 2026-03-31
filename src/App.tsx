@@ -64,10 +64,10 @@ function RootRedirect() {
           navigate("/dashboard");
         }
       } catch (error) {
-        navigate("/admin/signin");
+        navigate("/ccm-auth/signin");
       }
     } else {
-      navigate("/admin/signin");
+      navigate("/ccm-auth/signin");
     }
   }, [navigate]);
 

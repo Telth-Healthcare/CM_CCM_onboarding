@@ -17,6 +17,11 @@ export interface SendInvitationRequest {
   manager?: number;
 }
 
+export const dashboardApi = () => {
+    return client.get("admin/dashboard/")
+        .then(res => res.data);
+}
+
 export const getAllUsers = () => {
     return client.get("accounts/users/")
         .then(res => res.data);

@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router";
+// import { Link } from "react-router";
 import GridShape from "../../components/common/GridShape";
 import logo from "../../assets/TELTH LOGO - Light.png";
 
@@ -17,14 +17,14 @@ export default function AuthLayout({
             {/* <!-- ===== Common Grid Shape Start ===== --> */}
             <GridShape />
             <div className="flex flex-col items-center max-w-xs">
-              <Link to="/" className="block mb-4">
+              {/* <Link to="/" className="block mb-4"> */}
                 <img
                   width={231}
                   height={48}
                   src={logo}
                   alt="Logo"
                 />
-              </Link>
+              {/* </Link> */}
             </div>
           </div>
         </div>
