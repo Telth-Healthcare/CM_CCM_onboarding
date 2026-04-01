@@ -52,7 +52,7 @@ const EditableDropdown: React.FC<EditableDropdownProps> = ({
       setTimeout(() => inputRef.current?.setSelectionRange(0, 0), 0);
     }
     onAfterPick?.();
-  };
+  }; 
 
   return (
     <div ref={wrapRef} style={{ position: "relative" }}>
