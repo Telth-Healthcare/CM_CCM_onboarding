@@ -7,10 +7,7 @@ import {
 } from "material-react-table";
 import { toast } from "react-toastify";
 import PageMeta from "../../common/PageMeta";
-import {
-  getRoleUsers,
-  updateUsersApi,
-} from "../../../api";
+import { getRoleUsers, updateUsersApi } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import { getUserRole } from "../../../config/constants";
@@ -51,17 +48,10 @@ const ViewCCMList = () => {
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
-
-  const [editingApproval, setEditingApproval] = useState<{
-    userId: number;
-    isApproved: boolean;
-  } | null>(null);
   const [editingStatus, setEditingStatus] = useState<{
     userId: number;
     isActive: boolean;
   } | null>(null);
-
-
 
   // Check user roles
   const isSuperAdmin = userRole === "super_admin";
@@ -78,11 +68,10 @@ const ViewCCMList = () => {
     setColumnFilters([]);
     try {
       setLoading(true);
-     const response = await getRoleUsers(["ccm"]); 
+      const response = await getRoleUsers(["ccm"]);
       const userData = response?.data?.results || response || [];
       setUsers(userData);
       setTotalCount(response?.data?.count || 0);
-
     } catch (error) {
       const errorMessage = handleAxiosError(error, "Failed to fetch users");
       toast.error(errorMessage);
@@ -93,43 +82,7 @@ const ViewCCMList = () => {
     }
   };
 
-  const handleApprovalChange = async (
-    userId: number,
-    newApprovalStatus: boolean,
-  ) => {
-    if (!canEditApproval) {
-      toast.error("You don't have permission to edit approval status");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await updateUsersApi(userId, {
-        is_approved: newApprovalStatus,
-      });
-
-      if (response) {
-        toast.success(
-          `User ${newApprovalStatus ? "approved" : "pending"} successfully`,
-        );
-        await fetchUsers();
-      }
-    } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        "Failed to update approval status",
-      );
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-      setEditingApproval(null);
-    }
-  };
-
-  const handleStatusChange = async (
-    userId: number,
-    newStatus: boolean,
-  ) => {
+  const handleStatusChange = async (userId: number, newStatus: boolean) => {
     if (!canEditStatus) {
       toast.error("You don't have permission to edit user status");
       return;
@@ -202,17 +155,15 @@ const ViewCCMList = () => {
         enableColumnFilter: true,
       },
       {
-        accessorKey: "roles",
-        header: "Role",
-        size: 150,
-        accessorFn: (row) => row.roles?.[0] || "",
+        accessorKey: "region_name",
+        header: "Region",
+        size: 200,
         Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
-          const row = cell.row.original;
-          const roles = row.roles;
-          if (!roles || roles.length === 0) return "-";
-          return roles[0];
+          const value = cell.getValue() as string | null;
+          return value || "-";
         },
-        enableColumnFilter: false,
+        filterVariant: "text",
+        enableColumnFilter: true,
       },
       {
         accessorKey: "created_at",
@@ -338,127 +289,12 @@ const ViewCCMList = () => {
         ],
         enableColumnFilter: true,
       },
-      {
-        accessorKey: "is_approved",
-        header: "Approval",
-        size: 150,
-        accessorFn: (row) => (row.is_approved ? "approved" : "pending"),
-        Cell: ({ row }: { row: MRT_Row<User> }) => {
-          const userId = row.original.id;
-          const isApproved = row.original.is_approved;
-          const isEditing = editingApproval?.userId === userId;
-
-          if (isEditing) {
-            return (
-              <div className="flex items-center gap-2">
-                <select
-                  value={editingApproval.isApproved ? "approved" : "pending"}
-                  onChange={(e) => {
-                    const newValue = e.target.value === "approved";
-                    setEditingApproval({
-                      userId,
-                      isApproved: newValue,
-                    });
-                  }}
-                  className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white"
-                  autoFocus
-                >
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                </select>
-                <button
-                  onClick={() =>
-                    handleApprovalChange(userId, editingApproval.isApproved)
-                  }
-                  className="p-1 text-success-600 hover:text-success-700 dark:text-success-400"
-                  title="Save"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setEditingApproval(null)}
-                  className="p-1 text-error-600 hover:text-error-700 dark:text-error-400"
-                  title="Cancel"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-            );
-          }
-
-          return (
-            <div className="flex items-center gap-2">
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  isApproved
-                    ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                    : "bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400"
-                }`}
-              >
-                {isApproved ? "Approved" : "Pending"}
-              </span>
-              {canEditApproval && (
-                <button
-                  onClick={() => setEditingApproval({ userId, isApproved })}
-                  className="p-1 text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
-                  title="Edit approval status"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-          );
-        },
-        filterVariant: "select",
-        filterSelectOptions: [
-          { text: "Approved", value: "approved" },
-          { text: "Pending", value: "pending" },
-        ],
-        enableColumnFilter: true,
-      },
     ],
     [
       pagination.pageIndex,
       pagination.pageSize,
       canEditApproval,
       canEditStatus,
-      editingApproval,
       editingStatus,
     ],
   );
@@ -498,7 +334,7 @@ const ViewCCMList = () => {
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {isSuperAdmin
             ? "Manage and create all users CCM"
-            :  "View all users in the system"}
+            : "View all users in the system"}
         </p>
         {!loading && (
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">

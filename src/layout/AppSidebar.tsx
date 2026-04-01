@@ -1,8 +1,5 @@
 import { useCallback, useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { HorizontaLDots, CloseLineIcon, AngleRightIcon } from "../icons";
-import { useSidebar } from "../context/SidebarContext";
-import logo from "../assets/TELTH LOGO.png";
 import {
   BookOpen,
   ClipboardList,
@@ -13,6 +10,10 @@ import {
   Phone,
   Users,
 } from "lucide-react";
+import { HorizontaLDots, CloseLineIcon, AngleRightIcon } from "../icons";
+import { useSidebar } from "../context/SidebarContext";
+import logo from "../assets/TELTH LOGO.png";
+import { signoutApi } from "../api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -133,42 +134,41 @@ const AppSidebar: React.FC = () => {
 
   const toggleGroup = (name: string) =>
     setOpenGroups((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
     );
 
   const handleSignOut = () => setShowLogoutModal(true);
+  
   const cancelLogout = () => setShowLogoutModal(false);
+
   const confirmLogout = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    navigate("/admin/signin", { replace: true });
+    signoutApi();
     setShowLogoutModal(false);
   };
 
   const isActive = useCallback(
-    (path: string) => location.pathname === path || location.pathname.startsWith(path + "/"),
-    [location.pathname]
+    (path: string) =>
+      location.pathname === path || location.pathname.startsWith(path + "/"),
+    [location.pathname],
   );
 
   const filteredNavItems = useMemo(() => {
-    return (
-      navItems
-        .filter((item) => {
-          if (!item.roles || item.roles.length === 0) return true;
+    return navItems
+      .filter((item) => {
+        if (!item.roles || item.roles.length === 0) return true;
+        if (!userRole) return false;
+        return item.roles.includes(userRole);
+      })
+      .map((item) => {
+        if (!item.subItems) return item;
+        const visibleSubs = item.subItems.filter((sub) => {
+          if (!sub.roles || sub.roles.length === 0) return true;
           if (!userRole) return false;
-          return item.roles.includes(userRole);
-        })
-        .map((item) => {
-          if (!item.subItems) return item;
-          const visibleSubs = item.subItems.filter((sub) => {
-            if (!sub.roles || sub.roles.length === 0) return true;
-            if (!userRole) return false;
-            return sub.roles.includes(userRole);
-          });
-          return { ...item, subItems: visibleSubs };
-        })
-        .filter((item) => !item.subItems || item.subItems.length > 0)
-    );
+          return sub.roles.includes(userRole);
+        });
+        return { ...item, subItems: visibleSubs };
+      })
+      .filter((item) => !item.subItems || item.subItems.length > 0);
   }, [userRole]);
 
   const isSidebarOpen = isExpanded || isHovered || isMobileOpen;
@@ -197,13 +197,16 @@ const AppSidebar: React.FC = () => {
                   className={`
                     w-full flex items-center gap-3 rounded-lg transition-all duration-200
                     ${isSidebarOpen ? "px-3 py-2.5" : "px-2 py-2.5 justify-center"}
-                    ${anyChildActive 
-                      ? "bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400" 
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    ${
+                      anyChildActive
+                        ? "bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                     }
                   `}
                 >
-                  <span className={`${iconClass} ${anyChildActive ? "text-brand-600 dark:text-brand-400" : "text-gray-500 dark:text-gray-400"}`}>
+                  <span
+                    className={`${iconClass} ${anyChildActive ? "text-brand-600 dark:text-brand-400" : "text-gray-500 dark:text-gray-400"}`}
+                  >
                     {nav.icon}
                   </span>
 
@@ -230,9 +233,10 @@ const AppSidebar: React.FC = () => {
                           to={sub.path}
                           className={`
                             block px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                            ${isActive(sub.path)
-                              ? "bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400"
-                              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                            ${
+                              isActive(sub.path)
+                                ? "bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400"
+                                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
                             }
                           `}
                         >
@@ -248,7 +252,7 @@ const AppSidebar: React.FC = () => {
 
           // ── Regular item (link) ─────────────────────────────────────────
           const isItemActive = isActive(nav.path!);
-          
+
           return (
             <li key={nav.name} className="px-2">
               <Link
@@ -256,13 +260,16 @@ const AppSidebar: React.FC = () => {
                 className={`
                   flex items-center gap-3 rounded-lg transition-all duration-200
                   ${isSidebarOpen ? "px-3 py-2.5" : "px-2 py-2.5 justify-center"}
-                  ${isItemActive
-                    ? "bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  ${
+                    isItemActive
+                      ? "bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   }
                 `}
               >
-                <span className={`${iconClass} ${isItemActive ? "text-brand-600 dark:text-brand-400" : "text-gray-500 dark:text-gray-400"}`}>
+                <span
+                  className={`${iconClass} ${isItemActive ? "text-brand-600 dark:text-brand-400" : "text-gray-500 dark:text-gray-400"}`}
+                >
                   {nav.icon}
                 </span>
                 {isSidebarOpen && (
@@ -296,10 +303,12 @@ const AppSidebar: React.FC = () => {
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* Logo Section */}
-        <div className={`
+        <div
+          className={`
           py-6 px-5 border-b border-gray-200 dark:border-gray-800
           ${!isExpanded && !isHovered ? "flex justify-center" : ""}
-        `}>
+        `}
+        >
           <Link to="/dashboard" className="block">
             {isSidebarOpen ? (
               <img src={logo} alt="Logo" className="h-10 w-auto" />
@@ -311,14 +320,18 @@ const AppSidebar: React.FC = () => {
 
         {/* Scrollable Navigation */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden py-4">
-          <div className={`
+          <div
+            className={`
             mb-4 px-5
             ${!isExpanded && !isHovered ? "text-center" : ""}
-          `}>
-            <h2 className={`
+          `}
+          >
+            <h2
+              className={`
               text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500
               ${!isExpanded && !isHovered ? "flex justify-center" : ""}
-            `}>
+            `}
+            >
               {isSidebarOpen ? (
                 "Main Menu"
               ) : (
@@ -326,10 +339,8 @@ const AppSidebar: React.FC = () => {
               )}
             </h2>
           </div>
-          
-          <nav className="flex-1">
-            {renderMenuItems(filteredNavItems)}
-          </nav>
+
+          <nav className="flex-1">{renderMenuItems(filteredNavItems)}</nav>
         </div>
 
         {/* User Section - Pinned to bottom */}
@@ -348,7 +359,9 @@ const AppSidebar: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {adminUser?.first_name || adminUser?.email?.split('@')[0] || "User"}
+                    {adminUser?.first_name ||
+                      adminUser?.email?.split("@")[0] ||
+                      "User"}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                     {adminUser?.email || ""}
@@ -411,7 +424,8 @@ const AppSidebar: React.FC = () => {
               Sign Out
             </h3>
             <p className="text-center text-gray-500 dark:text-gray-400 mb-6">
-              Are you sure you want to sign out? You will be redirected to the login page.
+              Are you sure you want to sign out? You will be redirected to the
+              login page.
             </p>
 
             <div className="flex gap-3">

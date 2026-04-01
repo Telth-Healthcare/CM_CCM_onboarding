@@ -3,9 +3,6 @@ import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/themes/light.css";
-import { getApplicationsApi } from "../../api";
-import { handleAxiosError } from "../../utils/handleAxiosError";
-import { toast } from "react-toastify";
 
 interface ApplicationData {
   id: number;
@@ -19,8 +16,12 @@ interface ChartData {
   payments: number[];
   categories: string[];
 }
- 
-export default function StatisticsChart() {
+
+interface StatisticsChartProps {
+  dateRange: ApplicationData[]; // Changed from any to specific type
+}
+
+export default function StatisticsChart({ dateRange }: StatisticsChartProps) {
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState<ChartData>({
@@ -43,18 +44,14 @@ export default function StatisticsChart() {
       mode: "single",
       static: true,
       monthSelectorType: "dropdown",
-      dateFormat: "F Y", // Display full month name and year
+      dateFormat: "F Y",
       defaultDate: selectedDate,
       onChange: (selectedDates) => {
         if (selectedDates.length > 0) {
           setSelectedDate(selectedDates[0]);
         }
       },
-      // Custom config for month picker
-      plugins: [], // Remove the plugin as it might be causing issues
-      // This makes it behave like a month picker
       onReady: (_, __, instance) => {
-        // Force month picker mode
         instance.config.enableTime = false;
         instance.config.noCalendar = false;
       }
@@ -75,42 +72,34 @@ export default function StatisticsChart() {
     }
   }, [selectedDate]);
 
-  // Fetch data when month/year changes
+  // Process data when dateRange or selectedDate changes
   useEffect(() => {
-    fetchApplicationsData();
-  }, [selectedDate]);
-
-  const fetchApplicationsData = async () => {
-    setLoading(true);
-    try {
-      const response = await getApplicationsApi();
+    if (dateRange && dateRange.length > 0) {
+      setLoading(true);
       
-      // Calculate date range for selected month
-      const year = selectedDate.getFullYear();
-      const month = selectedDate.getMonth();
+      // Filter applications for the selected month and year
+      const selectedYear = selectedDate.getFullYear();
+      const selectedMonth = selectedDate.getMonth();
       
-      const startDate = new Date(year, month, 1);
-      startDate.setHours(0, 0, 0, 0);
+      const filteredApplications = dateRange.filter(app => {
+        const appDate = new Date(app.created_at);
+        return appDate.getFullYear() === selectedYear && 
+               appDate.getMonth() === selectedMonth;
+      });
       
-      const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
-
-      // Filter applications for selected month
-      const filteredApplications = response?.results?.filter((app: ApplicationData) => {
-        const createdDate = new Date(app.created_at);
-        return createdDate >= startDate && createdDate <= endDate;
-      }) || [];
-
-      // Process data for daily chart within the month
-      const processedData = processMonthlyData(filteredApplications, year, month);
+      const processedData = processMonthlyData(filteredApplications, selectedYear, selectedMonth);
       setChartData(processedData);
-
-    } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to fetch applications data");
-      toast.error(errorMessage);
-    } finally {
+      setLoading(false);
+    } else {
+      // Handle case when no data is available
+      setChartData({
+        applications: [],
+        payments: [],
+        categories: []
+      });
       setLoading(false);
     }
-  };
+  }, [dateRange, selectedDate]);
 
   const processMonthlyData = (applications: ApplicationData[], year: number, month: number): ChartData => {
     // Get number of days in the month
@@ -166,7 +155,6 @@ export default function StatisticsChart() {
       },
       animations: {
         enabled: true,
-        // easing: 'easeinout',
         speed: 800
       }
     },
@@ -315,8 +303,8 @@ export default function StatisticsChart() {
             </p>
           </div>
         </div>
+        {/* Uncomment if you want to add date picker back */}
         {/* <div className="flex items-center gap-3 sm:justify-end">
-          <ChartTab />
           <div className="relative inline-flex items-center">
             <CalenderIcon className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:left-3 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2 size-5 text-gray-500 dark:text-gray-400 pointer-events-none z-10" />
             <input
@@ -335,7 +323,7 @@ export default function StatisticsChart() {
             series={series} 
             type="area" 
             height={310} 
-            key={`${currentYear}-${selectedDate.getMonth()}`} // Force re-render when month changes
+            key={`${currentYear}-${selectedDate.getMonth()}`}
           />
         </div>
       </div>
