@@ -68,7 +68,7 @@ const ViewCMList = () => {
     setColumnFilters([]);
     try {
       setLoading(true);
-      const response = await getRoleUsers(["cm"]);
+      const response = await getRoleUsers("roles__name__in", "cm");
       const userData = response?.data?.results || response || [];
       setUsers(userData);
       setTotalCount(response?.data?.count || 0);

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "react-toastify";
 
 type ApiErrorData = Record<string, unknown>;
 
@@ -52,4 +53,16 @@ export const handleAxiosError = (
   if (fieldError) return fieldError;
 
   return error.message ?? fallback;
+};
+
+// ✅ Use this everywhere instead of toast.error(handleAxiosError(...))
+export const toastAxiosError = (
+  error: unknown,
+  fallback = "Something went wrong. Please try again.",
+  toastId?: string,
+) => {
+  const message = handleAxiosError(error, fallback);
+  toast.error(message, {
+    toastId: toastId ?? message, // prevents duplicate toasts with same message
+  });
 };

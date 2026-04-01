@@ -36,7 +36,7 @@ interface ToolbarAction {
   icon?: React.ReactNode;
 }
 
-const ViewCCMList = () => {
+const ViewMiscellaneous = () => {
   const userRole = getUserRole("admin");
   const [users, setUsers] = useState<User[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -68,7 +68,7 @@ const ViewCCMList = () => {
     setColumnFilters([]);
     try {
       setLoading(true);
-      const response = await getRoleUsers("roles__name__in", "ccm");
+      const response = await getRoleUsers("region__isnull", "true");
       const userData = response?.data?.results || response || [];
       setUsers(userData);
       setTotalCount(response?.data?.count || 0);
@@ -329,11 +329,11 @@ const ViewCCMList = () => {
       />
       <div className="mb-6">
         <h1 className="font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-          CCM Management
+           Users No Region Management
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {isSuperAdmin
-            ? "Manage and create all users CCM"
+            ? "Manage and view all users without a region assigned"
             : "View all users in the system"}
         </p>
         {!loading && (
@@ -361,4 +361,4 @@ const ViewCCMList = () => {
   );
 };
 
-export default ViewCCMList;
+export default ViewMiscellaneous;

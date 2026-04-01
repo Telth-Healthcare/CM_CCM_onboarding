@@ -298,7 +298,7 @@ const EditCourse: React.FC<EditCourseProps> = ({
 
   const fetchTrainers = useCallback(async () => {
     try {
-      const res = await getRoleUsers(["trainer"]);
+      const res = await getRoleUsers("roles__name__in", "trainer");
       const data = res?.data?.results || [];
       setTrainers(
         data.map((item: any) => ({

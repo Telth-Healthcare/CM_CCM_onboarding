@@ -64,7 +64,7 @@ const validate = (stepId: string, data: CCMFormData) => {
       const md = today.getMonth() - birth.getMonth()
       if (md < 0 || (md === 0 && today.getDate() < birth.getDate())) age--
       if (age < 18) errs.dob = 'Must be at least 18 years old'
-      else if (age > 55) errs.dob = 'Must be 55 years old or younger'
+      else if (age > 65) errs.dob = 'Must be 65 years old or younger'
     }
     if (!data.language)   errs.language   = 'Language required'
     if (!data.gender)     errs.gender     = 'Gender required'

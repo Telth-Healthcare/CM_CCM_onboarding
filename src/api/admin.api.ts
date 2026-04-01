@@ -27,10 +27,10 @@ export const getAllUsers = () => {
         .then(res => res.data);
 }
 
-export const getRoleUsers = (roles: string[]) => {
+export const getRoleUsers = (paramName: string, values: string) => {
   return client.get("accounts/users/", {
     params: {
-      roles__name__in: roles.join(","),
+      [paramName]: values,
     },
   });
 };
@@ -40,10 +40,9 @@ export const updateUsersApi = (userId: number ,payload: any) => {
         .then(res => res.data);
 }
 
-export const getApplicationsApi = () => {
-    return client.get("applications/app/")
-        .then(res => res.data);
-} 
+export const getApplicationsApi = (params?: Record<string, any>) => {
+  return client.get("applications/app/", { params }).then((r) => r.data);
+};
 
 export const getApplicationByIdApi = (applicationId: number) => {
     return client.get(`applications/app/${applicationId}/`)

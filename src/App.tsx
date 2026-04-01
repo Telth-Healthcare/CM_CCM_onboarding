@@ -16,9 +16,9 @@ import ViewGroup from "./components/User/groupUser/ViewGroup";
 import ViewCMList from "./components/User/userType/ViewCMList";
 import ViewFinancier from "./components/User/userType/ViewFinancier";
 import ViewTrainer from "./components/User/userType/ViewTrainer";
-import ViewAllUser from "./components/User/userType/ViewAllUserList";
 import ViewAdminList from "./components/User/userType/ViewAdminList";
 import ViewCCMList from "./components/User/userType/ViewCCMList";
+import ViewMiscellaneous from "./components/User/userType/ViewMiscellaneous";
 
 // Admin Auth
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
@@ -154,7 +154,7 @@ export default function App() {
                 element={
                   <ProtectedRoute
                     authType="admin"
-                    allowedRoles={["super_admin", "admin"]}
+                    allowedRoles={["super_admin", "admin", "financier"]}
                   >
                     <ViewEditApplication />
                   </ProtectedRoute>
@@ -183,13 +183,13 @@ export default function App() {
                 }
               />
               <Route
-                path="/all-user"
+                path="/miscellaneous"
                 element={
                   <ProtectedRoute
                     authType="admin"
-                    allowedRoles={["super_admin", "admin"]}
+                    allowedRoles={["super_admin"]}
                   >
-                    <ViewAllUser key="/all-user" />
+                    <ViewMiscellaneous key="/miscellaneous" />
                   </ProtectedRoute>
                 }
               />
@@ -279,7 +279,7 @@ export default function App() {
       </Suspense>
 
       <ToastContainer
-        position="top-center"
+        position="bottom-right"
         autoClose={3000}
         theme="light"
         style={{ zIndex: 999999 }}

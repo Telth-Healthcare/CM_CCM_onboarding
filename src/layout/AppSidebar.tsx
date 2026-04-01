@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Mail,
   MapPin,
+  MapPinHouse,
   Phone,
   Users,
 } from "lucide-react";
@@ -60,7 +61,7 @@ const navItems: NavItem[] = [
     icon: <Users className={iconClass} />,
     name: "User Management",
     subItems: [
-      { name: "Admin", path: "/admin", roles: ["super_admin"] },
+      { name: "MNP User", path: "/admin", roles: ["super_admin"] },
       { name: "Trainer", path: "/trainer", roles: ["super_admin", "admin"] },
       {
         name: "Financier",
@@ -70,6 +71,12 @@ const navItems: NavItem[] = [
       { name: "CCM", path: "/ccm-list", roles: ["super_admin", "admin"] },
       { name: "CM", path: "/cm-list", roles: ["super_admin", "admin"] },
     ],
+  },
+  {
+    icon: <MapPinHouse className={iconClass} />,
+    name: "Miscellaneous",
+    path: "/miscellaneous",
+    roles: ["super_admin"],
   },
   {
     icon: <ClipboardList className={iconClass} />,

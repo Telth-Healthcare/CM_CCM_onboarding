@@ -129,8 +129,8 @@ const ViewFinancier: React.FC = () => {
     setColumnFilters([]);
     try {
       setLoading(true);
-      const response = await getRoleUsers(["financier"]);
-      const adminRole = await getRoleUsers(["admin"]);
+      const response = await getRoleUsers("roles__name__in", "financier");
+      const adminRole = await getRoleUsers("roles__name__in", "admin");
 
       // Transform admin role data to OptionType format
       const adminData = adminRole?.data?.results || adminRole || [];

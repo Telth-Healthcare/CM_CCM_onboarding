@@ -7,7 +7,6 @@ import {
 } from "material-react-table";
 import { toast } from "react-toastify";
 import {
-  contactApi,
   getAllRegionsApi,
   getRoleUsers,
   sendInvitationApi,
@@ -73,7 +72,6 @@ const ViewAdminList = () => {
     pageSize: 10,
   });
   const [regions, setRegions] = useState<OptionType[]>([]);
-  const [roles, setRoles] = useState<OptionType[]>([]);
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
@@ -126,34 +124,9 @@ const ViewAdminList = () => {
 
   useEffect(() => {
     fetchUsers();
-    fetchRoleInfo();
     fetchRegions();
   }, []);
 
-  const fetchRoleInfo = async () => {
-    try {
-      const response = await contactApi();
-
-      // Add defensive check for response.roles
-      const rolesData = response?.roles || [];
-
-      // Filter out super_admin from roles
-      const filteredRoles = rolesData.filter(
-        (role: OptionType) =>
-          role.value !== "super_admin" &&
-          role.value !== "trainer" &&
-          role.value !== "financier" &&
-          role.value !== "cm" &&
-          role.value !== "ccm",
-      );
-
-      setRoles(filteredRoles);
-    } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to fetch roles");
-      toast.error(errorMessage);
-      setRoles([]); // Set empty array on error
-    }
-  };
 
   const fetchRegions = async () => {
     try {
@@ -175,7 +148,7 @@ const ViewAdminList = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await getRoleUsers(["admin"]);
+      const response = await getRoleUsers("roles__name__in", "admin");
       const userData = response?.data?.results || response || [];
       setUsers(userData);
       setTotalCount(response?.data?.count || 0);
@@ -439,7 +412,6 @@ const ViewAdminList = () => {
     [
       pagination.pageIndex,
       pagination.pageSize,
-      roles,
       canEditApproval,
       canEditStatus,
       editingStatus,
@@ -481,10 +453,6 @@ const ViewAdminList = () => {
       newErrors.phone = "Please enter a valid 10-digit phone number";
     }
 
-    if (!formData.role) {
-      newErrors.role = "Role is required";
-    }
-
     if (!formData.region?.trim()) {
       newErrors.region = "Region is required for admin users";
     }
@@ -505,7 +473,7 @@ const ViewAdminList = () => {
         last_name: formData.last_name,
         email: formData.email,
         phone: `+91${formData.phone}`,
-        roles: [formData.role],
+        roles: ["admin"],
         region: formData.region,
       };
 
@@ -578,7 +546,7 @@ const ViewAdminList = () => {
       />
       <div className="mb-6">
         <h1 className="font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-          Admin Management
+          MNP User Management
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {isSuperAdmin
@@ -716,37 +684,6 @@ const ViewAdminList = () => {
                   )}
                 </div>
 
-                {/* Role Select */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Role <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    required
-                    className={`w-full px-3 py-2 border ${
-                      errors.role
-                        ? "border-red-500 dark:border-red-500"
-                        : "border-gray-300 dark:border-gray-600"
-                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
-                  >
-                    <option value="" disabled>
-                      Select a role
-                    </option>
-                    {roles.map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.role && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {errors.role}
-                    </p>
-                  )}
-                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Region <span className="text-red-500">*</span>

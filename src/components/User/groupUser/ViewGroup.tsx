@@ -135,7 +135,7 @@ const ViewGroup = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await getRoleUsers(["ccm"]); // You'll need to implement this
+      const response = await getRoleUsers("roles__name__in", "ccm"); // You'll need to implement this
       const studentsData = response?.data || response || [];
       setAvailableStudents(studentsData?.results || []);
     } catch (error) {

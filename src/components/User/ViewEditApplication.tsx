@@ -10,7 +10,6 @@ import {
   updateApplicationApi,
   documentVerifyApi,
 } from "../../api";
-import { handleAxiosError } from "../../utils/handleAxiosError";
 import { getUserRole } from "../../config/constants";
 import PageMeta from "../../shared/components/common/PageMeta";
 import {
@@ -24,6 +23,7 @@ import {
   XCircle,
   FileText,
 } from "lucide-react";
+import { handleAxiosError } from "../../utils/handleAxiosError";
 
 interface StatusOption {
   value: string;
@@ -154,7 +154,9 @@ const ViewEditApplication: React.FC = () => {
   useEffect(() => {
     if (id) {
       fetchApplicationDetails(parseInt(id));
-      fetchUsers();
+      if(canEdit){
+        fetchUsers();
+      }
       fetchStatusOptions();
     }
   }, [id]);
@@ -201,8 +203,8 @@ const ViewEditApplication: React.FC = () => {
         state: response.state || "",
         pin_code: response.pin_code || "",
       });
-    } catch (error) {
-      toast.error(handleAxiosError(error, "Failed to fetch user data"));
+    } catch (_) {
+      
     }
   };
 
@@ -210,41 +212,34 @@ const ViewEditApplication: React.FC = () => {
     try {
       const response = await contactApi();
       setPaymentOptions(response?.payment_clearance || []);
-    } catch (error) {
-      toast.error(handleAxiosError(error, "Failed to fetch status options"));
+    } catch (_) {
+      
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await getAllUsers();
-      const usersArray: any[] = Array.isArray(response?.results ?? response)
-        ? (response?.results ?? response)
-        : [];
-      const trainersList: Trainer[] = [];
-      const financiersList: Financier[] = [];
-      usersArray.forEach((item: any) => {
-        if (!item?.roles) return;
-        const roles: string[] = Array.isArray(item.roles) ? item.roles : [];
-        const fullName =
-          `${item.first_name || ""} ${item.last_name || ""}`.trim();
-        if (roles.includes("trainer"))
-          trainersList.push({
-            value: item.id,
-            label: fullName || `Trainer ${item.id}`,
-          });
-        if (roles.includes("financier"))
-          financiersList.push({
-            id: item.id,
-            name: fullName || `Financier ${item.id}`,
-          });
-      });
-      setTrainers(trainersList);
-      setFinanciers(financiersList);
-    } catch (error) {
-      toast.error(handleAxiosError(error, "Failed to fetch users"));
-    }
-  };
+ const fetchUsers = async () => {
+  try {
+    const response = await getAllUsers();
+    const usersArray: any[] = Array.isArray(response?.results ?? response)
+      ? (response?.results ?? response)
+      : [];
+    const trainersList: Trainer[] = [];
+    const financiersList: Financier[] = [];
+    usersArray.forEach((item: any) => {
+      if (!item?.roles) return;
+      const roles: string[] = Array.isArray(item.roles) ? item.roles : [];
+      const fullName = `${item.first_name || ""} ${item.last_name || ""}`.trim();
+      if (roles.includes("trainer"))
+        trainersList.push({ value: item.id, label: fullName || `Trainer ${item.id}` });
+      if (roles.includes("financier"))
+        financiersList.push({ id: item.id, name: fullName || `Financier ${item.id}` });
+    });
+    setTrainers(trainersList);
+    setFinanciers(financiersList);
+  } catch (_) {
+    // interceptor handles toast
+  }
+};
 
   const handlePersonalSave = async () => {
     if (!shgUserData) return;
@@ -270,8 +265,8 @@ const ViewEditApplication: React.FC = () => {
       toast.success("Personal details updated");
       setIsEditingPersonal(false);
       fetchSHGUserData(shgUserData.id);
-    } catch (err) {
-      toast.error(handleAxiosError(err, "Failed to update personal details"));
+    } catch (_) {
+      
     } finally {
       setSubmitting(false);
     }
@@ -297,8 +292,8 @@ const ViewEditApplication: React.FC = () => {
           ),
         };
       });
-    } catch (err) {
-      toast.error(handleAxiosError(err, "Failed to verify document"));
+    } catch (_) {
+      
     } finally {
       setDocVerifying((prev) => ({ ...prev, [doc.id!]: false }));
     }
@@ -324,10 +319,10 @@ const ViewEditApplication: React.FC = () => {
         status: derivedStatus,
       });
       toast.success("Application updated successfully");
-      navigate("/applications")
+      navigate("/applications");
       fetchApplicationDetails(parseInt(id!));
-    } catch (err) {
-      toast.error(handleAxiosError(err, "Failed to update application"));
+    } catch (_) {
+      
     } finally {
       setSubmitting(false);
     }
@@ -846,7 +841,8 @@ const ViewEditApplication: React.FC = () => {
                   {(() => {
                     const docs = shgUserData?.documents ?? [];
                     const allApproved =
-                      docs.length > 0 && docs.every((d) => d.status === "approved");
+                      docs.length > 0 &&
+                      docs.every((d) => d.status === "approved");
                     return (
                       <div className="flex flex-col items-stretch sm:items-end gap-1.5 px-4 sm:px-6 pb-4 sm:pb-5 pt-3 sm:pt-4 border-t border-gray-100 dark:border-gray-700 mt-auto">
                         {!allApproved && docs.length > 0 && (
@@ -918,6 +914,7 @@ const ViewEditApplication: React.FC = () => {
 
                 {/* Trainer + Financier — side by side on sm+ */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {canEdit && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Assigned Financier
@@ -941,6 +938,7 @@ const ViewEditApplication: React.FC = () => {
                       ))}
                     </select>
                   </div>
+                  )}
                   {/* Payment Status */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -971,30 +969,30 @@ const ViewEditApplication: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  {application?.payment_status === "cleared" &&(
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Assigned Trainer
-                    </label>
-                    <select
-                      name="assigned_trainer"
-                      value={processingForm.assigned_trainer}
-                      onChange={(e) =>
-                        setProcessingForm((p) => ({
-                          ...p,
-                          assigned_trainer: e.target.value,
-                        }))
-                      }
-                      className={inputCls}
-                    >
-                      <option value="">Select Trainer</option>
-                      {trainers.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {application?.payment_status === "cleared" && canEdit && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Assigned Trainer
+                      </label>
+                      <select
+                        name="assigned_trainer"
+                        value={processingForm.assigned_trainer}
+                        onChange={(e) =>
+                          setProcessingForm((p) => ({
+                            ...p,
+                            assigned_trainer: e.target.value,
+                          }))
+                        }
+                        className={inputCls}
+                      >
+                        <option value="">Select Trainer</option>
+                        {trainers.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   )}
                 </div>
                 {/* Notes — Private Notes only */}

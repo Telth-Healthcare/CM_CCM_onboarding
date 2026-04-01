@@ -372,7 +372,7 @@ const Enrollments = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await getRoleUsers(["ccm"]);
+      const response = await getRoleUsers("roles__name__in", "ccm");
       const studentsData = response?.data || response || [];
       dispatch({
         type: "SET_AVAILABLE_STUDENTS",

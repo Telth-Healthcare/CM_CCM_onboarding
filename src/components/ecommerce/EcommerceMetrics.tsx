@@ -109,14 +109,6 @@ export default function EcommerceMetrics({
             Real-time metrics and performance indicators
           </p>
         </div>
-        
-        {/* Quick Stats Badge */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800/50 rounded-full">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
-            Live Updates
-          </span>
-        </div>
       </div>
 
       {/* Metrics Grid */}
@@ -136,13 +128,14 @@ export default function EcommerceMetrics({
           icon={BoxIconLine}
           growth={applicationGrowth}
         />
-
-        <MetricCard
-          title="Users with No Region"
-          value={region}
-          icon={User}
-          growth={regionGrowth}
-        />
+        {showUsersCard && (
+          <MetricCard
+            title="Users with No Region"
+            value={region}
+            icon={User}
+            growth={regionGrowth}
+          />
+        )}
       </div>
 
       {/* Add Custom CSS for Animations */}

@@ -1,4 +1,3 @@
-// shared/components/mui/MuiTable.tsx
 import {
   MaterialReactTable,
   MRT_ColumnFiltersState,
@@ -27,6 +26,7 @@ interface CommonTableProps<T extends MRT_RowData> {
   data: T[];
   loading?: boolean;
   pagination: MRT_PaginationState;
+  totalCount?: number;
   onPaginationChange: OnChangeFn<MRT_PaginationState>;
   toolbarActions?: ToolbarAction[];
   rowActions?: TableAction[];
@@ -36,7 +36,7 @@ interface CommonTableProps<T extends MRT_RowData> {
   enableRowActions?: boolean;
   maxHeight?: string | number;
   enableColumnFilters?: boolean;
-  enableColumnFilterModes?: boolean; // Add this prop
+  enableColumnFilterModes?: boolean;
   columnFilters?: MRT_ColumnFiltersState;
   onColumnFiltersChange?: OnChangeFn<MRT_ColumnFiltersState>;
 }
@@ -46,12 +46,13 @@ const CommonTable = <T extends MRT_RowData>({
   data,
   loading = false,
   pagination,
+  totalCount,
   onPaginationChange,
   toolbarActions = [],
   rowActions = [],
   enableRowSelection = true,
   enableColumnFilters = true,
-  enableColumnFilterModes = false, // Default to false
+  enableColumnFilterModes = false,
   enablePinning = true,
   maxHeight,
   columnFilters,
@@ -71,8 +72,10 @@ const CommonTable = <T extends MRT_RowData>({
           showSkeletons: loading,
           columnFilters: columnFilters ?? [],
         }}
+        manualPagination={true}
+        rowCount={totalCount ?? 0}
+        enablePagination={false}
         onPaginationChange={onPaginationChange}
-        // Only enable one of these at a time
         enableColumnFilterModes={enableColumnFilterModes}
         enableColumnFilters={!enableColumnFilterModes && enableColumnFilters}
         enablePinning={enablePinning}
@@ -81,16 +84,14 @@ const CommonTable = <T extends MRT_RowData>({
         positionToolbarAlertBanner="bottom"
         enableFullScreenToggle={false}
         localization={MRT_Localization_EN}
-        paginationDisplayMode="pages"
         onColumnFiltersChange={onColumnFiltersChange}
         initialState={{
           columnPinning: { left: ["mrt-row-actions"] },
-          showColumnFilters: enableColumnFilters, // This is important!
+          showColumnFilters: enableColumnFilters,
         }}
         defaultColumn={{
           minSize: 150,
           size: 200,
-          // Enable filtering by default for all columns
           enableColumnFilter: enableColumnFilters,
         }}
         muiTablePaperProps={{

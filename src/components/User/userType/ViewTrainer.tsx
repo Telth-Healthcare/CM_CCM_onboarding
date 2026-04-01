@@ -129,8 +129,8 @@ const ViewTrainer: React.FC = () => {
     setColumnFilters([]);
     try {
       setLoading(true);
-      const response = await getRoleUsers(["trainer"]);
-      const adminRole = await getRoleUsers(["admin"]);
+      const response = await getRoleUsers("roles__name__in", "trainer");
+      const adminRole = await getRoleUsers("roles__name__in", "admin");
 
       // Transform admin role data to OptionType format
       const adminData = adminRole?.data?.results || adminRole || [];
@@ -273,12 +273,7 @@ const ViewTrainer: React.FC = () => {
       toast.success("User invitation sent successfully");
       handleCloseModal();
       fetchUsers();
-    } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        "Failed to send user invitation",
-      );
-      toast.error(errorMessage);
+    } catch (_) {
     } finally {
       setSubmitting(false);
     }
