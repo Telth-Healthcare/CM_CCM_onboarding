@@ -95,7 +95,7 @@ const navItems: NavItem[] = [
       {
         name: "Group",
         path: "/group",
-        roles: ["super_admin", "admin", "trainer"],
+        roles: ["super_admin", "trainer"],
       },
     ],
   },

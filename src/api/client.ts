@@ -5,7 +5,6 @@ import axios, {
 } from "axios";
 import { AuthType } from "../config/constants";
 import { baseUrl } from "../config/env";
-import { toastAxiosError } from "../utils/handleAxiosError";
 
 const defaultHeaders = {
   Accept: "application/json",
@@ -63,9 +62,6 @@ function createAuthClient(authType: AuthType) {
         handleRedirect("/admin/signin");
         return Promise.reject(error);
       }
-
-      toastAxiosError(error, "Something went wrong. Please try again.");
-
       return Promise.reject(error);
     },
   );

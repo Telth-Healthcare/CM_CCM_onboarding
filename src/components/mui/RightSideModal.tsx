@@ -6,7 +6,7 @@ interface RightSideModalProps {
   className?: string;
   children: React.ReactNode;
   showCloseButton?: boolean;
-  width?: string; // optional custom width, e.g., "w-1/2", "w-2/3"
+  width?: string;
 }
 
 export const RightSideModal: React.FC<RightSideModalProps> = ({
@@ -15,22 +15,18 @@ export const RightSideModal: React.FC<RightSideModalProps> = ({
   children,
   className = "",
   showCloseButton = true,
-  width = "w-3/4", // default 3/4 width
+  width = "480px",
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Handle Escape key
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-    }
+    if (isOpen) document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
-  // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -48,39 +44,35 @@ export const RightSideModal: React.FC<RightSideModalProps> = ({
     <div className="fixed inset-0 z-99999 overflow-hidden">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-gray-400/50 "
+        className="fixed inset-0 bg-gray-400/50"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Modal panel */}
+      {/* Modal panel — fixed width via inline style, never grows */}
       <div
         ref={modalRef}
+        style={{ width }} // ✅ inline style so arbitrary px values work
         className={`
           fixed inset-y-0 right-0
-          ${width} max-w-full
+          max-w-full
           bg-white dark:bg-gray-900
           shadow-xl
+          flex flex-col
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "translate-x-full"}
           ${className}
         `}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button (optional) */}
+        {/* Close button */}
         {showCloseButton && (
           <button
             onClick={onClose}
             className="absolute right-3 top-3 z-10 flex h-9.5 w-9.5 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white sm:right-6 sm:top-6 sm:h-11 sm:w-11"
             aria-label="Close"
           >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
                 fillRule="evenodd"
                 clipRule="evenodd"
@@ -91,8 +83,10 @@ export const RightSideModal: React.FC<RightSideModalProps> = ({
           </button>
         )}
 
-        {/* Content */}
-        <div className="h-full overflow-y-auto p-6">{children}</div>
+        {/* ✅ Scrollable content area — modal height is fixed, content scrolls */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {children}
+        </div>
       </div>
     </div>
   );

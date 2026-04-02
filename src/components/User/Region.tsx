@@ -42,7 +42,6 @@ const Region = () => {
     pincodes: [],
   });
 
-  // Pincode tag input states
   const [pincodeInput, setPincodeInput] = useState("");
   const [pincodes, setPincodes] = useState<string[]>([]);
   const [pincodeError, setPincodeError] = useState("");
@@ -57,7 +56,6 @@ const Region = () => {
 
   const isSuperAdmin = userRole === "super_admin";
 
-  // Reset form when modal closes
   useEffect(() => {
     if (!isAddModalOpen) {
       setFormData({ name: "", pincodes: [] });
@@ -88,7 +86,6 @@ const Region = () => {
     }
   };
 
-  // ── Pincode helpers ─────────────────────────────────────────────────────
   const addPincode = () => {
     const val = pincodeInput.trim();
     if (!val) return;
@@ -119,7 +116,6 @@ const Region = () => {
     }
   };
 
-  // ── Form submit ─────────────────────────────────────────────────────────
   const handleCreateRegion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -143,14 +139,12 @@ const Region = () => {
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof NewRegionForm, string>> = {};
-
     if (!formData.name || formData.name.trim() === "") {
       newErrors.name = "Region name is required";
     }
     if (pincodes.length === 0) {
       newErrors.pincodes = "At least one pincode is required";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -240,7 +234,7 @@ const Region = () => {
           isOpen={isAddModalOpen}
           onClose={handleCloseModal}
           showCloseButton
-          width=""
+          width="400px"
         >
           <div className="p-6">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-6">
@@ -277,69 +271,73 @@ const Region = () => {
                     Pincode <span className="text-red-500">*</span>
                   </label>
 
-                  <div className="flex gap-2 items-start">
+                  <div className="flex flex-col gap-2">
                     {/* Tag box */}
                     <div
-                      className={`flex flex-wrap gap-1.5 items-center flex-1 min-h-[42px] px-2 py-1.5 border ${
+                      className={`w-full border ${
                         errors.pincodes
                           ? "border-red-400"
                           : "border-gray-300 dark:border-gray-600"
-                      } rounded-lg bg-white dark:bg-gray-800 cursor-text`}
-                      onClick={() =>
-                        document.getElementById("pincode-input")?.focus()
-                      }
+                      } rounded-lg bg-white dark:bg-gray-800`}
                     >
-                      {pincodes.map((pin) => (
-                        <span
-                          key={pin}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded text-xs font-medium"
-                        >
-                          {pin}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removePin(pin);
-                            }}
-                            className="leading-none opacity-60 hover:opacity-100 text-base"
-                            title="Remove"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
+                      {/* ✅ 2-column grid of pincode tags */}
+                      {pincodes.length > 0 && (
+                        <div className="grid grid-cols-2 gap-1.5 p-2 max-h-[150px] overflow-y-auto">
+                          {pincodes.map((pin) => (
+                            <span
+                              key={pin}
+                              className="inline-flex items-center justify-between gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded text-xs font-medium"
+                            >
+                              {pin}
+                              <button
+                                type="button"
+                                onClick={() => removePin(pin)}
+                                className="leading-none opacity-60 hover:opacity-100 text-base ml-1 flex-shrink-0"
+                                title="Remove"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
-                      {/* Text input */}
-                      <input
-                        id="pincode-input"
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={6}
-                        value={pincodeInput}
-                        onChange={(e) => {
-                          setPincodeInput(e.target.value.replace(/\D/g, ""));
-                          setPincodeError("");
-                          setErrors((prev) => ({
-                            ...prev,
-                            pincode: undefined,
-                          }));
-                        }}
-                        onKeyDown={handlePincodeKeyDown}
-                        placeholder={
-                          pincodes.length === 0 ? "Enter 6-digit pincode…" : ""
+                      {/* Input row */}
+                      <div
+                        className="flex items-center px-2 py-1.5 cursor-text"
+                        onClick={() =>
+                          document.getElementById("pincode-input")?.focus()
                         }
-                        className="flex-1 min-w-[130px] bg-transparent outline-none text-sm text-gray-800 dark:text-white placeholder-gray-400"
-                      />
+                      >
+                        <input
+                          id="pincode-input"
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={pincodeInput}
+                          onChange={(e) => {
+                            setPincodeInput(e.target.value.replace(/\D/g, ""));
+                            setPincodeError("");
+                            setErrors((prev) => ({
+                              ...prev,
+                              pincode: undefined,
+                            }));
+                          }}
+                          onKeyDown={handlePincodeKeyDown}
+                          placeholder="Enter 6-digit pincode…"
+                          className="flex-1 bg-transparent outline-none text-sm text-gray-800 dark:text-white placeholder-gray-400"
+                        />
+                      </div>
                     </div>
 
-                    {/* Add button */}
+                    {/* ✅ Add button full width below */}
                     <button
                       type="button"
                       onClick={addPincode}
                       disabled={!pincodeInput.trim()}
-                      className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                      className="w-full px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      Add
+                      Add Pincode
                     </button>
                   </div>
 
@@ -347,7 +345,6 @@ const Region = () => {
                   {pincodeError && (
                     <p className="mt-1 text-xs text-red-500">{pincodeError}</p>
                   )}
-                  {/* Form validation error */}
                   {errors.pincodes && !pincodeError && (
                     <p className="mt-1 text-xs text-red-500">
                       {errors.pincodes}

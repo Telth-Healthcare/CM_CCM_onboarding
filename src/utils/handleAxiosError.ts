@@ -9,15 +9,36 @@ const extractFieldError = (data: ApiErrorData): string | null => {
 
   const value = data[firstKey];
 
+  // Case 1: { field: ["error message"] }
   if (Array.isArray(value) && value.length > 0) {
-    return typeof value[0] === "string" ? value[0] : null;
+    const first = value[0];
+
+    if (first && typeof first === "object" && !Array.isArray(first)) {
+      const nestedObj = first as ApiErrorData;
+      for (const nestedKey of Object.keys(nestedObj)) {
+        const nestedVal = nestedObj[nestedKey];
+        if (Array.isArray(nestedVal) && nestedVal.length > 0) {
+          return typeof nestedVal[0] === "string" ? nestedVal[0] : null;
+        }
+        if (typeof nestedVal === "string") return nestedVal;
+      }
+    }
+
+    return typeof first === "string" ? first : null;
   }
 
   if (typeof value === "string") return value;
 
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const nested = value as ApiErrorData;
-    for (const key of ["non_field_errors", "email", "phone", "region", "status", "course"]) {
+    for (const key of [
+      "non_field_errors",
+      "email",
+      "phone",
+      "region",
+      "status",
+      "course",
+    ]) {
       const nested_val = nested[key];
       if (Array.isArray(nested_val) && nested_val.length > 0) {
         return typeof nested_val[0] === "string" ? nested_val[0] : null;
