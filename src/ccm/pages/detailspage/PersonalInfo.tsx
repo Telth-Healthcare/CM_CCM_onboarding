@@ -47,8 +47,11 @@ const BLOOD_GROUP_OPTIONS = [
 const today = new Date()
 const maxDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
   .toISOString().split('T')[0]  // latest allowed DOB = 18 years ago today
-const minDob = new Date(today.getFullYear() - 55, today.getMonth(), today.getDate())
-  .toISOString().split('T')[0]  // earliest allowed DOB = 55 years ago today
+const minDob = new Date(
+  today.getFullYear() - 80,
+  today.getMonth(),
+  today.getDate()
+).toISOString().split('T')[0]   // earliest allowed DOB = 55 years ago today
 
 const PersonalInfo: React.FC<StepProps> = ({ formData, updateFormData, errors }) => {
   if (!formData) return null

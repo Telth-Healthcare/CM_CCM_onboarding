@@ -34,7 +34,58 @@ export function OtpModal({
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [firebaseError, setFirebaseError] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [otpRequested, setOtpRequested] = useState(false); // prevents double OTP
+  const [otpRequested, setOtpRequested] = useState(false);
+
+  // Timer states
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+  const [timerActive, setTimerActive] = useState(false);
+
+  // Timer logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    if (timerActive && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0 && timerActive) {
+      // Timer expired
+      setTimerActive(false);
+      setFirebaseError("OTP has expired. Please request a new one.");
+      setOtpSent(false);
+      setConfirm(null);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [timerActive, timeLeft]);
+
+  // Reset timer when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      resetTimer();
+    }
+  }, [isOpen]);
+
+  // Format time as MM:SS
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Reset timer function
+  const resetTimer = () => {
+    setTimeLeft(300);
+    setTimerActive(false);
+  };
+
+  // Start timer function
+  const startTimer = () => {
+    setTimeLeft(300);
+    setTimerActive(true);
+  };
 
   // Auto send OTP when modal opens
   useEffect(() => {
@@ -73,15 +124,25 @@ export function OtpModal({
 
       setConfirm(confirmationResult);
       setOtpSent(true);
+      startTimer(); // Start the timer when OTP is sent
     } catch (err: any) {
       console.error("OTP Send Error:", err.code, err.message);
 
-      setFirebaseError(
-        err?.message || "Failed to send OTP. Please try again."
-      );
+      let message = "Failed to send OTP. Please try again.";
+
+      if (err?.code === "auth/too-many-requests") {
+        message = "Too many attempts. Please try again after some time.";
+      } else if (err?.code === "auth/quota-exceeded") {
+        message = "SMS quota exceeded. Please try later.";
+      } else if (err?.message?.includes("TOO_MANY_ATTEMPTS_TRY_LATER")) {
+        message = "Too many attempts. Please wait before requesting OTP again.";
+      }
+
+      setFirebaseError(message);
 
       window.recaptchaVerifier?.clear();
       window.recaptchaVerifier = undefined;
+      resetTimer();
     } finally {
       setSendLoading(false);
     }
@@ -96,23 +157,43 @@ export function OtpModal({
       return;
     }
 
+    if (timeLeft === 0) {
+      setFirebaseError("OTP has expired. Please request a new one.");
+      return;
+    }
+
     setVerifyLoading(true);
     setFirebaseError("");
 
     try {
       const result = await confirm.confirm(otp);
-
       const idToken = await result.user.getIdToken();
 
+      resetTimer();
       handleClose();
       onFirebaseSuccess(idToken);
     } catch (err: any) {
-      console.error("OTP Verify Error:", err.code, err.message);
+      let message = "OTP verification failed. Please try again.";
 
-      setFirebaseError("OTP verification failed. Please try again.");
+      if (err?.code === "auth/too-many-requests") {
+        message = "Too many attempts. Try again later.";
+      } else if (err?.code === "auth/code-expired") {
+        message = "OTP expired. Please request a new one.";
+      } else if (err?.code === "auth/invalid-verification-code") {
+        message = "Invalid OTP. Please check and try again.";
+      }
+
+      setFirebaseError(message);
     } finally {
       setVerifyLoading(false);
     }
+  };
+
+  // Resend OTP
+  const handleResendOtp = () => {
+    if (sendLoading) return;
+    resetTimer();
+    sendOtp();
   };
 
   // Reset modal
@@ -122,6 +203,7 @@ export function OtpModal({
     setOtpSent(false);
     setOtpRequested(false);
     setFirebaseError("");
+    resetTimer();
 
     window.recaptchaVerifier?.clear();
     window.recaptchaVerifier = undefined;
@@ -134,7 +216,6 @@ export function OtpModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
-
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
             Verify Phone Number
@@ -144,8 +225,8 @@ export function OtpModal({
             {sendLoading
               ? "Sending OTP..."
               : otpSent
-              ? `OTP sent to ${phone}`
-              : `Preparing OTP for ${phone}`}
+                ? `OTP sent to ${phone}`
+                : `Preparing OTP for ${phone}`}
           </p>
         </div>
 
@@ -156,38 +237,51 @@ export function OtpModal({
         )}
 
         <div className="mb-4">
-         <input
-  type="text"
-  inputMode="numeric"
-  maxLength={6}
-  placeholder="Enter 6-digit OTP"
-  value={otp}
-  autoFocus
-  disabled={sendLoading || !otpSent}
-  onChange={(e) => {
-    setOtp(e.target.value.replace(/\D/g, ""));
-    setFirebaseError("");
-  }}
-  onKeyDown={(e) => {
-    if (e.key === "Enter" && otp.length === 6 && !verifyLoading && otpSent) {
-      handleVerifyOtp();
-    }
-  }}
-  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:opacity-50"
-/>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="Enter 6-digit OTP"
+            value={otp}
+            autoFocus
+            disabled={sendLoading || !otpSent || timeLeft === 0}
+            onChange={(e) => {
+              setOtp(e.target.value.replace(/\D/g, ""));
+              setFirebaseError("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && otp.length === 6 && !verifyLoading && otpSent && timeLeft > 0) {
+                handleVerifyOtp();
+              }
+            }}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:opacity-50"
+          />
         </div>
 
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
-            onClick={sendOtp}
+            onClick={handleResendOtp}
             disabled={sendLoading}
             className="text-sm text-brand-500 hover:text-brand-600 disabled:opacity-50"
           >
             {sendLoading ? "Sending..." : "Resend OTP"}
           </button>
 
-          <span className="text-xs text-gray-400">Expires in 5 min</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">
+              {timerActive && otpSent ? (
+                <>
+                  <svg className="inline-block w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Expires in {formatTime(timeLeft)}
+                </>
+              ) : (
+                "Expires in 05:00"
+              )}
+            </span>
+          </div>
         </div>
 
         <div className="flex gap-3">
@@ -203,7 +297,7 @@ export function OtpModal({
           <button
             type="button"
             onClick={handleVerifyOtp}
-            disabled={verifyLoading || otp.length < 6 || !otpSent}
+            disabled={verifyLoading || otp.length < 6 || !otpSent || timeLeft === 0}
             className="flex-1 py-2.5 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 disabled:opacity-50"
           >
             {verifyLoading ? "Verifying..." : "Verify OTP"}

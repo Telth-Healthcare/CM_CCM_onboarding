@@ -73,7 +73,7 @@ export default function Home() {
 useEffect(() => {
   const ccmUser   = JSON.parse(localStorage.getItem("ccm_user") || "null");
   const innerUser = ccmUser?.user ?? ccmUser;          // inner user {id:2, ...}
-  const appId     = localStorage.getItem(`ccm_draft_pk_${innerUser?.id}`);
+  const appId     = localStorage.getItem(`ccm_app_pk_${innerUser?.id}`);
 
   if (!appId) { setLoading(false); return; }           // no app yet — stop
 

@@ -141,16 +141,20 @@ const handleLoginSuccess = (data: any) => {
   setToken(type, {
     access:  data.meta?.access_token,
     refresh: data.meta?.refresh_token,
-    user:    user,                              // ✅ was data.data → now user directly
-  });
+    user:    user,
+  })
 
-  const profileId = user?.profile_id ?? null
+  localStorage.setItem("ccm_user", JSON.stringify(user))
+
+  const profileId = user?.profile_id ?? null          // 17 — onboard draft key
+  const appId     = user?.application_status?.id ?? null  // 15 — application status key
 
   if (profileId) {
-    localStorage.setItem(`ccm_draft_pk_${user.id}`, String(profileId))
+    localStorage.setItem(`ccm_draft_pk_${user.id}`, String(profileId))  // onboard uses this
   }
-
-  localStorage.setItem("ccm_user", JSON.stringify(user))  // ✅ was data.data → now user directly
+  if (appId) {
+    localStorage.setItem(`ccm_app_pk_${user.id}`, String(appId))        // dashboard uses this
+  }
 
   toast.success("Signed in successfully!")
 
@@ -158,12 +162,12 @@ const handleLoginSuccess = (data: any) => {
     navigate("/dashboard", { replace: true })
   } else {
     const appStatus = user?.application_status?.status
-    if (appStatus === "SUBMITTED") {
-      navigate("/ccm-dashboard",              { replace: true })
+    if (appStatus === "submitted") {
+      navigate("/ccm-dashboard",            { replace: true })
     } else if (profileId) {
-      navigate("/ccmonboard/contact-info",    { replace: true })
+      navigate("/ccmonboard/contact-info",  { replace: true })
     } else {
-      navigate("/ccmonboard/personal-info",   { replace: true })
+      navigate("/ccmonboard/personal-info", { replace: true })
     }
   }
 }
