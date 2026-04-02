@@ -19,6 +19,7 @@ import ViewTrainer from "./components/User/userType/ViewTrainer";
 import ViewAdminList from "./components/User/userType/ViewAdminList";
 import ViewCCMList from "./components/User/userType/ViewCCMList";
 import ViewMiscellaneous from "./components/User/userType/ViewMiscellaneous";
+import { setNavigate } from "./api";
 
 // Admin Auth
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
@@ -46,12 +47,21 @@ const CourseDetails = lazy(
 );
 const Enrollment = lazy(() => import("./components/User/course/Enrollment"));
 
+function NavigateSetup() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setNavigate(navigate);
+  }, [navigate]);
+
+  return null;
+}
+
 // Root Redirect Component
 function RootRedirect() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check localStorage for user data
     const userData = localStorage.getItem("user");
     const token = localStorage.getItem("token");
 
@@ -89,6 +99,7 @@ function RootRedirect() {
 export default function App() {
   return (
     <Router>
+      <NavigateSetup />
       <ScrollToTop />
       <Suspense
         fallback={
@@ -106,7 +117,6 @@ export default function App() {
         }
       >
         <Routes>
-          {/* Root path redirect */}
           <Route path="/" element={<RootRedirect />} />
 
           {/* Admin Auth */}
@@ -237,7 +247,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-                <Route
+              <Route
                 path="/cm-list"
                 element={
                   <ProtectedRoute

@@ -89,6 +89,9 @@ export const getSHGUserByIdApi = (userId: number) => {
     .then(res => res.data)
 }  
 
+export const updateUserApplicationApi = (pk: number, data: Record<string, any>) =>
+  client.patch(`partners/app/cm-ccm/${pk}/`, data).then(res => res.data)
+
 export const getAllWebinarsApi = () => {
     return client.get("web/webinars/") 
     .then(res => res.data); 

@@ -12,20 +12,20 @@ import {
   createGroupEnrollApi,
   updateEnrollApi,
 } from "../../../api";
-import { handleAxiosError } from "../../../utils/handleAxiosError";
-import PageMeta from "../../common/PageMeta";
-import { RightSideModal } from "../../mui/RightSideModal";
-import Button from "../../ui/button/Button";
-import CommonTable from "../../mui/MuiTable";
 import {
   PencilIcon,
   Users,
   User,
   Eye,
 } from "lucide-react";
+import PageMeta from "../../common/PageMeta";
+import { RightSideModal } from "../../mui/RightSideModal";
+import Button from "../../ui/button/Button";
+import CommonTable from "../../mui/MuiTable";
 import { getGroupApi } from "../../../api/group.api";
 import ViewEnrollment from "./ViewEnrollment";
 import type { EnrollmentDetail } from "./ViewEnrollment";
+import { toastAxiosError } from "../../../utils/handleAxiosError";
 
 interface Material {
   id: number;
@@ -324,7 +324,6 @@ const Enrollments = () => {
     errors,
   } = state;
 
-  // Fetch on mount
   useEffect(() => {
     fetchInvitations();
     fetchStudents();
@@ -332,7 +331,6 @@ const Enrollments = () => {
     fetchCourses();
   }, []);
 
-  // Pre-fill student when editing
   useEffect(() => {
     if (isEditModalOpen && selectedEnrollment && availableStudents.length > 0) {
       const student = availableStudents.find(
@@ -362,8 +360,7 @@ const Enrollments = () => {
         type: "SET_INVITATIONS",
         payload: data?.results || data || [],
       });
-    } catch (error) {
-      toast.error(handleAxiosError(error, "Failed to fetch enrollments"));
+    } catch (_) {
       dispatch({ type: "SET_INVITATIONS", payload: [] });
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
@@ -379,8 +376,7 @@ const Enrollments = () => {
         payload: studentsData?.results || studentsData || [],
       });
     } catch (error) {
-      console.error("Failed to fetch students:", error);
-      toast.error("Failed to fetch students");
+      toastAxiosError(error, "Failed to fetch students"); // ✅
     }
   };
 
@@ -392,9 +388,8 @@ const Enrollments = () => {
         type: "SET_AVAILABLE_GROUPS",
         payload: groupData?.results || groupData || [],
       });
-    } catch (error) {
-      console.error("Failed to fetch groups:", error);
-      toast.error("Failed to fetch groups");
+    } catch (_) {
+      // silently ignore
     }
   };
 
@@ -407,8 +402,7 @@ const Enrollments = () => {
         payload: coursesData?.results || coursesData || [],
       });
     } catch (error) {
-      console.error("Failed to fetch courses:", error);
-      toast.error("Failed to fetch courses");
+      toastAxiosError(error, "Failed to fetch courses"); // ✅
     }
   };
 
@@ -475,7 +469,7 @@ const Enrollments = () => {
       handleCloseModal();
       fetchInvitations();
     } catch (error) {
-      toast.error(handleAxiosError(error, "Failed to create enrollments"));
+      toastAxiosError(error, "Failed to create enrollments"); // ✅
     } finally {
       dispatch({ type: "SET_SUBMITTING", payload: false });
     }
@@ -495,7 +489,7 @@ const Enrollments = () => {
       handleCloseModal();
       fetchInvitations();
     } catch (error) {
-      toast.error(handleAxiosError(error, "Failed to update enrollment"));
+      toastAxiosError(error, "Failed to update enrollment"); // ✅
     } finally {
       dispatch({ type: "SET_SUBMITTING", payload: false });
     }
@@ -565,12 +559,12 @@ const Enrollments = () => {
   ];
 
   if (viewingEnrollment) {
-    // Convert Invitation to EnrollmentDetail for ViewEnrollment
     const enrollmentDetail: EnrollmentDetail = {
       id: viewingEnrollment.id,
       user_name: viewingEnrollment.user_name || "",
       user: viewingEnrollment.user,
-      enrollment_date: viewingEnrollment.enrollment_date || new Date().toISOString(),
+      enrollment_date:
+        viewingEnrollment.enrollment_date || new Date().toISOString(),
       course_details: {
         ...viewingEnrollment.course_details!,
         is_completed: viewingEnrollment.is_completed || false,
@@ -802,7 +796,6 @@ const Enrollments = () => {
                 </div>
               )}
 
-              {/* Group Enrollment */}
               {enrollmentMode === "group" && !isEditModalOpen && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -836,7 +829,6 @@ const Enrollments = () => {
               )}
             </div>
 
-            {/* Actions */}
             <div className="mt-8 flex justify-end gap-3">
               <Button
                 onClick={handleCloseModal}

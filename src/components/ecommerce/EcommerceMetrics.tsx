@@ -128,7 +128,7 @@ export default function EcommerceMetrics({
           icon={BoxIconLine}
           growth={applicationGrowth}
         />
-        {showUsersCard && (
+        {userRole === "super_admin" && (
           <MetricCard
             title="Users with No Region"
             value={region}

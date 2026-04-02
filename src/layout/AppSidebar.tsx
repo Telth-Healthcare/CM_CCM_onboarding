@@ -61,7 +61,7 @@ const navItems: NavItem[] = [
     icon: <Users className={iconClass} />,
     name: "User Management",
     subItems: [
-      { name: "MNP User", path: "/admin", roles: ["super_admin"] },
+      { name: "MNP", path: "/admin", roles: ["super_admin"] },
       { name: "Trainer", path: "/trainer", roles: ["super_admin", "admin"] },
       {
         name: "Financier",
@@ -114,13 +114,13 @@ const navItems: NavItem[] = [
     icon: <Mail className={iconClass} />,
     name: "Webinars",
     path: "/webinars",
-    roles: ["super_admin", "admin"],
+    roles: ["super_admin"],
   },
   {
     icon: <Phone className={iconClass} />,
     name: "Contact",
     path: "/contact",
-    roles: ["super_admin", "admin"],
+    roles: ["super_admin"],
   },
 ];
 

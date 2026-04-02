@@ -55,7 +55,6 @@ export const handleAxiosError = (
   return error.message ?? fallback;
 };
 
-// ✅ Use this everywhere instead of toast.error(handleAxiosError(...))
 export const toastAxiosError = (
   error: unknown,
   fallback = "Something went wrong. Please try again.",
@@ -63,6 +62,6 @@ export const toastAxiosError = (
 ) => {
   const message = handleAxiosError(error, fallback);
   toast.error(message, {
-    toastId: toastId ?? message, // prevents duplicate toasts with same message
+    toastId: toastId ?? message,
   });
 };

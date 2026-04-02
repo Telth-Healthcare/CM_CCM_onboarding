@@ -7,8 +7,8 @@ import {
   getApplicationByIdApi,
   getSHGUserByIdApi,
   updateApplicationStatusApi,
-  updateApplicationApi,
   documentVerifyApi,
+  updateUserApplicationApi,
 } from "../../api";
 import { getUserRole } from "../../config/constants";
 import PageMeta from "../../shared/components/common/PageMeta";
@@ -74,30 +74,6 @@ interface SHGUserData {
   village: string;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  submitted: "Submitted",
-  under_review: "Under Review",
-  assigned: "Assigned",
-  training: "Training",
-  production: "Production",
-  rejected: "Rejected",
-  cancelled: "Cancelled",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  submitted: "bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
-  under_review:
-    "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400",
-  assigned:
-    "bg-purple-50 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400",
-  training:
-    "bg-orange-50 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400",
-  production:
-    "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400",
-  rejected: "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400",
-  cancelled: "bg-gray-50 text-gray-700 dark:bg-gray-500/20 dark:text-gray-400",
-};
-
 const DOC_TYPE_LABELS: Record<string, string> = {
   pan: "PAN Card",
   aadhar_front: "Aadhaar (Front)",
@@ -144,17 +120,22 @@ const ViewEditApplication: React.FC = () => {
     payment_status: "",
     public_notes: "",
     private_notes: "",
+    payment_method: "",
+    payment_type: "",
   });
 
   const [docVerifying, setDocVerifying] = useState<Record<number, boolean>>({});
 
   const userRole = getUserRole("admin");
   const canEdit = userRole === "admin" || userRole === "super_admin";
+  const userData = localStorage.getItem("admin_user") || null;
+  const parsed = JSON.parse(userData ?? "{}");
+ 
 
   useEffect(() => {
     if (id) {
       fetchApplicationDetails(parseInt(id));
-      if(canEdit){
+      if (canEdit) {
         fetchUsers();
       }
       fetchStatusOptions();
@@ -172,6 +153,8 @@ const ViewEditApplication: React.FC = () => {
         public_notes: response.public_notes || "",
         private_notes: response.private_notes || "",
         payment_status: response.payment_status || "",
+        payment_method: response.payment_method || "",
+        payment_type: response.payment_type || "",
       });
       if (response.shg) fetchSHGUserData(response.shg);
     } catch (error) {
@@ -203,49 +186,52 @@ const ViewEditApplication: React.FC = () => {
         state: response.state || "",
         pin_code: response.pin_code || "",
       });
-    } catch (_) {
-      
-    }
+    } catch (_) {}
   };
 
   const fetchStatusOptions = async () => {
     try {
       const response = await contactApi();
       setPaymentOptions(response?.payment_clearance || []);
-    } catch (_) {
-      
-    }
+    } catch (_) {}
   };
 
- const fetchUsers = async () => {
-  try {
-    const response = await getAllUsers();
-    const usersArray: any[] = Array.isArray(response?.results ?? response)
-      ? (response?.results ?? response)
-      : [];
-    const trainersList: Trainer[] = [];
-    const financiersList: Financier[] = [];
-    usersArray.forEach((item: any) => {
-      if (!item?.roles) return;
-      const roles: string[] = Array.isArray(item.roles) ? item.roles : [];
-      const fullName = `${item.first_name || ""} ${item.last_name || ""}`.trim();
-      if (roles.includes("trainer"))
-        trainersList.push({ value: item.id, label: fullName || `Trainer ${item.id}` });
-      if (roles.includes("financier"))
-        financiersList.push({ id: item.id, name: fullName || `Financier ${item.id}` });
-    });
-    setTrainers(trainersList);
-    setFinanciers(financiersList);
-  } catch (_) {
-    // interceptor handles toast
-  }
-};
+  const fetchUsers = async () => {
+    try {
+      const response = await getAllUsers();
+      const usersArray: any[] = Array.isArray(response?.results ?? response)
+        ? (response?.results ?? response)
+        : [];
+      const trainersList: Trainer[] = [];
+      const financiersList: Financier[] = [];
+      usersArray.forEach((item: any) => {
+        if (!item?.roles) return;
+        const roles: string[] = Array.isArray(item.roles) ? item.roles : [];
+        const fullName =
+          `${item.first_name || ""} ${item.last_name || ""}`.trim();
+        if (roles.includes("trainer"))
+          trainersList.push({
+            value: item.id,
+            label: fullName || `Trainer ${item.id}`,
+          });
+        if (roles.includes("financier"))
+          financiersList.push({
+            id: item.id,
+            name: fullName || `Financier ${item.id}`,
+          });
+      });
+      setTrainers(trainersList);
+      setFinanciers(financiersList);
+    } catch (_) {
+      // interceptor handles toast
+    }
+  };
 
   const handlePersonalSave = async () => {
     if (!shgUserData) return;
     setSubmitting(true);
     try {
-      await updateApplicationApi(shgUserData.id, {
+      await updateUserApplicationApi(shgUserData.id, {
         dob: personalForm.dob,
         gender: personalForm.gender,
         blood_group: personalForm.blood_group,
@@ -266,7 +252,6 @@ const ViewEditApplication: React.FC = () => {
       setIsEditingPersonal(false);
       fetchSHGUserData(shgUserData.id);
     } catch (_) {
-      
     } finally {
       setSubmitting(false);
     }
@@ -293,7 +278,6 @@ const ViewEditApplication: React.FC = () => {
         };
       });
     } catch (_) {
-      
     } finally {
       setDocVerifying((prev) => ({ ...prev, [doc.id!]: false }));
     }
@@ -312,7 +296,7 @@ const ViewEditApplication: React.FC = () => {
 
       await updateApplicationStatusApi(parseInt(id!), {
         assigned_trainer: processingForm.assigned_trainer || null,
-        assigned_financier: processingForm.assigned_financier || null,
+        assigned_financier: processingForm.assigned_financier === "self" ? parsed?.id : processingForm.assigned_financier || null,
         public_notes: processingForm.public_notes,
         private_notes: processingForm.private_notes,
         payment_status: processingForm.payment_status,
@@ -322,7 +306,6 @@ const ViewEditApplication: React.FC = () => {
       navigate("/applications");
       fetchApplicationDetails(parseInt(id!));
     } catch (_) {
-      
     } finally {
       setSubmitting(false);
     }
@@ -380,8 +363,6 @@ const ViewEditApplication: React.FC = () => {
       </div>
     );
   }
-
-  const currentStatus = application?.status || "submitted";
 
   return (
     <>
@@ -899,15 +880,23 @@ const ViewEditApplication: React.FC = () => {
             <form onSubmit={handleProcessingSubmit} className="p-4 sm:p-6">
               <div className="space-y-4 sm:space-y-5">
                 {/* Status — read-only */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Status
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Label */}
+                  <label className="col-span-1 sm:col-span-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Payment Status
                   </label>
-                  <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${STATUS_COLORS[currentStatus] ?? STATUS_COLORS.submitted}`}
-                    >
-                      {STATUS_LABELS[currentStatus] ?? currentStatus}
+
+                  {/* Payment Method */}
+                  <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
+                      {processingForm.payment_method === "online_payment" ? "Online Payment" :  "-"}
+                    </span>
+                  </div>
+
+                  {/* Payment Type */}
+                  <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold">
+                      {processingForm.payment_type === "installments" ? "Installments" : "-"}
                     </span>
                   </div>
                 </div>
@@ -915,29 +904,30 @@ const ViewEditApplication: React.FC = () => {
                 {/* Trainer + Financier — side by side on sm+ */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {canEdit && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Assigned Financier
-                    </label>
-                    <select
-                      name="assigned_financier"
-                      value={processingForm.assigned_financier}
-                      onChange={(e) =>
-                        setProcessingForm((p) => ({
-                          ...p,
-                          assigned_financier: e.target.value,
-                        }))
-                      }
-                      className={inputCls}
-                    >
-                      <option value="">Select Financier</option>
-                      {financiers.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Assigned Financier
+                      </label>
+                      <select
+                        name="assigned_financier"
+                        value={processingForm.assigned_financier}
+                        onChange={(e) =>
+                          setProcessingForm((p) => ({
+                            ...p,
+                            assigned_financier: e.target.value,
+                          }))
+                        }
+                        className={inputCls}
+                      >
+                        <option value="">Select Financier</option>
+                        <option value="self">Self</option>
+                        {financiers.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   )}
                   {/* Payment Status */}
                   <div>

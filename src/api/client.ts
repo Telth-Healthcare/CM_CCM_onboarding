@@ -3,17 +3,28 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
-import { handleAxiosError } from "../utils/handleAxiosError";
-import { toast } from "react-toastify";
 import { AuthType } from "../config/constants";
 import { baseUrl } from "../config/env";
-
-// const baseUrl = import.meta.env.VITE_API_BASE_URL;
+import { toastAxiosError } from "../utils/handleAxiosError";
 
 const defaultHeaders = {
   Accept: "application/json",
   "X-Client-ID": "app",
   "ngrok-skip-browser-warning": "true",
+};
+
+let _navigate: ((path: string) => void) | null = null;
+
+export const setNavigate = (navigate: (path: string) => void) => {
+  _navigate = navigate;
+};
+
+const handleRedirect = (path: string) => {
+  if (_navigate) {
+    _navigate(path);
+  } else {
+    window.location.href = path; 
+  }
 };
 
 function createAuthClient(authType: AuthType) {
@@ -35,18 +46,26 @@ function createAuthClient(authType: AuthType) {
     (response: AxiosResponse) => response,
     (error: AxiosError) => {
       const data = error.response?.data as any;
+      const status = error.response?.status;
+
+      if (status === 401 && data?.detail === "Invalid token.") {
+        localStorage.clear();
+        sessionStorage.clear();
+        const redirectPath =
+          authType === "ccm" ? "/ccm-auth/signin" : "/admin/signin";
+        handleRedirect(redirectPath);
+        return Promise.reject(error);
+      }
 
       if (data?.meta?.is_authenticated === false) {
         localStorage.clear();
         sessionStorage.clear();
-        window.location.href = "/admin/signin";
-      } else {
-        const message = handleAxiosError(
-          error,
-          "Session expired. Please sign in again.",
-        );
-        toast.error(message);
+        handleRedirect("/admin/signin");
+        return Promise.reject(error);
       }
+
+      toastAxiosError(error, "Something went wrong. Please try again.");
+
       return Promise.reject(error);
     },
   );
