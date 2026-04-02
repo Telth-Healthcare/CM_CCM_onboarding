@@ -58,18 +58,23 @@ const navItems: NavItem[] = [
     path: "/dashboard",
   },
   {
+    icon: <Layers className={iconClass} />,
+    name: "Applications",
+    path: "/applications",
+  },
+  {
     icon: <Users className={iconClass} />,
     name: "User Management",
     subItems: [
-      { name: "MNP", path: "/admin", roles: ["super_admin"] },
+      { name: "CM", path: "/cm-list", roles: ["super_admin", "admin"] },
+      { name: "CCM", path: "/ccm-list", roles: ["super_admin", "admin"] },
       { name: "Trainer", path: "/trainer", roles: ["super_admin", "admin"] },
       {
         name: "Financier",
         path: "/financier",
         roles: ["super_admin", "admin"],
       },
-      { name: "CCM", path: "/ccm-list", roles: ["super_admin", "admin"] },
-      { name: "CM", path: "/cm-list", roles: ["super_admin", "admin"] },
+      { name: "MNP", path: "/admin", roles: ["super_admin"] },
     ],
   },
   {
@@ -80,7 +85,7 @@ const navItems: NavItem[] = [
   },
   {
     icon: <ClipboardList className={iconClass} />,
-    name: "Enrollments",
+    name: "Training Enrollments",
     path: "/enrollments",
   },
   {
@@ -90,7 +95,7 @@ const navItems: NavItem[] = [
       {
         name: "Course",
         path: "/course",
-        roles: ["super_admin", "admin", "trainer"],
+        roles: ["super_admin", "trainer"],
       },
       {
         name: "Group",
@@ -100,11 +105,6 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    icon: <Layers className={iconClass} />,
-    name: "Applications",
-    path: "/applications",
-  },
-  {
     icon: <MapPin className={iconClass} />,
     name: "Regions",
     path: "/regions",
@@ -112,15 +112,19 @@ const navItems: NavItem[] = [
   },
   {
     icon: <Mail className={iconClass} />,
-    name: "Webinars",
-    path: "/webinars",
-    roles: ["super_admin"],
-  },
-  {
-    icon: <Phone className={iconClass} />,
-    name: "Contact",
-    path: "/contact",
-    roles: ["super_admin"],
+    name: "Enquiries",
+    subItems: [
+      {
+        name: "Webinars",
+        path: "/webinars",
+        roles: ["super_admin"],
+      },
+      {
+        name: "Contact",
+        path: "/contact",
+        roles: ["super_admin"],
+      },
+    ],
   },
 ];
 
@@ -145,7 +149,7 @@ const AppSidebar: React.FC = () => {
     );
 
   const handleSignOut = () => setShowLogoutModal(true);
-  
+
   const cancelLogout = () => setShowLogoutModal(false);
 
   const confirmLogout = () => {
