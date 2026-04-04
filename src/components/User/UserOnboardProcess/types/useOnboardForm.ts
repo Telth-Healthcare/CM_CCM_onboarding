@@ -148,7 +148,7 @@ export const useOnboardForm = (
 
         const resumeStep = getResumeStep(data, docs);
         if (useRouting) {
-          navigate(`/ccmonboard/${resumeStep}`, { replace: true });
+          navigate(`/onboardProcess/${resumeStep}`, { replace: true });
         } else {
           const idx = STEPS.findIndex((s) => s.id === resumeStep);
           if (idx >= 0) setInlineStepIndex(idx);
@@ -325,7 +325,7 @@ const saveProgress = async (): Promise<number | null> => {
   // ── Step navigation — URL routing or inline state ─────────────────────────
   const goToStep = (idx: number) => {
     if (useRouting) {
-      navigate(`/ccmonboard/${STEPS[idx].id}`);
+      navigate(`/onboardProcess/${STEPS[idx].id}`);
     } else {
       setInlineStepIndex(idx);
     }

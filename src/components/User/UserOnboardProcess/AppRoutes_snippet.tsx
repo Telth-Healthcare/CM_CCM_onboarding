@@ -16,12 +16,12 @@ function OnboardRouter() {
 
 export const onboardRoutes = (
   <>
-    <Route path="/ccmonboard/personal-info"       element={<OnboardRouter />} />
-    <Route path="/ccmonboard/address-info"        element={<OnboardRouter />} />
-    <Route path="/ccmonboard/personal-documents"  element={<OnboardRouter />} />
-    <Route path="/ccmonboard/education-documents" element={<OnboardRouter />} />
-    <Route path="/ccmonboard/preview"             element={<OnboardRouter />} />
-    {/* Default: redirect bare /ccmonboard to first step */}
-    <Route path="/ccmonboard" element={<OnboardRouter />} />
+    <Route path="/onboardProcess/personal-info"       element={<OnboardRouter />} />
+    <Route path="/onboardProcess/address-info"        element={<OnboardRouter />} />
+    <Route path="/onboardProcess/personal-documents"  element={<OnboardRouter />} />
+    <Route path="/onboardProcess/education-documents" element={<OnboardRouter />} />
+    <Route path="/onboardProcess/preview"             element={<OnboardRouter />} />
+    {/* Default: redirect bare /onboardProcess to first step */}
+    <Route path="/onboardProcess" element={<OnboardRouter />} />
   </>
 )
