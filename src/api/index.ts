@@ -7,3 +7,4 @@ export * from "./admin.api";
 export * from "./course.api";
 export * from "./group.api";
 export * from "./ccm/ccmonboard.api";
+export * from "./ccm/adminToCcmOnboard.api";

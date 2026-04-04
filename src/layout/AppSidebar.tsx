@@ -8,7 +8,6 @@ import {
   Mail,
   MapPin,
   MapPinHouse,
-  Phone,
   Users,
 } from "lucide-react";
 import { HorizontaLDots, CloseLineIcon, AngleRightIcon } from "../icons";

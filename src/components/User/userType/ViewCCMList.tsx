@@ -11,6 +11,8 @@ import { getRoleUsers, updateUsersApi } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import { getUserRole } from "../../../config/constants";
+import { PlusIcon } from "../../../icons";
+import CCMOnboard from "../UserOnboardProcess/Onboard";
 
 interface User {
   id: number;
@@ -28,6 +30,7 @@ interface User {
   groups: any[];
   roles: string[];
   user_permissions: any[];
+  invite_accepted: boolean | null;
 }
 
 interface ToolbarAction {
@@ -35,6 +38,8 @@ interface ToolbarAction {
   onClick: () => void;
   icon?: React.ReactNode;
 }
+
+type ViewType = "view" | "edit" | "create" | null;
 
 const ViewCCMList = () => {
   const userRole = getUserRole("admin");
@@ -48,12 +53,18 @@ const ViewCCMList = () => {
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
+  const [currentView, setCurrentView] = useState<ViewType>(null);
+
+  // The CCM user the admin is currently onboarding.
+  // null = creating a brand-new CCM (no existing user account yet to link).
+  // number = onboarding an already-created CCM user by their id.
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+
   const [editingStatus, setEditingStatus] = useState<{
     userId: number;
     isActive: boolean;
   } | null>(null);
 
-  // Check user roles
   const isSuperAdmin = userRole === "super_admin";
   const isAdmin = userRole === "admin";
 
@@ -110,6 +121,19 @@ const ViewCCMList = () => {
       setLoading(false);
       setEditingStatus(null);
     }
+  };
+
+  // Called when admin clicks "Create CCM" toolbar button (no existing user yet)
+  const handleCreateNew = () => {
+    setSelectedUserId(null);
+    setCurrentView("create");
+  };
+
+  // Called from CCMOnboard when done (success or back button)
+  const handleOnboardDone = () => {
+    setCurrentView(null);
+    setSelectedUserId(null);
+    fetchUsers(); // refresh list to reflect new onboarding state
   };
 
   const columns = useMemo<MRT_ColumnDef<User>[]>(
@@ -210,18 +234,8 @@ const ViewCCMList = () => {
                   className="p-1 text-success-600 hover:text-success-700 dark:text-success-400"
                   title="Save"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </button>
                 <button
@@ -229,18 +243,8 @@ const ViewCCMList = () => {
                   className="p-1 text-error-600 hover:text-error-700 dark:text-error-400"
                   title="Cancel"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
@@ -264,12 +268,7 @@ const ViewCCMList = () => {
                   className="p-1 text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
                   title="Edit status"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -289,6 +288,45 @@ const ViewCCMList = () => {
         ],
         enableColumnFilter: true,
       },
+       {
+        accessorFn: (row) =>
+          row.invite_accepted === true
+            ? "accepted"
+            : row.invite_accepted === false
+              ? "pending"
+              : "",
+        id: "invite_accepted",
+        header: "Invite Accepted",
+        size: 200,
+
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+
+          return (
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                value === "accepted"
+                  ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                  : value === "pending"
+                    ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                    : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {value === "accepted"
+                ? "Accepted"
+                : value === "pending"
+                  ? "Pending"
+                  : "-"}
+            </span>
+          );
+        },
+
+        filterVariant: "select",
+        filterSelectOptions: [
+          { text: "Accepted", value: "accepted" },
+          { text: "Pending", value: "pending" },
+        ],
+      },
     ],
     [
       pagination.pageIndex,
@@ -300,16 +338,20 @@ const ViewCCMList = () => {
   );
 
   const toolbarActions: ToolbarAction[] = [
+    ...(isAdmin
+      ? [
+          {
+            label: "Create CCM",
+            onClick: handleCreateNew,
+            icon: <PlusIcon className="w-4 h-4" />,
+          },
+        ]
+      : []),
     {
       label: "Refresh",
       onClick: fetchUsers,
       icon: (
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -320,6 +362,17 @@ const ViewCCMList = () => {
       ),
     },
   ];
+
+  // ── Render onboarding wizard inline ──────────────────────────────────────
+  if (currentView === "create") {
+    return (
+      <CCMOnboard
+        useRouting={false}
+        targetUserId={selectedUserId ?? undefined}
+        onDone={handleOnboardDone}
+      />
+    );
+  }
 
   return (
     <div className="p-3">

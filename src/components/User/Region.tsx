@@ -36,6 +36,7 @@ const Region = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [syncUser, setSyncUser] = useState(true);
 
   const [formData, setFormData] = useState<NewRegionForm>({
     name: "",
@@ -63,6 +64,7 @@ const Region = () => {
       setPincodeInput("");
       setPincodeError("");
       setErrors({});
+      setSyncUser(true); // Reset syncUser when modal closes
     }
   }, [isAddModalOpen]);
 
@@ -122,9 +124,11 @@ const Region = () => {
 
     try {
       setSubmitting(true);
+      
       await createRegionsApi({
         name: formData.name,
         pincodes: pincodes.map((code) => ({ code })),
+        sync_users: syncUser,
       });
       toast.success("Region created successfully");
       handleCloseModal();
@@ -280,7 +284,7 @@ const Region = () => {
                           : "border-gray-300 dark:border-gray-600"
                       } rounded-lg bg-white dark:bg-gray-800`}
                     >
-                      {/* ✅ 2-column grid of pincode tags */}
+                      {/* 2-column grid of pincode tags */}
                       {pincodes.length > 0 && (
                         <div className="grid grid-cols-2 gap-1.5 p-2 max-h-[150px] overflow-y-auto">
                           {pincodes.map((pin) => (
@@ -330,15 +334,29 @@ const Region = () => {
                       </div>
                     </div>
 
-                    {/* ✅ Add button full width below */}
-                    <button
-                      type="button"
-                      onClick={addPincode}
-                      disabled={!pincodeInput.trim()}
-                      className="w-full px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Add Pincode
-                    </button>
+                    {/* Sync User Default Checkbox and Add Pincode Button */}
+                    <div className="flex gap-3">
+                      {/* Sync User Default Checkbox - Left side */}
+                      <label className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={syncUser}
+                          onChange={() => setSyncUser((prev) => !prev)}
+                          className="w-4 h-4 text-green-600 bg-white border-gray-300 rounded focus:ring-green-500"
+                        />
+                        Sync User Default
+                      </label>
+                      
+                      {/* Add Pincode Button - Right side */}
+                      <button
+                        type="button"
+                        onClick={addPincode}
+                        disabled={!pincodeInput.trim()}
+                        className="flex-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Add Pincode
+                      </button>
+                    </div>
                   </div>
 
                   {/* Pincode validation error */}
