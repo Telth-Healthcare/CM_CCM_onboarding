@@ -364,17 +364,19 @@ const Region = () => {
         />
       </div>
 
-      {/* View Pincodes Modal */}
+      {/* View Pincodes Modal - Fixed without title prop */}
       <RightSideModal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
         showCloseButton
         width="500px"
-        title={`Pincodes - ${viewRegionName}`}
       >
         <div className="p-6">
           <div className="mb-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Pincodes - {viewRegionName}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Total Pincodes: <span className="font-semibold text-gray-900 dark:text-white">{viewPincodes.length}</span>
             </p>
           </div>
@@ -543,7 +545,7 @@ const Region = () => {
                     {/* Sync User Default Checkbox and Add Pincode Button */}
                     <div className="flex gap-3">
                       {/* Sync User Default Checkbox */}
-                      <label className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-sm font-medium bg-white-600 text-black rounded-lg hover:bg-green-200 transition-colors cursor-pointer">
+                      <label className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer">
                         <input
                           type="checkbox"
                           checked={syncUser}
