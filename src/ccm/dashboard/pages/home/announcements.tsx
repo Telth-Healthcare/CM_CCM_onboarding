@@ -88,8 +88,8 @@ function StatusCard({ app }: { app: AppData }) {
         </svg>
       ),
       label: "Trainer",
-      value: app.assigned_trainer
-        ? <span className="text-xs font-semibold text-green-600">{String(app.assigned_trainer)}</span>
+      value: app.trainer_details
+        ? <span className="text-xs font-semibold text-green-600">{String(app.trainer_details)}</span>
         : <span className="text-xs text-gray-400 italic">Not yet assigned</span>,
     },
     {
@@ -99,8 +99,8 @@ function StatusCard({ app }: { app: AppData }) {
         </svg>
       ),
       label: "Financier",
-      value: app.assigned_financier
-        ? <span className="text-xs font-semibold text-green-600">{String(app.assigned_financier)}</span>
+      value: app.financier_details
+        ? <span className="text-xs font-semibold text-green-600">{String(app.financier_details)}</span>
         : <span className="text-xs text-gray-400 italic">Not yet assigned</span>,
     },
   ];

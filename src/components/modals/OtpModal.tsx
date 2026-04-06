@@ -7,6 +7,7 @@ import {
   ConfirmationResult,
 } from "firebase/auth";
 import { auth } from "../../firebase/firebase";
+import { toast } from "react-toastify";
 
 declare global {
   interface Window {
@@ -124,6 +125,7 @@ export function OtpModal({
 
       setConfirm(confirmationResult);
       setOtpSent(true);
+       toast.success("otp send")
       startTimer(); // Start the timer when OTP is sent
     } catch (err: any) {
       console.error("OTP Send Error:", err.code, err.message);

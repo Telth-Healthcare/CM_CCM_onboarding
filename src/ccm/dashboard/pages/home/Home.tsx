@@ -13,6 +13,8 @@ export interface AppData {
   reference_number: string;
   assigned_trainer: string | null;    // add this
   assigned_financier: string | null;  // add this
+  trainer_details:string;
+  financier_details:string;
   created_at: string;
   updated_at: string;
 }
