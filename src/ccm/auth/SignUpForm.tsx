@@ -137,7 +137,7 @@ export default function CCMSignUpForm() {
           email:      state.email,
           password:   state.password,
           token:      idToken,  // Firebase JWT — proof phone is verified
-          roles:      ["ccm"],
+          roles:      ["cm"],
         }),
       });
 
