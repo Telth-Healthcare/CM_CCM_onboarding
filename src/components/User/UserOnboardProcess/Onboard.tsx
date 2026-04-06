@@ -17,6 +17,7 @@ export interface OnboardProps {
   useRouting?:   boolean
   // Callback fired after successful submit in inline mode
   onDone?: () => void
+  roleFilter?: string
 }
 
 
@@ -132,6 +133,7 @@ export default function CCMOnboard({
   currentIndex = 0,
   targetUserId,
   useRouting   = true,
+  roleFilter,
   onDone,
 }: OnboardProps) {
   const navigate = useNavigate()
@@ -142,7 +144,7 @@ export default function CCMOnboard({
     saving, uploading, isInitialized,
     currentStepId, currentStepIndex,
     handleNext, handlePrev, handleSubmit, handleReplace,
-  } = useOnboardForm(currentId, currentIndex, targetUserId, useRouting)
+  } = useOnboardForm(currentId, currentIndex, targetUserId, useRouting, roleFilter)
 
   const isFirst   = currentStepIndex === 0
   const isPreview = currentStepId === 'preview'

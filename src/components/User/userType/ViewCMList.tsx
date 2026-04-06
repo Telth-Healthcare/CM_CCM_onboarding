@@ -11,6 +11,8 @@ import { getRoleUsers, updateUsersApi } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import { getUserRole } from "../../../config/constants";
+import CCMOnboard from "../UserOnboardProcess/Onboard";
+import { PlusIcon } from "lucide-react";
 
 interface User {
   id: number;
@@ -36,6 +38,8 @@ interface ToolbarAction {
   icon?: React.ReactNode;
 }
 
+type ViewType = "view" | "edit" | "create" | null;
+
 const ViewCMList = () => {
   const userRole = getUserRole("admin");
   const [users, setUsers] = useState<User[]>([]);
@@ -59,6 +63,8 @@ const ViewCMList = () => {
 
   const canEditApproval = isSuperAdmin || isAdmin;
   const canEditStatus = isSuperAdmin || isAdmin;
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [currentView, setCurrentView] = useState<ViewType>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -110,6 +116,18 @@ const ViewCMList = () => {
       setLoading(false);
       setEditingStatus(null);
     }
+  };
+
+  const handleCreateNew = () => {
+    setSelectedUserId(null);
+    setCurrentView("create");
+  };
+
+  // Called from CCMOnboard when done (success or back button)
+  const handleOnboardDone = () => {
+    setCurrentView(null);
+    setSelectedUserId(null);
+    fetchUsers(); // refresh list to reflect new onboarding state
   };
 
   const columns = useMemo<MRT_ColumnDef<User>[]>(
@@ -300,6 +318,15 @@ const ViewCMList = () => {
   );
 
   const toolbarActions: ToolbarAction[] = [
+    ...(isAdmin
+      ? [
+          {
+            label: "Create CM",
+            onClick: handleCreateNew,
+            icon: <PlusIcon className="w-4 h-4" />,
+          },
+        ]
+      : []),
     {
       label: "Refresh",
       onClick: fetchUsers,
@@ -320,6 +347,17 @@ const ViewCMList = () => {
       ),
     },
   ];
+
+  if (currentView === "create") {
+    return (
+      <CCMOnboard
+        useRouting={false}
+        targetUserId={selectedUserId ?? undefined}
+        onDone={handleOnboardDone}
+        roleFilter="cm"
+      />
+    );
+  }
 
   return (
     <div className="p-3">

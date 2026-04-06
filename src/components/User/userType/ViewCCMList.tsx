@@ -370,6 +370,7 @@ const ViewCCMList = () => {
         useRouting={false}
         targetUserId={selectedUserId ?? undefined}
         onDone={handleOnboardDone}
+        roleFilter="ccm"
       />
     );
   }

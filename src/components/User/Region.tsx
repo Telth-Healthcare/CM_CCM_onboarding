@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { toast } from "react-toastify";
+import axios from "axios";
 import {
   MRT_ColumnFiltersState,
   type MRT_ColumnDef,
 } from "material-react-table";
 import PageMeta from "../common/PageMeta";
 import { createRegionsApi, getAllRegionsApi } from "../../api";
-import { handleAxiosError } from "../../utils/handleAxiosError";
 import CommonTable from "../mui/MuiTable";
 import { RightSideModal } from "../mui/RightSideModal";
 import Button from "../ui/button/Button";
@@ -24,15 +24,77 @@ interface NewRegionForm {
   pincodes: { code: string }[];
 }
 
+interface PincodeError {
+  code: string;
+  errors: string[];
+}
+
+const handleRegionError = (error: unknown): void => {
+  if (!axios.isAxiosError(error)) {
+    toast.error("Something went wrong. Please try again.");
+    return;
+  }
+
+  const data = error.response?.data;
+
+  // Handle array of pincode errors:
+  // [{ code: "790114", errors: ["pincode with this code already exists."] }]
+  if (Array.isArray(data) && data.length > 0) {
+    const duplicateCodes: string[] = [];
+    const otherErrors: string[] = [];
+
+    data.forEach((item: PincodeError) => {
+      const errorMsg = item?.errors?.[0] ?? "Unknown error";
+      const isDuplicate = errorMsg.toLowerCase().includes("already exists");
+
+      if (isDuplicate) {
+        duplicateCodes.push(item.code);
+      } else {
+        otherErrors.push(`Pincode ${item.code}: ${errorMsg}`);
+      }
+    });
+
+    // Show one grouped toast for all duplicates
+    if (duplicateCodes.length > 0) {
+      const preview = duplicateCodes.slice(0, 5).join(", ");
+      const extra = duplicateCodes.length > 5
+        ? ` +${duplicateCodes.length - 5} more`
+        : "";
+      toast.error(
+        `${duplicateCodes.length} pincode(s) already exist: ${preview}${extra}. Please remove them and try again.`,
+        { toastId: "duplicate-pincodes" }
+      );
+    }
+
+    // Show individual toasts for other errors
+    otherErrors.forEach((msg) => {
+      toast.error(msg, { toastId: msg });
+    });
+
+    return;
+  }
+
+  // Handle { message: "..." } or { detail: "..." } or { error: "..." }
+  if (data && typeof data === "object") {
+    const msg =
+      (data as Record<string, string>).message ||
+      (data as Record<string, string>).detail ||
+      (data as Record<string, string>).error;
+    if (msg) {
+      toast.error(msg);
+      return;
+    }
+  }
+
+  toast.error(error.message || "Something went wrong. Please try again.");
+};
+
 const Region = () => {
   const userRole = getUserRole("admin");
 
   const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -50,13 +112,8 @@ const Region = () => {
   const [pincodes, setPincodes] = useState<string[]>([]);
   const [pincodeError, setPincodeError] = useState("");
 
-  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
-    [],
-  );
-
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof NewRegionForm, string>>
-  >({});
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>([]);
+  const [errors, setErrors] = useState<Partial<Record<keyof NewRegionForm, string>>>({});
 
   const isSuperAdmin = userRole === "super_admin";
 
@@ -83,119 +140,100 @@ const Region = () => {
       const regionData = response?.data || response || [];
       setRegions(regionData?.results || []);
     } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to fetch regions");
-      toast.error(errorMessage);
+      handleRegionError(error);
       setRegions([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // CSV Parser function - supports large files
   const parseCSV = (text: string): string[] => {
+    const seen = new Set<string>();
     const lines = text.split(/\r?\n/);
-    const pincodes: string[] = [];
-    const maxPincodes = 10000; // Limit to 10,000 pincodes
-    
+
     for (const line of lines) {
-      // Stop if we've reached the limit
-      if (pincodes.length >= maxPincodes) {
-        toast.warning(`Maximum ${maxPincodes} pincodes reached. Extra pincodes were ignored.`);
-        break;
-      }
-      
-      // Skip empty lines
-      if (!line.trim()) continue;
-      
-      // Split by comma or handle multiple columns
-      const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
-      
-      // Check each column for valid pincode
-      for (const col of columns) {
-        if (pincodes.length >= maxPincodes) break;
-        
-        // Look for 6-digit numbers
-        const matches = col.match(/\b\d{6}\b/g);
+      const cells = line
+        .split(",")
+        .map((col) => col.trim().replace(/^["'\s]+|["'\s]+$/g, ""));
+
+      for (const cell of cells) {
+        const matches = cell.match(/\d{6}/g);
         if (matches) {
-          pincodes.push(...matches.slice(0, maxPincodes - pincodes.length));
+          for (const m of matches) {
+            seen.add(m);
+          }
         }
       }
     }
-    
-    // Remove duplicates
-    return [...new Set(pincodes)];
+
+    return [...seen];
   };
 
-  // Handle CSV file upload
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File size too large. Maximum 10MB allowed.");
-      return;
-    }
-
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       try {
         const text = e.target?.result as string;
         const extractedPincodes = parseCSV(text);
-        
+
         if (extractedPincodes.length === 0) {
           toast.warning("No valid pincodes found in CSV file");
           return;
         }
-        
-        // Validate each pincode
-        const invalidPincodes = extractedPincodes.filter(pin => !/^\d{6}$/.test(pin));
-        const validPincodes = extractedPincodes.filter(pin => /^\d{6}$/.test(pin));
-        
+
+        const validPincodes = extractedPincodes.filter((pin) =>
+          /^\d{6}$/.test(pin)
+        );
+        const invalidPincodes = extractedPincodes.filter(
+          (pin) => !/^\d{6}$/.test(pin)
+        );
+
         if (invalidPincodes.length > 0) {
           toast.warning(`${invalidPincodes.length} invalid pincodes skipped`);
         }
-        
-        // Check if adding would exceed 10,000 limit
-        const totalPincodes = pincodes.length + validPincodes.length;
-        if (totalPincodes > 10000) {
-          toast.error(`Cannot add ${validPincodes.length} pincodes. Maximum limit is 10,000 pincodes per region.`);
-          event.target.value = '';
+
+        const duplicates = validPincodes.filter((pin) => pincodes.includes(pin));
+        const newPincodes = validPincodes.filter((pin) => !pincodes.includes(pin));
+
+        if (duplicates.length > 0) {
+          toast.warning(
+            `${duplicates.length} duplicate pincode(s) skipped: ${duplicates.slice(0, 5).join(", ")}${duplicates.length > 5 ? ` +${duplicates.length - 5} more` : ""}`
+          );
+        }
+
+        if (newPincodes.length === 0) {
+          toast.error("All pincodes in this CSV already exist. Nothing added.");
+          event.target.value = "";
           return;
         }
-        
-        // Merge with existing pincodes, remove duplicates
-        const mergedPincodes = [...new Set([...pincodes, ...validPincodes])];
-        setPincodes(mergedPincodes);
-        
-        toast.success(`Added ${validPincodes.length} pincodes from CSV. Total: ${mergedPincodes.length}`);
-        
-        // Clear the file input
-        event.target.value = '';
+
+        setPincodes((prev) => [...prev, ...newPincodes]);
+        toast.success(
+          `Added ${newPincodes.length} pincodes from CSV. Total: ${pincodes.length + newPincodes.length}`
+        );
+
+        event.target.value = "";
       } catch (error) {
         toast.error("Failed to parse CSV file");
         console.error(error);
       }
     };
-    
+
     reader.onerror = () => {
       toast.error("Failed to read CSV file");
     };
-    
+
     reader.readAsText(file);
   };
 
   const addPincode = () => {
     const val = pincodeInput.trim();
     if (!val) return;
-    
-    // Check limit before adding
-    if (pincodes.length >= 10000) {
-      setPincodeError("Maximum 10,000 pincodes reached");
-      return;
-    }
-    
+
     if (!/^\d{6}$/.test(val)) {
       setPincodeError("Pincode must be exactly 6 digits");
       return;
@@ -229,10 +267,7 @@ const Region = () => {
 
     try {
       setSubmitting(true);
-      
-      // Convert string array to required object array structure: [{code: "643521"}]
-      const pincodesPayload = pincodes.map(code => ({ code }));
-      
+      const pincodesPayload = pincodes.map((code) => ({ code }));
       await createRegionsApi({
         name: formData.name,
         pincodes: pincodesPayload,
@@ -242,8 +277,8 @@ const Region = () => {
       handleCloseModal();
       fetchRegions();
     } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to create region");
-      toast.error(errorMessage);
+      // Show error toast(s) and stop — modal stays open for user to fix
+      handleRegionError(error);
     } finally {
       setSubmitting(false);
     }
@@ -261,9 +296,12 @@ const Region = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleViewPincodes = (regionName: string, pincodes: { code: string }[]) => {
+  const handleViewPincodes = (
+    regionName: string,
+    pincodes: { code: string }[]
+  ) => {
     setViewRegionName(regionName);
-    setViewPincodes(pincodes.map(p => p.code));
+    setViewPincodes(pincodes.map((p) => p.code));
     setIsViewModalOpen(true);
   };
 
@@ -289,10 +327,10 @@ const Region = () => {
         Cell: ({ cell, row }) => {
           const value = cell.getValue<{ code: string }[]>();
           if (!value || value.length === 0) return "-";
-          
-          const displayText = value.slice(0, 3).map(p => p.code).join(", ");
+
+          const displayText = value.slice(0, 3).map((p) => p.code).join(", ");
           const remainingCount = value.length - 3;
-          
+
           return (
             <div className="flex items-center gap-2">
               <span className="truncate">
@@ -310,14 +348,14 @@ const Region = () => {
         },
       },
     ],
-    [pagination.pageIndex, pagination.pageSize],
+    [pagination.pageIndex, pagination.pageSize]
   );
 
   const handleAddRegion = () => setIsAddModalOpen(true);
   const handleCloseModal = () => setIsAddModalOpen(false);
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -364,7 +402,7 @@ const Region = () => {
         />
       </div>
 
-      {/* View Pincodes Modal - Fixed without title prop */}
+      {/* View Pincodes Modal */}
       <RightSideModal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
@@ -377,10 +415,13 @@ const Region = () => {
               Pincodes - {viewRegionName}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Total Pincodes: <span className="font-semibold text-gray-900 dark:text-white">{viewPincodes.length}</span>
+              Total Pincodes:{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {viewPincodes.length}
+              </span>
             </p>
           </div>
-          
+
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
             <div className="max-h-[500px] overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -396,7 +437,10 @@ const Region = () => {
                 </thead>
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
                   {viewPincodes.map((pincode, index) => (
-                    <tr key={pincode} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <tr
+                      key={pincode}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
                       <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
                         {index + 1}
                       </td>
@@ -409,7 +453,7 @@ const Region = () => {
               </table>
             </div>
           </div>
-          
+
           <div className="mt-6 flex justify-end">
             <Button
               onClick={() => setIsViewModalOpen(false)}
@@ -461,17 +505,26 @@ const Region = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Pincode <span className="text-red-500">*</span>
-                    <span className="ml-2 text-xs text-gray-400">(Max: 10,000 pincodes)</span>
                   </label>
 
                   <div className="flex flex-col gap-2">
                     {/* CSV Upload Button */}
                     <div>
                       <label className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                          />
                         </svg>
-                        Upload CSV File (Max 10,000 pincodes)
+                        Upload CSV File
                         <input
                           type="file"
                           accept=".csv"
@@ -480,11 +533,11 @@ const Region = () => {
                         />
                       </label>
                       <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                        CSV can contain up to 10,000 pincodes. Supports multiple formats
+                        Supports multiple formats. Duplicates are removed automatically.
                       </p>
                     </div>
 
-                    {/* Tag box with fixed height and scroll */}
+                    {/* Tag box */}
                     <div
                       className={`w-full border ${
                         errors.pincodes
@@ -492,7 +545,6 @@ const Region = () => {
                           : "border-gray-300 dark:border-gray-600"
                       } rounded-lg bg-white dark:bg-gray-800`}
                     >
-                      {/* Scrollable pincode tags with fixed max-height */}
                       {pincodes.length > 0 && (
                         <div className="grid grid-cols-3 gap-1.5 p-2 max-h-[200px] overflow-y-auto">
                           {pincodes.map((pin) => (
@@ -514,7 +566,6 @@ const Region = () => {
                         </div>
                       )}
 
-                      {/* Input row */}
                       <div
                         className="flex items-center px-2 py-1.5 cursor-text border-t border-gray-200 dark:border-gray-700"
                         onClick={() =>
@@ -542,9 +593,8 @@ const Region = () => {
                       </div>
                     </div>
 
-                    {/* Sync User Default Checkbox and Add Pincode Button */}
+                    {/* Sync User + Add Pincode */}
                     <div className="flex gap-3">
-                      {/* Sync User Default Checkbox */}
                       <label className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer">
                         <input
                           type="checkbox"
@@ -554,12 +604,11 @@ const Region = () => {
                         />
                         Sync User Default
                       </label>
-                      
-                      {/* Add Pincode Button */}
+
                       <button
                         type="button"
                         onClick={addPincode}
-                        disabled={!pincodeInput.trim() || pincodes.length >= 10000}
+                        disabled={!pincodeInput.trim()}
                         className="flex-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         Add Pincode
@@ -567,7 +616,6 @@ const Region = () => {
                     </div>
                   </div>
 
-                  {/* Pincode validation error */}
                   {pincodeError && (
                     <p className="mt-1 text-xs text-red-500">{pincodeError}</p>
                   )}
@@ -575,34 +623,6 @@ const Region = () => {
                     <p className="mt-1 text-xs text-red-500">
                       {errors.pincodes}
                     </p>
-                  )}
-
-                  {/* Count hint with progress bar */}
-                  {pincodes.length > 0 && (
-                    <div className="mt-2">
-                      <div className="flex justify-between items-center mb-1">
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          {pincodes.length} / 10,000 pincodes added
-                        </p>
-                        {pincodes.length >= 9900 && (
-                          <p className="text-xs text-orange-500">
-                            Approaching limit
-                          </p>
-                        )}
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
-                        <div 
-                          className={`h-1.5 rounded-full transition-all duration-300 ${
-                            pincodes.length >= 10000 
-                              ? 'bg-red-500' 
-                              : pincodes.length >= 9900 
-                                ? 'bg-orange-500' 
-                                : 'bg-blue-500'
-                          }`}
-                          style={{ width: `${(pincodes.length / 10000) * 100}%` }}
-                        />
-                      </div>
-                    </div>
                   )}
                 </div>
               </div>

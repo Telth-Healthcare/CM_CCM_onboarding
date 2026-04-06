@@ -50,6 +50,7 @@ export const useOnboardForm = (
   currentIndex: number, // from URL (ignored in inline mode)
   targetUserId?: number, // the CCM user being onboarded
   useRouting = true, // false = inline inside ViewCCMList
+  roleFilter?: string,  // optional role filter for user lookup (e.g. "ccm")
 ) => {
   const navigate = useNavigate();
 
@@ -171,7 +172,7 @@ const saveProgress = async (): Promise<number | null> => {
       last_name: formData.lastName,
       email: formData.email,
       phone: `+91${formData.mobile}`,
-      roles: ["ccm"],
+      roles: [roleFilter || "-"],
     };
     
     try {
