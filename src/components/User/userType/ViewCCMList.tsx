@@ -99,7 +99,6 @@ const ViewCCMList = () => {
     }
   };
 
-  const pageIndex = pagination.pageIndex;
 
   useEffect(() => {
     fetchUsers(1); // load page 1 on mount

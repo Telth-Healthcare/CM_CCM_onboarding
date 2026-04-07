@@ -81,6 +81,9 @@ const ViewFinancier: React.FC = () => {
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
+  const [currentPage, setCurrentPage] = useState(1);   // tracks current page number
+  const [hasNext, setHasNext] = useState(false);        // is there a next page?
+  const [hasPrev, setHasPrev] = useState(false);
 
   const [editingStatus, setEditingStatus] = useState<EditingState | null>(null);
 
@@ -121,15 +124,16 @@ const ViewFinancier: React.FC = () => {
   }, [isAddModalOpen]);
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchUsers = async (): Promise<void> => {
+  const fetchUsers = async (page: number = 1): Promise<void> => {
     setColumnFilters([]);
     try {
       setLoading(true);
-      const response = await getRoleUsers("roles__name__in", "financier");
+      const response = await getRoleUsers("roles__name__in", "financier", page);
+
       const adminRole = await getRoleUsers("roles__name__in", "admin");
 
       // Transform admin role data to OptionType format
@@ -146,6 +150,9 @@ const ViewFinancier: React.FC = () => {
       setUsers(userData);
       setRoleList(formattedAdminList);
       setTotalCount(response?.data?.count || 0);
+      setHasNext(!!userData?.next);       // true if next URL exists
+      setHasPrev(!!userData?.previous);   // true if previous URL exists
+      setCurrentPage(userData.page);
     } catch (error) {
       const errorMessage = handleAxiosError(error, "Failed to fetch users");
       toast.error(errorMessage);
@@ -156,6 +163,15 @@ const ViewFinancier: React.FC = () => {
     }
   };
 
+  const handleNext = () => {
+    if (!hasNext || loading) return;
+    fetchUsers(currentPage + 1);  // go to next page
+  };
+
+  const handlePrev = () => {
+    if (!hasPrev || loading) return;
+    fetchUsers(currentPage - 1);  // go to previous page
+  }
   const handleStatusChange = async (
     userId: number,
     newStatus: boolean,
@@ -175,7 +191,7 @@ const ViewFinancier: React.FC = () => {
         toast.success(
           `User ${newStatus ? "activated" : "deactivated"} successfully`,
         );
-        await fetchUsers();
+        await fetchUsers(currentPage);
       }
     } catch (error) {
       const errorMessage = handleAxiosError(
@@ -423,11 +439,10 @@ const ViewFinancier: React.FC = () => {
           return (
             <div className="flex items-center gap-2">
               <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  isActive
-                    ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
-                    : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
-                }`}
+                className={`px-2 py-1 rounded-full text-xs font-medium ${isActive
+                  ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
+                  : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
+                  }`}
               >
                 {isActive ? "Active" : "Inactive"}
               </span>
@@ -478,13 +493,12 @@ const ViewFinancier: React.FC = () => {
 
           return (
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                value === "accepted"
-                  ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
-                  : value === "pending"
-                    ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
-                    : "bg-gray-100 text-gray-600"
-              }`}
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${value === "accepted"
+                ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                : value === "pending"
+                  ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                  : "bg-gray-100 text-gray-600"
+                }`}
             >
               {value === "accepted"
                 ? "Accepted"
@@ -508,26 +522,26 @@ const ViewFinancier: React.FC = () => {
   const toolbarActions: ToolbarAction[] = [
     ...(canAddUsers
       ? [
-          {
-            label: "Add Financier",
-            onClick: handleAddUser,
-            icon: (
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-            ),
-          },
-        ]
+        {
+          label: "Add Financier",
+          onClick: handleAddUser,
+          icon: (
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          ),
+        },
+      ]
       : []),
     {
       label: "Refresh",
@@ -585,7 +599,30 @@ const ViewFinancier: React.FC = () => {
           columnFilters={columnFilters}
           onColumnFiltersChange={setColumnFilters}
         />
+
+        {/* Pagination bar — inside the card */}
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handlePrev}
+            disabled={!hasPrev || loading}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            ← Previous
+          </button>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Page <span className="font-semibold">{currentPage}</span>
+          </span>
+          <button
+            onClick={handleNext}
+            disabled={!hasNext || loading}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next →
+          </button>
+        </div>
       </div>
+
+
 
       {canAddUsers && (
         <RightSideModal
@@ -668,11 +705,10 @@ const ViewFinancier: React.FC = () => {
                     Phone <span className="text-red-500">*</span>
                   </Label>
                   <div
-                    className={`flex items-center border rounded-lg overflow-hidden ${
-                      errors.phone
-                        ? "border-red-500 dark:border-red-500"
-                        : "border-gray-300 dark:border-gray-700"
-                    }`}
+                    className={`flex items-center border rounded-lg overflow-hidden ${errors.phone
+                      ? "border-red-500 dark:border-red-500"
+                      : "border-gray-300 dark:border-gray-700"
+                      }`}
                   >
                     <span className="px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium border-r border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 select-none">
                       +91
@@ -704,11 +740,10 @@ const ViewFinancier: React.FC = () => {
                       value={formData.mnpUser}
                       onChange={handleInputChange}
                       required={!isAdmin}
-                      className={`w-full px-3 py-2 border ${
-                        errors.mnpUser
-                          ? "border-red-500 dark:border-red-500"
-                          : "border-gray-300 dark:border-gray-600"
-                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
+                      className={`w-full px-3 py-2 border ${errors.mnpUser
+                        ? "border-red-500 dark:border-red-500"
+                        : "border-gray-300 dark:border-gray-600"
+                        } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
                     >
                       <option value="" disabled>
                         Select a MNP User
@@ -745,6 +780,7 @@ const ViewFinancier: React.FC = () => {
               </div>
             </form>
           </div>
+
         </RightSideModal>
       )}
     </div>

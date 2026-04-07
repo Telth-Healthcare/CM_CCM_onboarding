@@ -81,6 +81,9 @@ const ViewTrainer: React.FC = () => {
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
+  const [currentPage, setCurrentPage] = useState(1);   // tracks current page number
+    const [hasNext, setHasNext] = useState(false);        // is there a next page?
+    const [hasPrev, setHasPrev] = useState(false);
 
   const [editingStatus, setEditingStatus] = useState<EditingState | null>(null);
 
@@ -125,7 +128,7 @@ const ViewTrainer: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchUsers = async (): Promise<void> => {
+  const fetchUsers = async (page: number = 1) =>{
     setColumnFilters([]);
     try {
       setLoading(true);
@@ -146,6 +149,9 @@ const ViewTrainer: React.FC = () => {
       setUsers(userData);
       setRoleList(formattedAdminList);
       setTotalCount(response?.data?.count || 0);
+ setHasNext(!!userData?.next);       // true if next URL exists
+      setHasPrev(!!userData?.previous);   // true if previous URL exists
+      setCurrentPage(page);           // update current page
     } catch (error) {
       const errorMessage = handleAxiosError(error, "Failed to fetch users");
       toast.error(errorMessage);
@@ -187,6 +193,16 @@ const ViewTrainer: React.FC = () => {
       setLoading(false);
       setEditingStatus(null);
     }
+  };
+
+   const handleNext = () => {
+    if (!hasNext || loading) return;
+    fetchUsers(currentPage + 1);  // go to next page
+  };
+
+  const handlePrev = () => {
+    if (!hasPrev || loading) return;
+    fetchUsers(currentPage - 1);  // go to previous page
   };
 
   const handleAddUser = (): void => setIsAddModalOpen(true);
@@ -580,6 +596,29 @@ const ViewTrainer: React.FC = () => {
           columnFilters={columnFilters}
           onColumnFiltersChange={setColumnFilters}
         />
+        {/* Custom Pagination Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrev}
+              disabled={!hasPrev || loading}     // ← use hasPrev, not prevUrl
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              ← Previous
+            </button>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              Page <span className="font-semibold">{currentPage}</span>
+            </span>
+            <button
+              onClick={handleNext}
+              disabled={!hasNext || loading}     // ← use hasNext, not nextUrl
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
       </div>
 
       {canAddUsers && (
