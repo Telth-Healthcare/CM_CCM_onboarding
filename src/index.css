@@ -851,3 +851,28 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%;   }
 }
+/* Target MRT's internal scroll container */
+.MuiTableContainer-root {
+  overflow-x: auto;           /* keeps horizontal scroll working */
+  overflow-y: auto;           /* keeps vertical scroll working */
+}
+
+/* Hide scrollbar — Chrome, Safari, Edge */
+.MuiTableContainer-root::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar — Firefox */
+.MuiTableContainer-root {
+  scrollbar-width: none;
+}
+
+/* Hide scrollbar — IE/Edge legacy */
+.MuiTableContainer-root {
+  -ms-overflow-style: none;
+} 
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
