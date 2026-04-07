@@ -1,25 +1,26 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { STEPS } from './types/Constants'
 import { useOnboardForm } from './types/useOnboardForm'
-import PersonalInfo       from './Personalinfo'
-import AddressInfo        from './Addressinfo'
-import PersonalDocuments  from './Personaldocuments'
+import PersonalInfo from './Personalinfo'
+import AddressInfo from './Addressinfo'
+import PersonalDocuments from './Personaldocuments'
 import EducationDocuments from './Educationdocuments'
-import Preview            from './Preview'
+import Preview from './Preview'
+import { getRoleUsers } from '../../../api' 
+import { OptionType } from './types/Types'
+import { handleAxiosError } from '../../../utils/handleAxiosError'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 export interface OnboardProps {
-  currentId?:    string
+  currentId?: string
   currentIndex?: number
-  // Required when admin is filling this form for a specific CCM user
   targetUserId?: number
-  // false = inline inside ViewCCMList (default true = URL routing)
-  useRouting?:   boolean
-  // Callback fired after successful submit in inline mode
+  useRouting?: boolean
   onDone?: () => void
   roleFilter?: string
 }
-
 
 const Spinner = ({ className = '' }: { className?: string }) => (
   <span className={`inline-block rounded-full border-2 border-t-white/80 border-white/20 animate-spin ${className}`} />
@@ -33,7 +34,7 @@ const StepDots = ({ currentIndex }: { currentIndex: number }) => (
       style={{ width: currentIndex === 0 ? '0%' : `${(currentIndex / (STEPS.length - 1)) * 100}%` }}
     />
     {STEPS.map((step, idx) => {
-      const done   = idx < currentIndex
+      const done = idx < currentIndex
       const active = idx === currentIndex
       return (
         <div key={step.id} className="relative z-10 flex flex-col items-center flex-1">
@@ -118,25 +119,45 @@ const SuccessScreen = ({
 // Step renderer — plain switch, no nested <Routes>
 const StepContent = ({ stepId, stepProps }: { stepId: string; stepProps: any }) => {
   switch (stepId) {
-    case 'personal-info':       return <PersonalInfo       {...stepProps} />
-    case 'address-info':        return <AddressInfo        {...stepProps} />
-    case 'personal-documents':  return <PersonalDocuments  {...stepProps} />
+    case 'personal-info': return <PersonalInfo {...stepProps} />
+    case 'address-info': return <AddressInfo {...stepProps} />
+    case 'personal-documents': return <PersonalDocuments {...stepProps} />
     case 'education-documents': return <EducationDocuments {...stepProps} />
-    case 'preview':             return <Preview            {...stepProps} />
-    default:                    return <PersonalInfo       {...stepProps} />
+    case 'preview': return <Preview {...stepProps} />
+    default: return <PersonalInfo {...stepProps} />
   }
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function CCMOnboard({
-  currentId    = 'personal-info',
+  currentId = 'personal-info',
   currentIndex = 0,
   targetUserId,
-  useRouting   = true,
+  useRouting = true,
   roleFilter,
   onDone,
 }: OnboardProps) {
   const navigate = useNavigate()
+  const [roleList, setRoleList] = useState<OptionType[]>([])
+  // Fetch admin roles for MNP User dropdown
+  useEffect(() => {
+    const fetchAdminRoles = async () => {
+      try {
+        const adminRole = await getRoleUsers("roles__name__in", "admin")
+        const adminData = adminRole?.data?.results || adminRole || []
+        const formattedAdminList: OptionType[] = adminData.map((admin: any) => ({
+          value: admin.id?.toString() || "",
+          label: `${admin.first_name || ""} ${admin.last_name || ""}`.trim() || admin.email || "Unnamed",
+        }))
+        setRoleList(formattedAdminList)
+      } catch (error) {
+        const errorMsg = handleAxiosError(error, "Failed to fetch admin users")
+        toast.error(errorMsg)
+      }
+    }
+
+    fetchAdminRoles()
+  }, [])
 
   const {
     formData, updateFormData, errors,
@@ -146,7 +167,7 @@ export default function CCMOnboard({
     handleNext, handlePrev, handleSubmit, handleReplace,
   } = useOnboardForm(currentId, currentIndex, targetUserId, useRouting, roleFilter)
 
-  const isFirst   = currentStepIndex === 0
+  const isFirst = currentStepIndex === 0
   const isPreview = currentStepId === 'preview'
 
   // ── Success state ─────────────────────────────────────────────────────────
@@ -166,7 +187,13 @@ export default function CCMOnboard({
     )
   }
 
-  const stepProps = { formData, updateFormData, errors, onReplace: handleReplace }
+  const stepProps = { 
+    formData, 
+    updateFormData, 
+    errors, 
+    onReplace: handleReplace,
+    roleList,
+  }
 
   // ── Inline mode (no full-page layout) ────────────────────────────────────
   if (!useRouting) {

@@ -11,6 +11,7 @@ export interface CCMFormData {
   maritalStatus: string
   gender: string
   bloodGroup: string
+  manager: string
 
   // Step 2 — Contact (inside Step 1 UI)
   mobile: string
@@ -51,10 +52,16 @@ export interface StepProps {
   updateFormData: (field: keyof CCMFormData, value: any) => void
   errors?: FormErrors
   onReplace?: (urlField: keyof CCMFormData, docType: string) => void
+  roleList?: OptionType[]
 }
 
 export interface Step {
   id: string
   name: string
   step: number
+}
+
+export interface OptionType {
+  value: string | number
+  label: string
 }

@@ -50,7 +50,7 @@ export const useOnboardForm = (
   currentIndex: number, // from URL (ignored in inline mode)
   targetUserId?: number, // the CCM user being onboarded
   useRouting = true, // false = inline inside ViewCCMList
-  roleFilter?: string,  // optional role filter for user lookup (e.g. "ccm")
+  roleFilter?: string, // optional role filter for user lookup (e.g. "ccm")
 ) => {
   const navigate = useNavigate();
 
@@ -124,12 +124,16 @@ export const useOnboardForm = (
           mobile: (() => {
             const phone = data.user?.phone;
             if (!phone) return prev.mobile;
-            return phone.startsWith("+91") ? phone : `+91${phone}`;
+            return phone
+              .replace(/^\+?91/, "")
+              .replace(/\D/g, "")
+              .slice(0, 10);
           })(),
           email: data.user?.email ?? prev.email,
           dob: data.dob ?? prev.dob,
           gender: data.gender ?? prev.gender,
           bloodGroup: data.blood_group ?? prev.bloodGroup,
+          manager: data.manager ?? prev.manager,
           language: data.language ?? prev.language,
           maritalStatus: data.marital_status ?? prev.maritalStatus,
           addressLine1: data.address_line_1 ?? prev.addressLine1,
@@ -162,90 +166,91 @@ export const useOnboardForm = (
       .finally(() => setIsInitialized(true));
   }, [targetUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-const saveProgress = async (): Promise<number | null> => {
-  let currentUserId = userId || targetUserId;
-  
-  // Only send invitation if we don't already have a userId
-  if (!currentUserId) {
-    const invitatepayload: SendInvitationRequest = {
+  const saveProgress = async (): Promise<number | null> => {
+    let currentUserId = userId || targetUserId;
+
+    // Only send invitation if we don't already have a userId
+    if (!currentUserId) {
+      const invitatepayload: SendInvitationRequest = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: `+91${formData.mobile}`,
+        roles: [roleFilter || "-"],
+        ...(formData.manager ? { manager: Number(formData.manager) } : {}),
+      };
+
+      try {
+        const response = await sendInvitationApi([invitatepayload]);
+
+        if (response?.data?.[0]?.id) {
+          currentUserId = response.data[0].id;
+          setUserId(currentUserId); // Update state
+        }
+      } catch (err: any) {
+        const errorMsg = handleAxiosError(err, "Failed to send invitation");
+        toast.error(errorMsg);
+      }
+    }
+
+    const payload: Record<string, any> = {
       first_name: formData.firstName,
       last_name: formData.lastName,
+      dob: formData.dob,
+      gender: formData.gender,
+      blood_group: formData.bloodGroup,
+      language: formData.language,
+      marital_status: formData.maritalStatus,
+      mobile: formData.mobile?.replace(/^\+91/, ""),
       email: formData.email,
-      phone: `+91${formData.mobile}`,
-      roles: [roleFilter || "-"],
+      address_line_1: formData.addressLine1,
+      address_line_2: formData.addressLine2,
+      district: formData.city,
+      state: formData.state,
+      pin_code: formData.zipcode,
+      country: formData.country,
+      user: currentUserId,
+      ...(formData.manager ? { manager: Number(formData.manager) } : {}),
     };
-    
+
+    // Override with targetUserId if provided (for admin/editing scenarios)
+    if (targetUserId) payload.user = targetUserId;
+
+    // Strip empty / null / undefined (always keep `user`)
+    const clean = Object.fromEntries(
+      Object.entries(payload).filter(([key, value]) => {
+        if (key === "user") return true;
+        return value !== undefined && value !== null && value !== "";
+      }),
+    );
+
+    setSaving(true);
     try {
-      const response = await sendInvitationApi([invitatepayload]);
-      
-      if (response?.data?.[0]?.id) {
-        currentUserId = response.data[0].id;
-        setUserId(currentUserId); // Update state
+      const draftKey = getDraftKey(targetUserId || currentUserId);
+      const storedStr = localStorage.getItem(draftKey);
+      const existingPk = storedStr ? parseInt(storedStr, 10) : null;
+
+      if (!existingPk || isNaN(existingPk)) {
+        const res = await createOnboardApi(clean);
+        if (!res?.id && !res?.pk) throw new Error("Server returned no ID");
+
+        const pk: number = res.id ?? res.pk;
+        setAppId(pk);
+        localStorage.setItem(draftKey, String(pk));
+        return pk;
+      } else {
+        await updateOnboardApi(existingPk, clean);
+        setAppId(existingPk);
+        return existingPk;
       }
-    } catch (err: any) {
-      console.error("Failed to send invitation:", err);
-      toast.warning("Could not send invitation, but progress will be saved");
+    } catch (err) {
+      toast.error(handleAxiosError(err, "Failed to save. Please try again."));
+      return null;
+    } finally {
+      setSaving(false);
     }
-  }
-  
-  const payload: Record<string, any> = {
-    first_name: formData.firstName,
-    last_name: formData.lastName,
-    dob: formData.dob,
-    gender: formData.gender,
-    blood_group: formData.bloodGroup,
-    language: formData.language,
-    marital_status: formData.maritalStatus,
-    mobile: formData.mobile?.replace(/^\+91/, ""),
-    email: formData.email,
-    address_line_1: formData.addressLine1,
-    address_line_2: formData.addressLine2,
-    district: formData.city,
-    state: formData.state,
-    pin_code: formData.zipcode,
-    country: formData.country,
-    user: currentUserId,
   };
 
-  // Override with targetUserId if provided (for admin/editing scenarios)
-  if (targetUserId) payload.user = targetUserId;
-
-  // Strip empty / null / undefined (always keep `user`)
-  const clean = Object.fromEntries(
-    Object.entries(payload).filter(([key, value]) => {
-      if (key === "user") return true;
-      return value !== undefined && value !== null && value !== "";
-    }),
-  );
-
-  setSaving(true);
-  try {
-    const draftKey = getDraftKey(targetUserId || currentUserId);
-    const storedStr = localStorage.getItem(draftKey);
-    const existingPk = storedStr ? parseInt(storedStr, 10) : null;
-
-    if (!existingPk || isNaN(existingPk)) {
-      const res = await createOnboardApi(clean);
-      if (!res?.id && !res?.pk) throw new Error("Server returned no ID");
-
-      const pk: number = res.id ?? res.pk;
-      setAppId(pk);
-      localStorage.setItem(draftKey, String(pk));
-      return pk;
-    } else {
-      await updateOnboardApi(existingPk, clean);
-      setAppId(existingPk);
-      return existingPk;
-    }
-  } catch (err) {
-    toast.error(handleAxiosError(err, "Failed to save. Please try again."));
-    return null;
-  } finally {
-    setSaving(false);
-  }
-};
-
-  // ── Upload documents for the current step ─────────────────────────────────
   const uploadDocuments = async (pk: number): Promise<boolean> => {
     type UploadTask = { file: File; type: string; urlField: keyof CCMFormData };
     const tasks: UploadTask[] = [];
@@ -323,7 +328,6 @@ const saveProgress = async (): Promise<number | null> => {
     }
   };
 
-  // ── Step navigation — URL routing or inline state ─────────────────────────
   const goToStep = (idx: number) => {
     if (useRouting) {
       navigate(`/onboardProcess/${STEPS[idx].id}`);
@@ -332,7 +336,6 @@ const saveProgress = async (): Promise<number | null> => {
     }
   };
 
-  // ── Next: validate → save → upload → advance ─────────────────────────────
   const handleNext = async () => {
     const stepErrors = validateStep(currentStepId, formData);
     if (Object.keys(stepErrors).length > 0) {

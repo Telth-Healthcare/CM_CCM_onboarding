@@ -107,11 +107,12 @@ export const INITIAL_FORM_DATA = {
   id: undefined,
   firstName: '', lastName: '', dob: '',
   language: '', maritalStatus: '', gender: '', bloodGroup: '',
-  mobile: '+91', email: '',
+  mobile: '', email: '',
   addressLine1: '', addressLine2: '', city: '', state: '', zipcode: '', country: 'IN',
   aadharFront: null, aadharBack: null, pan: null,
   aadharFrontUrl: null, aadharBackUrl: null, panUrl: null,
   bachelorDegreeType: '', bachelorDoc: null, bachelorDocUrl: null,
   masterDegreeType: '',   masterDoc: null,   masterDocUrl: null,
   experienceCertType: '', experienceCertDoc: null, experienceCertDocUrl: null,
+  manager: '',
 }

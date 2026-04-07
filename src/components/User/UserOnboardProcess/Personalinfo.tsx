@@ -18,6 +18,7 @@ const PersonalInfo: React.FC<StepProps> = ({
   formData,
   updateFormData,
   errors,
+  roleList = [],
 }) => (
   <div>
     <StepHeader
@@ -70,6 +71,11 @@ const PersonalInfo: React.FC<StepProps> = ({
           options={LANGUAGE_OPTIONS}
           placeholder="Select Language"
           error={!!errors?.language}
+          className={`w-full px-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${
+            errors?.language
+              ? "border-red-500 focus:ring-red-300"
+              : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+          } dark:bg-gray-900 dark:text-white`}
         />
       </FieldWrapper>
 
@@ -80,6 +86,11 @@ const PersonalInfo: React.FC<StepProps> = ({
           options={GENDER_OPTIONS}
           placeholder="Select Gender"
           error={!!errors?.gender}
+          className={`w-full px-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${
+            errors?.gender
+              ? "border-red-500 focus:ring-red-300"
+              : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+          } dark:bg-gray-900 dark:text-white`}
         />
       </FieldWrapper>
 
@@ -90,6 +101,11 @@ const PersonalInfo: React.FC<StepProps> = ({
           options={BLOOD_GROUP_OPTIONS}
           placeholder="Select Blood Group"
           error={!!errors?.bloodGroup}
+          className={`w-full px-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${
+            errors?.bloodGroup
+              ? "border-red-500 focus:ring-red-300"
+              : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+          } dark:bg-gray-900 dark:text-white`}
         />
       </FieldWrapper>
 
@@ -108,23 +124,24 @@ const PersonalInfo: React.FC<StepProps> = ({
           <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 dark:border-gray-600 rounded-l-lg bg-gray-100 dark:bg-gray-800 text-gray-500 text-sm select-none">
             +91
           </span>
+
           <input
             type="tel"
             id="mobile"
             name="mobile"
             onChange={(e) => {
-              // Remove any non-digit characters and limit to 10 digits
-              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+              const value = e.target.value.replace(/\D/g, "").slice(0, 10);
               updateFormData("mobile", value);
             }}
             value={(formData.mobile ?? "").replace(/^\+91/, "")}
             placeholder="Enter 10-digit mobile number"
-            className="flex-1 px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-900 dark:text-white"
+            className={`w-full px-4 py-2.5 text-sm border border-l-0 rounded-r-lg focus:outline-none focus:ring-2 ${
+              errors?.mobile
+                ? "border-red-500 focus:ring-red-300"
+                : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+            } dark:bg-gray-900 dark:text-white`}
           />
         </div>
-        <p className="mt-1 text-xs text-gray-400">
-          Enter your 10-digit mobile number
-        </p>
       </FieldWrapper>
 
       {/* Email - Editable */}
@@ -142,6 +159,30 @@ const PersonalInfo: React.FC<StepProps> = ({
           We'll send important updates to this email
         </p>
       </FieldWrapper>
+
+      {localStorage.getItem("admin_role") === "super_admin" && (
+        <FieldWrapper label="MNP User" required hint={errors?.manager}>
+          <select
+            name="manager"
+            value={formData.manager || ""}
+            onChange={(e) => updateFormData("manager", e.target.value)}
+            className={`w-full px-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${
+              errors?.manager
+                ? "border-red-500 focus:ring-red-300"
+                : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+            } dark:bg-gray-900 dark:text-white`}
+          >
+            <option value="" disabled>
+              Select a MNP User
+            </option>
+            {roleList.map((admin: any) => (
+              <option key={admin.value} value={admin.value}>
+                {admin.label}
+              </option>
+            ))}
+          </select>
+        </FieldWrapper>
+      )}
     </FormGrid>
   </div>
 );

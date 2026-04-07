@@ -41,6 +41,9 @@ interface CreateCourseFlowProps {
 
 type SectionStatus = "idle" | "saving" | "saved" | "error";
 
+const MAX_FILE_SIZE_MB = 20;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 const CheckIcon = () => (
   <svg
     className="w-4 h-4"
@@ -337,6 +340,9 @@ const CreateCourse = memo(
         newErrors.contentUrl = "Enter a valid URL";
       if (inputType === "file" && !selectedFile)
         newErrors.file = "Select a file";
+      if (inputType === "file" && selectedFile && selectedFile.size > MAX_FILE_SIZE_BYTES) {
+        newErrors.file = `File size must be less than ${MAX_FILE_SIZE_MB} MB`;
+      }
       setErrors((e) => ({ ...e, ...newErrors }));
       return Object.keys(newErrors).length === 0;
     }, [
@@ -393,9 +399,22 @@ const CreateCourse = memo(
       (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+          // Check file size before setting state
+          if (file.size > MAX_FILE_SIZE_BYTES) {
+            setErrors((er) => ({ 
+              ...er, 
+              file: `File size must be less than ${MAX_FILE_SIZE_MB} MB` 
+            }));
+            setSelectedFile(null);
+            setFileName("");
+            // Clear the file input
+            e.target.value = "";
+            return;
+          }
+          
           setSelectedFile(file);
           setFileName(file.name);
-          setErrors((e) => ({ ...e, file: "" }));
+          setErrors((er) => ({ ...er, file: "" }));
         }
       },
       [],
@@ -679,10 +698,9 @@ const CreateCourse = memo(
                           : "border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500"
                       }`}
                     >
-                      <span className="text-xl">📄</span>
                       <span className="text-sm text-gray-600 dark:text-gray-300">
                         {fileName ||
-                          "Click to choose file (.pdf, .doc, .mp4, .jpg…)"}
+                          `Click to choose file (Max ${MAX_FILE_SIZE_MB}MB - .pdf, .doc, .mp4, .jpg…)`}
                       </span>
                     </label>
                     <input
@@ -694,6 +712,11 @@ const CreateCourse = memo(
                     />
                     {errors.file && (
                       <p className="mt-1 text-xs text-red-500">{errors.file}</p>
+                    )}
+                    {selectedFile && !errors.file && (
+                      <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+                        Selected: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB / {MAX_FILE_SIZE_MB} MB
+                      </p>
                     )}
                   </div>
                 )}

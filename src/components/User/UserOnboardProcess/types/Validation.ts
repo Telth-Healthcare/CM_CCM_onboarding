@@ -39,6 +39,10 @@ const validatePersonalInfo = (data: CCMFormData): FormErrors => {
   if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email))
     errors.email = 'Enter a valid email address'
 
+  if (localStorage.getItem('admin_role') === 'super_admin' && !data.manager) {
+    errors.manager = 'MNP User is required'
+  }
+
   return errors
 }
 

@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 
+const MAX_FILE_SIZE_MB = 20;
+
 interface StatusOption {
   value: string;
   label: string;
@@ -130,7 +132,6 @@ const ViewEditApplication: React.FC = () => {
   const canEdit = userRole === "admin" || userRole === "super_admin";
   const userData = localStorage.getItem("admin_user") || null;
   const parsed = JSON.parse(userData ?? "{}");
- 
 
   useEffect(() => {
     if (id) {
@@ -723,11 +724,16 @@ const ViewEditApplication: React.FC = () => {
                     <h2 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
                       Documents
                     </h2>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                      {shgUserData.documents.filter((d) => d.status).length}
-                      {" / "}
-                      {shgUserData.documents.length} verified
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                        Max file size: {MAX_FILE_SIZE_MB}MB
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                        {shgUserData.documents.filter((d) => d.status).length}
+                        {" / "}
+                        {shgUserData.documents.length} verified
+                      </span>
+                    </div>
                   </div>
 
                   <div className="p-4 sm:p-6 flex-1">
@@ -1017,7 +1023,7 @@ const ViewEditApplication: React.FC = () => {
                       className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                     >
                       <SaveIcon className="w-4 h-4" />
-                      {submitting ? "Updating..." : "Submited"}
+                      {submitting ? "Updating..." : "Submitted"}
                     </button>
                   </div>
                 )}
