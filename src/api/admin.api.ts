@@ -27,10 +27,11 @@ export const getAllUsers = () => {
         .then(res => res.data);
 }
 
-export const getRoleUsers = (paramName: string, values: string) => {
+export const getRoleUsers = (paramName: string, values: string,page?:number) => {
   return client.get("accounts/users/", {
     params: {
       [paramName]: values,
+       ...(page !== undefined && { page }),
     },
   });
 };

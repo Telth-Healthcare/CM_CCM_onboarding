@@ -65,28 +65,46 @@ const ViewCMList = () => {
   const canEditStatus = isSuperAdmin || isAdmin;
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [currentView, setCurrentView] = useState<ViewType>(null);
+  const [currentPage, setCurrentPage] = useState(1);   // tracks current page number
+const [hasNext, setHasNext] = useState(false);        // is there a next page?
+const [hasPrev, setHasPrev] = useState(false); 
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+ useEffect(() => {
+  fetchUsers(1); // load page 1 on mount
+}, []);
 
-  const fetchUsers = async () => {
-    setColumnFilters([]);
-    try {
-      setLoading(true);
-      const response = await getRoleUsers("roles__name__in", "cm");
-      const userData = response?.data?.results || response || [];
-      setUsers(userData);
-      setTotalCount(response?.data?.count || 0);
-    } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to fetch users");
-      toast.error(errorMessage);
-      setUsers([]);
-      setTotalCount(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+const handleNext = () => {
+  if (!hasNext || loading) return;
+  fetchUsers(currentPage + 1);  // go to next page
+};
+
+const handlePrev = () => {
+  if (!hasPrev || loading) return;
+  fetchUsers(currentPage - 1);  // go to previous page
+};
+
+
+  const fetchUsers = async (page: number = 1) => {
+  setColumnFilters([]);
+  try {
+    setLoading(true);
+    const response = await getRoleUsers("roles__name__in", "cm", page);
+    const data = response?.data;
+
+    setUsers(data?.results || []);
+    setTotalCount(data?.count || 0);
+    setHasNext(!!data?.next);       // true if next URL exists
+    setHasPrev(!!data?.previous);   // true if previous URL exists
+    setCurrentPage(page);           // update current page
+  } catch (error) {
+    const errorMessage = handleAxiosError(error, "Failed to fetch users");
+    toast.error(errorMessage);
+    setUsers([]);
+    setTotalCount(0);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleStatusChange = async (userId: number, newStatus: boolean) => {
     if (!canEditStatus) {
@@ -394,6 +412,25 @@ const ViewCMList = () => {
           columnFilters={columnFilters}
           onColumnFiltersChange={setColumnFilters}
         />
+        <div className="flex items-center gap-2">
+  <button
+    onClick={handlePrev}
+    disabled={!hasPrev || loading}     // ← use hasPrev, not prevUrl
+    className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+  >
+    ← Previous
+  </button>
+  <span className="text-sm text-gray-500 dark:text-gray-400">
+    Page <span className="font-semibold">{currentPage}</span>
+  </span>
+  <button
+    onClick={handleNext}
+    disabled={!hasNext || loading}     // ← use hasNext, not nextUrl
+    className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+  >
+    Next →
+  </button>
+</div>
       </div>
     </div>
   );
