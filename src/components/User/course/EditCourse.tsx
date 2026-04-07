@@ -16,6 +16,9 @@ import {
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import { getUserRole } from "../../../config/constants";
 
+const MAX_FILE_SIZE_MB = 20;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Material {
@@ -36,6 +39,7 @@ interface Material {
   originalTitle?: string;
   originalType?: string;
   originalDescription?: string;
+  fileSizeError?: string;
 }
 
 interface Subject {
@@ -229,6 +233,7 @@ function normaliseMaterial(m: Material): Material {
     originalTitle: m.title,
     originalType: m.type,
     originalDescription: m.description,
+    fileSizeError: undefined,
   };
 }
 
@@ -407,7 +412,7 @@ const EditCourse: React.FC<EditCourseProps> = ({
 
           setSubjects((prev) => {
             const updated = [...prev];
-            if (!updated[si]) return prev; // guard against stale index
+            if (!updated[si]) return prev;
             updated[si] = { ...updated[si], id: created.id, isNew: false };
             return updated;
           });
@@ -425,7 +430,6 @@ const EditCourse: React.FC<EditCourseProps> = ({
     [course.id],
   );
 
-  // ── FIX: removeSubject — rebuild expandedSubjects + materialStatuses by shifting indices ──
   const removeSubject = useCallback(async (si: number) => {
     const subject = subjectsRef.current[si];
     if (!subject) return;
@@ -442,18 +446,15 @@ const EditCourse: React.FC<EditCourseProps> = ({
 
     setSubjects((prev) => prev.filter((_, i) => i !== si));
 
-    // Shift expanded indices: remove si, decrement all indices > si
     setExpandedSubjects((prev) => {
       const next = new Set<number>();
       prev.forEach((idx) => {
         if (idx < si) next.add(idx);
         else if (idx > si) next.add(idx - 1);
-        // idx === si is dropped
       });
       return next;
     });
 
-    // Shift subject status keys
     setSubjectStatuses((prev) => {
       const next: Record<number, SectionStatus> = {};
       Object.entries(prev).forEach(([key, val]) => {
@@ -464,14 +465,12 @@ const EditCourse: React.FC<EditCourseProps> = ({
       return next;
     });
 
-    // Shift material status keys: "si-mi" pattern
     setMaterialStatuses((prev) => {
       const next: Record<string, SectionStatus> = {};
       Object.entries(prev).forEach(([key, val]) => {
         const [ks, km] = key.split("-").map(Number);
         if (ks < si) next[`${ks}-${km}`] = val;
         else if (ks > si) next[`${ks - 1}-${km}`] = val;
-        // ks === si is dropped
       });
       return next;
     });
@@ -509,6 +508,7 @@ const EditCourse: React.FC<EditCourseProps> = ({
             subject: updated[si]?.id || 0,
             isNew: true,
             inputType: "",
+            fileSizeError: undefined,
           },
         ],
       };
@@ -553,11 +553,10 @@ const EditCourse: React.FC<EditCourseProps> = ({
       Object.entries(prev).forEach(([key, val]) => {
         const [ks, km] = key.split("-").map(Number);
         if (ks !== si) {
-          next[key] = val; // different subject — keep as-is
+          next[key] = val;
         } else {
           if (km < mi) next[`${ks}-${km}`] = val;
           else if (km > mi) next[`${ks}-${km - 1}`] = val;
-          // km === mi is dropped
         }
       });
       return next;
@@ -568,6 +567,17 @@ const EditCourse: React.FC<EditCourseProps> = ({
     (e: React.ChangeEvent<HTMLInputElement>, si: number, mi: number) => {
       const picked = e.target.files?.[0];
       if (picked) {
+        // Check file size
+        if (picked.size > MAX_FILE_SIZE_BYTES) {
+          updateMaterial(si, mi, "fileSizeError", `File size must be less than ${MAX_FILE_SIZE_MB} MB`);
+          updateMaterial(si, mi, "newFile", null);
+          updateMaterial(si, mi, "fileChanged", false);
+          toast.error(`File too large! Maximum size is ${MAX_FILE_SIZE_MB}MB`);
+          e.target.value = "";
+          return;
+        }
+        
+        updateMaterial(si, mi, "fileSizeError", undefined);
         updateMaterial(si, mi, "newFile", picked);
         updateMaterial(si, mi, "fileChanged", true);
       }
@@ -597,14 +607,19 @@ const EditCourse: React.FC<EditCourseProps> = ({
         toast.error("Please enter a URL");
         return;
       }
-      if (
-        material.inputType === "file" &&
-        !material.newFile &&
-        !material.file
-      ) {
-        toast.error("Please select a file");
-        return;
+      
+      // Check file size before saving
+      if (material.inputType === "file") {
+        if (material.newFile && material.newFile.size > MAX_FILE_SIZE_BYTES) {
+          toast.error(`File too large! Maximum size is ${MAX_FILE_SIZE_MB}MB`);
+          return;
+        }
+        if (!material.newFile && !material.file) {
+          toast.error("Please select a file");
+          return;
+        }
       }
+      
       if (!subject.id) {
         toast.error("Save the subject name first");
         return;
@@ -724,12 +739,15 @@ const EditCourse: React.FC<EditCourseProps> = ({
           if (!material.title.trim() || !material.type || !material.inputType)
             continue;
           if (material.inputType === "url" && !material.url?.trim()) continue;
-          if (
-            material.inputType === "file" &&
-            !material.newFile &&
-            !material.file
-          )
-            continue;
+          
+          // Check file size before saving
+          if (material.inputType === "file") {
+            if (material.newFile && material.newFile.size > MAX_FILE_SIZE_BYTES) {
+              toast.error(`File too large for "${material.title}"! Maximum size is ${MAX_FILE_SIZE_MB}MB`);
+              continue;
+            }
+            if (!material.newFile && !material.file) continue;
+          }
 
           const titleChanged = material.title !== material.originalTitle;
           const typeChanged = material.type !== material.originalType;
@@ -1033,6 +1051,7 @@ const EditCourse: React.FC<EditCourseProps> = ({
                                           "fileChanged",
                                           false,
                                         );
+                                        updateMaterial(si, mi, "fileSizeError", undefined);
                                       } else {
                                         updateMaterial(si, mi, "url", null);
                                       }
@@ -1079,7 +1098,7 @@ const EditCourse: React.FC<EditCourseProps> = ({
                                         : material.file
                                           ? "Current: " +
                                             getFileName(material.file)
-                                          : "Click to choose file"}
+                                          : `Click to choose file (Max ${MAX_FILE_SIZE_MB}MB)`}
                                     </span>
                                   </label>
                                   <input
@@ -1096,6 +1115,16 @@ const EditCourse: React.FC<EditCourseProps> = ({
                                       ✓ Current file will be kept
                                     </p>
                                   )}
+                                  {material.newFile && (
+                                    <p className="text-xs text-blue-600 mt-1">
+                                      New file selected: {(material.newFile.size / (1024 * 1024)).toFixed(2)} MB
+                                    </p>
+                                  )}
+                                  {material.fileSizeError && (
+                                    <p className="text-xs text-red-500 mt-1">
+                                      {material.fileSizeError}
+                                    </p>
+                                  )}
                                 </div>
                               )}
 
@@ -1105,7 +1134,7 @@ const EditCourse: React.FC<EditCourseProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => saveMaterial(si, mi)}
-                                  disabled={matStatus === "saving"}
+                                  disabled={matStatus === "saving" || !!material.fileSizeError}
                                   className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                                 >
                                   {matStatus === "saving" ? (

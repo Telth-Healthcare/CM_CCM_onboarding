@@ -37,8 +37,6 @@ const handleRegionError = (error: unknown): void => {
 
   const data = error.response?.data;
 
-  // Handle array of pincode errors:
-  // [{ code: "790114", errors: ["pincode with this code already exists."] }]
   if (Array.isArray(data) && data.length > 0) {
     const duplicateCodes: string[] = [];
     const otherErrors: string[] = [];
@@ -57,12 +55,11 @@ const handleRegionError = (error: unknown): void => {
     // Show one grouped toast for all duplicates
     if (duplicateCodes.length > 0) {
       const preview = duplicateCodes.slice(0, 5).join(", ");
-      const extra = duplicateCodes.length > 5
-        ? ` +${duplicateCodes.length - 5} more`
-        : "";
+      const extra =
+        duplicateCodes.length > 5 ? ` +${duplicateCodes.length - 5} more` : "";
       toast.error(
         `${duplicateCodes.length} pincode(s) already exist: ${preview}${extra}. Please remove them and try again.`,
-        { toastId: "duplicate-pincodes" }
+        { toastId: "duplicate-pincodes" },
       );
     }
 
@@ -112,8 +109,12 @@ const Region = () => {
   const [pincodes, setPincodes] = useState<string[]>([]);
   const [pincodeError, setPincodeError] = useState("");
 
-  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>([]);
-  const [errors, setErrors] = useState<Partial<Record<keyof NewRegionForm, string>>>({});
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
+    [],
+  );
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof NewRegionForm, string>>
+  >({});
 
   const isSuperAdmin = userRole === "super_admin";
 
@@ -186,22 +187,26 @@ const Region = () => {
         }
 
         const validPincodes = extractedPincodes.filter((pin) =>
-          /^\d{6}$/.test(pin)
+          /^\d{6}$/.test(pin),
         );
         const invalidPincodes = extractedPincodes.filter(
-          (pin) => !/^\d{6}$/.test(pin)
+          (pin) => !/^\d{6}$/.test(pin),
         );
 
         if (invalidPincodes.length > 0) {
           toast.warning(`${invalidPincodes.length} invalid pincodes skipped`);
         }
 
-        const duplicates = validPincodes.filter((pin) => pincodes.includes(pin));
-        const newPincodes = validPincodes.filter((pin) => !pincodes.includes(pin));
+        const duplicates = validPincodes.filter((pin) =>
+          pincodes.includes(pin),
+        );
+        const newPincodes = validPincodes.filter(
+          (pin) => !pincodes.includes(pin),
+        );
 
         if (duplicates.length > 0) {
           toast.warning(
-            `${duplicates.length} duplicate pincode(s) skipped: ${duplicates.slice(0, 5).join(", ")}${duplicates.length > 5 ? ` +${duplicates.length - 5} more` : ""}`
+            `${duplicates.length} duplicate pincode(s) skipped: ${duplicates.slice(0, 5).join(", ")}${duplicates.length > 5 ? ` +${duplicates.length - 5} more` : ""}`,
           );
         }
 
@@ -213,7 +218,7 @@ const Region = () => {
 
         setPincodes((prev) => [...prev, ...newPincodes]);
         toast.success(
-          `Added ${newPincodes.length} pincodes from CSV. Total: ${pincodes.length + newPincodes.length}`
+          `Added ${newPincodes.length} pincodes from CSV. Total: ${pincodes.length + newPincodes.length}`,
         );
 
         event.target.value = "";
@@ -298,7 +303,7 @@ const Region = () => {
 
   const handleViewPincodes = (
     regionName: string,
-    pincodes: { code: string }[]
+    pincodes: { code: string }[],
   ) => {
     setViewRegionName(regionName);
     setViewPincodes(pincodes.map((p) => p.code));
@@ -328,7 +333,10 @@ const Region = () => {
           const value = cell.getValue<{ code: string }[]>();
           if (!value || value.length === 0) return "-";
 
-          const displayText = value.slice(0, 3).map((p) => p.code).join(", ");
+          const displayText = value
+            .slice(0, 3)
+            .map((p) => p.code)
+            .join(", ");
           const remainingCount = value.length - 3;
 
           return (
@@ -348,14 +356,14 @@ const Region = () => {
         },
       },
     ],
-    [pagination.pageIndex, pagination.pageSize]
+    [pagination.pageIndex, pagination.pageSize],
   );
 
   const handleAddRegion = () => setIsAddModalOpen(true);
   const handleCloseModal = () => setIsAddModalOpen(false);
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -508,9 +516,23 @@ const Region = () => {
                   </label>
 
                   <div className="flex flex-col gap-2">
-                    {/* CSV Upload Button */}
-                    <div>
-                      <label className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
+                    {/* Row 1: Sync User Checkbox and CSV Upload Button in one row */}
+                    <div className="flex items-center justify-between gap-3">
+                      {/* Sync User Checkbox - Left side */}
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={syncUser}
+                          onChange={() => setSyncUser((prev) => !prev)}
+                          className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Sync User Default
+                        </span>
+                      </label>
+
+                      {/* CSV Upload Button - Right side */}
+                      <label className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">
                         <svg
                           className="w-4 h-4"
                           fill="none"
@@ -532,10 +554,11 @@ const Region = () => {
                           className="hidden"
                         />
                       </label>
-                      <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                        Supports multiple formats. Duplicates are removed automatically.
-                      </p>
                     </div>
+
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      Supports CSV format. Duplicates are removed automatically.
+                    </p>
 
                     {/* Tag box */}
                     <div
@@ -587,32 +610,18 @@ const Region = () => {
                             }));
                           }}
                           onKeyDown={handlePincodeKeyDown}
-                          placeholder="Enter 6-digit pincode or upload CSV…"
+                          placeholder="Enter 6-digit pincode…"
                           className="flex-1 bg-transparent outline-none text-sm text-gray-800 dark:text-white placeholder-gray-400"
                         />
+                        <button
+                          type="button"
+                          onClick={addPincode}
+                          disabled={!pincodeInput.trim()}
+                          className="ml-2 px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Add
+                        </button>
                       </div>
-                    </div>
-
-                    {/* Sync User + Add Pincode */}
-                    <div className="flex gap-3">
-                      <label className="flex items-center justify-center gap-2 flex-1 px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={syncUser}
-                          onChange={() => setSyncUser((prev) => !prev)}
-                          className="w-4 h-4 text-green-600 bg-white border-gray-300 rounded focus:ring-green-500"
-                        />
-                        Sync User Default
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={addPincode}
-                        disabled={!pincodeInput.trim()}
-                        className="flex-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Add Pincode
-                      </button>
                     </div>
                   </div>
 

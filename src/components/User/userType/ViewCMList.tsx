@@ -16,6 +16,7 @@ import { PlusIcon } from "lucide-react";
 
 interface User {
   id: number;
+  partner_id: number;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
@@ -65,46 +66,45 @@ const ViewCMList = () => {
   const canEditStatus = isSuperAdmin || isAdmin;
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [currentView, setCurrentView] = useState<ViewType>(null);
-  const [currentPage, setCurrentPage] = useState(1);   // tracks current page number
-const [hasNext, setHasNext] = useState(false);        // is there a next page?
-const [hasPrev, setHasPrev] = useState(false); 
+  const [currentPage, setCurrentPage] = useState(1); // tracks current page number
+  const [hasNext, setHasNext] = useState(false); // is there a next page?
+  const [hasPrev, setHasPrev] = useState(false);
 
- useEffect(() => {
-  fetchUsers(1); // load page 1 on mount
-}, []);
+  useEffect(() => {
+    fetchUsers(1);
+  }, []);
 
-const handleNext = () => {
-  if (!hasNext || loading) return;
-  fetchUsers(currentPage + 1);  // go to next page
-};
+  const handleNext = () => {
+    if (!hasNext || loading) return;
+    fetchUsers(currentPage + 1);
+  };
 
-const handlePrev = () => {
-  if (!hasPrev || loading) return;
-  fetchUsers(currentPage - 1);  // go to previous page
-};
-
+  const handlePrev = () => {
+    if (!hasPrev || loading) return;
+    fetchUsers(currentPage - 1);
+  };
 
   const fetchUsers = async (page: number = 1) => {
-  setColumnFilters([]);
-  try {
-    setLoading(true);
-    const response = await getRoleUsers("roles__name__in", "cm", page);
-    const data = response?.data;
+    setColumnFilters([]);
+    try {
+      setLoading(true);
+      const response = await getRoleUsers("roles__name__in", "cm", page);
+      const data = response?.data;
 
-    setUsers(data?.results || []);
-    setTotalCount(data?.count || 0);
-    setHasNext(!!data?.next);       // true if next URL exists
-    setHasPrev(!!data?.previous);   // true if previous URL exists
-    setCurrentPage(page);           // update current page
-  } catch (error) {
-    const errorMessage = handleAxiosError(error, "Failed to fetch users");
-    toast.error(errorMessage);
-    setUsers([]);
-    setTotalCount(0);
-  } finally {
-    setLoading(false);
-  }
-};
+      setUsers(data?.results || []);
+      setTotalCount(data?.count || 0);
+      setHasNext(!!data?.next); // true if next URL exists
+      setHasPrev(!!data?.previous); // true if previous URL exists
+      setCurrentPage(page); // update current page
+    } catch (error) {
+      const errorMessage = handleAxiosError(error, "Failed to fetch users");
+      toast.error(errorMessage);
+      setUsers([]);
+      setTotalCount(0);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleStatusChange = async (userId: number, newStatus: boolean) => {
     if (!canEditStatus) {
@@ -122,7 +122,7 @@ const handlePrev = () => {
         toast.success(
           `User ${newStatus ? "activated" : "deactivated"} successfully`,
         );
-        await fetchUsers();
+        await fetchUsers(currentPage);
       }
     } catch (error) {
       const errorMessage = handleAxiosError(
@@ -136,6 +136,11 @@ const handlePrev = () => {
     }
   };
 
+  const handleEdit = (userId: number) => {
+    setSelectedUserId(userId);
+    setCurrentView("edit");
+  };
+
   const handleCreateNew = () => {
     setSelectedUserId(null);
     setCurrentView("create");
@@ -145,11 +150,52 @@ const handlePrev = () => {
   const handleOnboardDone = () => {
     setCurrentView(null);
     setSelectedUserId(null);
-    fetchUsers(); // refresh list to reflect new onboarding state
+    fetchUsers(currentPage); // refresh list to reflect new onboarding state
   };
 
   const columns = useMemo<MRT_ColumnDef<User>[]>(
     () => [
+      {
+        id: "actions",
+        header: "Actions",
+        size: 100,
+        enableColumnFilter: false,
+        enableSorting: false,
+        Cell: ({ row }: { row: MRT_Row<User> }) => {
+          const partnerId = row.original.partner_id;
+          // Only show action button if partner_id exists (not null, not undefined, not 0)
+          const hasPartnerId = partnerId != null && partnerId !== 0;
+          
+          if (!hasPartnerId) {
+            return null; // Don't render anything if partner_id is null/0
+          }
+          
+          return (
+            <button
+              onClick={() => handleEdit(partnerId)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
+                      text-brand-600 bg-brand-50 hover:bg-brand-100
+                      dark:text-brand-400 dark:bg-brand-500/10 dark:hover:bg-brand-500/20
+                      transition-colors"
+              title="Edit onboarding"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                />
+              </svg>
+            </button>
+          );
+        },
+      },
       {
         accessorKey: "first_name",
         header: "First Name",
@@ -336,7 +382,7 @@ const handlePrev = () => {
   );
 
   const toolbarActions: ToolbarAction[] = [
-    ...(isAdmin
+    ...(canEditApproval
       ? [
           {
             label: "Create CM",
@@ -347,7 +393,7 @@ const handlePrev = () => {
       : []),
     {
       label: "Refresh",
-      onClick: fetchUsers,
+      onClick: () => fetchUsers(currentPage),
       icon: (
         <svg
           className="w-5 h-5"
@@ -366,7 +412,7 @@ const handlePrev = () => {
     },
   ];
 
-  if (currentView === "create") {
+  if (currentView === "create" || currentView === "edit") {
     return (
       <CCMOnboard
         useRouting={false}
@@ -412,25 +458,25 @@ const handlePrev = () => {
           columnFilters={columnFilters}
           onColumnFiltersChange={setColumnFilters}
         />
-        <div className="flex items-center gap-2">
-  <button
-    onClick={handlePrev}
-    disabled={!hasPrev || loading}     // ← use hasPrev, not prevUrl
-    className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-  >
-    ← Previous
-  </button>
-  <span className="text-sm text-gray-500 dark:text-gray-400">
-    Page <span className="font-semibold">{currentPage}</span>
-  </span>
-  <button
-    onClick={handleNext}
-    disabled={!hasNext || loading}     // ← use hasNext, not nextUrl
-    className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-  >
-    Next →
-  </button>
-</div>
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handlePrev}
+            disabled={!hasPrev || loading}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            ← Previous
+          </button>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Page <span className="font-semibold">{currentPage}</span>
+          </span>
+          <button
+            onClick={handleNext}
+            disabled={!hasNext || loading}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next →
+          </button>
+        </div>
       </div>
     </div>
   );

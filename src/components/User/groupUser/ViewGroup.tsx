@@ -5,7 +5,12 @@ import {
   type MRT_ColumnDef,
 } from "material-react-table";
 import { getUserRole } from "../../../config/constants";
-import { getGroupApi, createGroupApi, updateGroupApi, deleteGroupApi } from "../../../api";
+import {
+  getGroupApi,
+  createGroupApi,
+  updateGroupApi,
+  deleteGroupApi,
+} from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import PageMeta from "../../common/PageMeta";
@@ -19,13 +24,12 @@ interface StudentData {
   name: string;
   first_name?: string;
   last_name?: string;
-
 }
 
 interface Group {
   id: number;
   name: string;
-  student_data?: StudentData[];  // Changed from students to student_data
+  student_data?: StudentData[]; // Changed from students to student_data
   permissions?: any[];
   created_at?: string;
   updated_at?: string;
@@ -41,7 +45,7 @@ interface Student {
   name: string;
   email?: string;
   first_name?: string;
-  last_name?: string
+  last_name?: string;
 }
 
 const ViewGroup = () => {
@@ -97,14 +101,14 @@ const ViewGroup = () => {
     if (editingGroup && isEditModalOpen) {
       setFormData({
         name: editingGroup.name,
-        students: editingGroup.student_data?.map(s => s.id) || [],
+        students: editingGroup.student_data?.map((s) => s.id) || [],
       });
-      setSelectedStudents(editingGroup.student_data?.map(s => s.id) || []);
+      setSelectedStudents(editingGroup.student_data?.map((s) => s.id) || []);
 
-      setAvailableStudents(prev => {
-        const existingIds = new Set(prev.map(s => s.id));
+      setAvailableStudents((prev) => {
+        const existingIds = new Set(prev.map((s) => s.id));
         const missing = (editingGroup.student_data || []).filter(
-          s => !existingIds.has(s.id)
+          (s) => !existingIds.has(s.id),
         );
         return [...prev, ...missing]; // merges without duplicates
       });
@@ -114,7 +118,7 @@ const ViewGroup = () => {
   useEffect(() => {
     fetchGroups();
     // if (isSuperAdmin) {
-      fetchStudents();
+    fetchStudents();
     // }
   }, [isSuperAdmin]);
 
@@ -154,7 +158,7 @@ const ViewGroup = () => {
   };
 
   const handleDeleteGroup = (group: Group) => {
-    setDeletingGroup(group);   // store which group to delete
+    setDeletingGroup(group); // store which group to delete
     setDeleteModalOpen(true);
   };
 
@@ -168,7 +172,7 @@ const ViewGroup = () => {
       const errorMessage = handleAxiosError(error, "Failed to delete group");
       toast.error(errorMessage);
     } finally {
-      setDeleteModalOpen(false);  // close modal either way
+      setDeleteModalOpen(false); // close modal either way
       setDeletingGroup(null);
     }
   };
@@ -194,7 +198,7 @@ const ViewGroup = () => {
       setSubmitting(true);
       await createGroupApi({
         name: formData.name,
-        students: selectedStudents,  // Array of student IDs
+        students: selectedStudents, // Array of student IDs
       });
       toast.success("Group created successfully");
       handleCloseModal();
@@ -255,7 +259,7 @@ const ViewGroup = () => {
         size: 200,
         Cell: ({ cell }) => cell.getValue<string>() ?? "-",
       },
-        {
+      {
         accessorKey: "course_name",
         header: "Course",
         size: 200,
@@ -369,90 +373,111 @@ const ViewGroup = () => {
       </div>
 
       {/* Add/Edit Group Modal */}
-      {((isSuperAdmin || userRoleData) && (isAddModalOpen || isEditModalOpen)) && (
-        <RightSideModal
-          isOpen={isAddModalOpen || isEditModalOpen}
-          onClose={handleCloseModal}
-          showCloseButton
-          width=""
-        >
-          <div className="p-6">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-6">
-              {isEditModalOpen ? "Edit Group" : "Add New Group"}
-            </h2>
+      {(isSuperAdmin || userRoleData) &&
+        (isAddModalOpen || isEditModalOpen) && (
+          <RightSideModal
+            isOpen={isAddModalOpen || isEditModalOpen}
+            onClose={handleCloseModal}
+            showCloseButton
+            width="600px"
+          >
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-6">
+                {isEditModalOpen ? "Edit Group" : "Add New Group"}
+              </h2>
 
-            <form onSubmit={isEditModalOpen ? handleUpdateGroup : handleCreateGroup} noValidate>
-              <div className="space-y-5">
-                {/* Group Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Group Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Enter group name"
-                    className={`w-full px-3 py-2 text-sm border ${errors.name
-                      ? "border-red-400"
-                      : "border-gray-300 dark:border-gray-600"
+              <form
+                onSubmit={
+                  isEditModalOpen ? handleUpdateGroup : handleCreateGroup
+                }
+                noValidate
+              >
+                <div className="space-y-5">
+                  {/* Group Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Group Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="Enter group name"
+                      className={`w-full px-3 py-2 text-sm border ${
+                        errors.name
+                          ? "border-red-400"
+                          : "border-gray-300 dark:border-gray-600"
                       } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400`}
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-xs text-red-500">{errors.name}</p>
-                  )}
-                </div>
-
-                {/* Students Selection (Optional) */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Students <span className="text-gray-400 text-xs">(Optional)</span>
-                  </label>
-
-                  {/* Student search and dropdown */}
-                  <div className="flex gap-2 items-start mb-3">
-                    <div className="flex-1">
-                      <select
-                        onChange={handleStudentSelect}
-                        value=""
-                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                      >
-                        <option value="">Select a student to add...</option>
-                        {availableStudents
-                          .filter((student) => !selectedStudents.includes(student.id)) // ← key fix
-                          .map((student) => (
-                            <option key={student.id} value={student.id}>
-                              {student.name || `${student.first_name} ${student.last_name}`} {student.email ? `(${student.email})` : ""}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+                    )}
                   </div>
 
-                  {/* Selected students tags */}
-                  <div
-                    className={`flex flex-wrap gap-2 items-center min-h-[60px] p-3 border ${studentError
-                      ? "border-red-400"
-                      : "border-gray-300 dark:border-gray-600"
+                  {/* Students Selection (Optional) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Students{" "}
+                      <span className="text-gray-400 text-xs">(Optional)</span>
+                    </label>
+
+                    {/* Student search and dropdown */}
+                    <div className="flex gap-2 items-start mb-3">
+                      <div className="flex-1">
+                        <select
+                          onChange={handleStudentSelect}
+                          value=""
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                        >
+                          <option value="">Select a student to add...</option>
+                          {availableStudents
+                            .filter(
+                              (student) =>
+                                !selectedStudents.includes(student.id),
+                            ) // ← key fix
+                            .map((student) => (
+                              <option key={student.id} value={student.id}>
+                                {student.name ||
+                                  `${student.first_name} ${student.last_name}`}{" "}
+                                {student.email ? `(${student.email})` : ""}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Selected students tags */}
+                    <div
+                      className={`flex flex-wrap gap-2 items-center min-h-[60px] p-3 border ${
+                        studentError
+                          ? "border-red-400"
+                          : "border-gray-300 dark:border-gray-600"
                       } rounded-lg bg-white dark:bg-gray-800`}
-                  >
-                    {selectedStudents.length === 0 ? (
-                      <p className="text-sm text-gray-400 dark:text-gray-500">
-                        No students selected
-                      </p>
-                    ) : (
-                      selectedStudents.map((studentId) => {
-                        const fromAvailable = availableStudents.find((s) => s.id === studentId);
-                        const fromEditData = editingGroup?.student_data?.find((s) => s.id === studentId);
-                        const student = fromAvailable || fromEditData;
-                        return (
-                          <span
-                            key={studentId}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-md text-sm font-medium"
-                          >
-                            {student?.name ||
-                              (student?.first_name ? `${student.first_name} ${student.last_name}` : `Student ${studentId}`)}                            <button
+                    >
+                      {selectedStudents.length === 0 ? (
+                        <p className="text-sm text-gray-400 dark:text-gray-500">
+                          No students selected
+                        </p>
+                      ) : (
+                        selectedStudents.map((studentId) => {
+                          const fromAvailable = availableStudents.find(
+                            (s) => s.id === studentId,
+                          );
+                          const fromEditData = editingGroup?.student_data?.find(
+                            (s) => s.id === studentId,
+                          );
+                          const student = fromAvailable || fromEditData;
+                          return (
+                            <span
+                              key={studentId}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-md text-sm font-medium"
+                            >
+                              {student?.name ||
+                                (student?.first_name
+                                  ? `${student.first_name} ${student.last_name}`
+                                  : `Student ${studentId}`)}{" "}
+                              <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -461,93 +486,94 @@ const ViewGroup = () => {
                                 className="leading-none opacity-60 hover:opacity-100 text-base ml-1"
                                 title="Remove"
                               >
-                              ×
-                            </button>
-                          </span>
-                        );
-                      })
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {studentError && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {studentError}
+                      </p>
+                    )}
+
+                    {/* Count hint */}
+                    {selectedStudents.length > 0 && (
+                      <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                        {selectedStudents.length} student
+                        {selectedStudents.length > 1 ? "s" : ""} selected
+                      </p>
                     )}
                   </div>
-
-                  {studentError && (
-                    <p className="mt-1 text-xs text-red-500">{studentError}</p>
-                  )}
-
-                  {/* Count hint */}
-                  {selectedStudents.length > 0 && (
-                    <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-                      {selectedStudents.length} student
-                      {selectedStudents.length > 1 ? "s" : ""} selected
-                    </p>
-                  )}
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="mt-8 flex justify-end gap-3">
-                <Button
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  disabled={submitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submitting
-                    ? (isEditModalOpen ? "Updating..." : "Creating...")
-                    : (isEditModalOpen ? "Update Group" : "Create Group")}
-                </Button>
-              </div>
+                {/* Actions */}
+                <div className="mt-8 flex justify-end gap-3">
+                  <Button
+                    onClick={handleCloseModal}
+                    className="px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={submitting}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting
+                      ? isEditModalOpen
+                        ? "Updating..."
+                        : "Creating..."
+                      : isEditModalOpen
+                        ? "Update Group"
+                        : "Create Group"}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </RightSideModal>
+        )}
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-sm mx-4">
+            {/* Icon */}
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
+              <Trash2Icon className="w-6 h-6 text-red-500" />
+            </div>
 
-            </form>
-           
+            {/* Text */}
+            <h3 className="text-center text-lg font-semibold text-gray-800 dark:text-white mb-1">
+              Delete Group
+            </h3>
+            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                "{deletingGroup?.name}"
+              </span>
+              ? This action cannot be undone.
+            </p>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setDeleteModalOpen(false)} // cancel
+                className="flex-1 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDelete}
+                className="flex-1 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600"
+              >
+                Delete
+              </Button>
+            </div>
           </div>
-        </RightSideModal>
-        
+        </div>
       )}
-         {/* Delete Confirmation Modal */}
-              {deleteModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-sm mx-4">
-
-                    {/* Icon */}
-                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
-                      <Trash2Icon className="w-6 h-6 text-red-500" />
-                    </div>
-
-                    {/* Text */}
-                    <h3 className="text-center text-lg font-semibold text-gray-800 dark:text-white mb-1">
-                      Delete Group
-                    </h3>
-                    <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-6">
-                      Are you sure you want to delete{" "}
-                      <span className="font-medium text-gray-700 dark:text-gray-200">
-                        "{deletingGroup?.name}"
-                      </span>
-                      ? This action cannot be undone.
-                    </p>
-
-                    {/* Actions */}
-                    <div className="flex gap-3">
-                      <Button
-                        onClick={() => setDeleteModalOpen(false)}  // cancel
-                        className="flex-1 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={confirmDelete}
-                        className="flex-1 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-
-                  </div>
-                </div>
-              )}
     </div>
   );
 };

@@ -1,85 +1,116 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { toast } from 'react-toastify'
-import { STEPS } from './types/Constants'
-import { useOnboardForm } from './types/useOnboardForm'
-import PersonalInfo from './Personalinfo'
-import AddressInfo from './Addressinfo'
-import PersonalDocuments from './Personaldocuments'
-import EducationDocuments from './Educationdocuments'
-import Preview from './Preview'
-import { getRoleUsers } from '../../../api' 
-import { OptionType } from './types/Types'
-import { handleAxiosError } from '../../../utils/handleAxiosError'
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { STEPS } from "./types/Constants";
+import { useOnboardForm } from "./types/useOnboardForm";
+import PersonalInfo from "./Personalinfo";
+import AddressInfo from "./Addressinfo";
+import PersonalDocuments from "./Personaldocuments";
+import EducationDocuments from "./Educationdocuments";
+import Preview from "./Preview";
+import { getRoleUsers } from "../../../api";
+import { OptionType } from "./types/Types";
+import { handleAxiosError } from "../../../utils/handleAxiosError";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 export interface OnboardProps {
-  currentId?: string
-  currentIndex?: number
-  targetUserId?: number
-  useRouting?: boolean
-  onDone?: () => void
-  roleFilter?: string
+  currentId?: string;
+  currentIndex?: number;
+  targetUserId?: number;
+  useRouting?: boolean;
+  onDone?: () => void;
+  roleFilter?: string;
 }
 
-const Spinner = ({ className = '' }: { className?: string }) => (
-  <span className={`inline-block rounded-full border-2 border-t-white/80 border-white/20 animate-spin ${className}`} />
-)
+const Spinner = ({ className = "" }: { className?: string }) => (
+  <span
+    className={`inline-block rounded-full border-2 border-t-white/80 border-white/20 animate-spin ${className}`}
+  />
+);
 
 const StepDots = ({ currentIndex }: { currentIndex: number }) => (
   <div className="flex items-start relative">
     <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 dark:bg-gray-700" />
     <div
       className="absolute top-4 left-4 h-0.5 bg-brand-600 transition-all duration-500"
-      style={{ width: currentIndex === 0 ? '0%' : `${(currentIndex / (STEPS.length - 1)) * 100}%` }}
+      style={{
+        width:
+          currentIndex === 0
+            ? "0%"
+            : `${(currentIndex / (STEPS.length - 1)) * 100}%`,
+      }}
     />
     {STEPS.map((step, idx) => {
-      const done = idx < currentIndex
-      const active = idx === currentIndex
+      const done = idx < currentIndex;
+      const active = idx === currentIndex;
       return (
-        <div key={step.id} className="relative z-10 flex flex-col items-center flex-1">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all
-            ${done
-              ? 'bg-brand-600 border-brand-600 text-white'
-              : active
-                ? 'bg-white dark:bg-gray-900 border-brand-600 text-brand-600'
-                : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-400'
+        <div
+          key={step.id}
+          className="relative z-10 flex flex-col items-center flex-1"
+        >
+          <div
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all
+            ${
+              done
+                ? "bg-brand-600 border-brand-600 text-white"
+                : active
+                  ? "bg-white dark:bg-gray-900 border-brand-600 text-brand-600"
+                  : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-400"
             }`}
           >
-            {done
-              ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              : step.step
-            }
+            {done ? (
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            ) : (
+              step.step
+            )}
           </div>
           <span
             className={`mt-1.5 text-center hidden sm:block text-[10px]
-              ${active ? 'text-brand-600 font-semibold' : done ? 'text-gray-500' : 'text-gray-400'}`}
+              ${active ? "text-brand-600 font-semibold" : done ? "text-gray-500" : "text-gray-400"}`}
             style={{ maxWidth: 60 }}
           >
             {step.name}
           </span>
         </div>
-      )
+      );
     })}
   </div>
-)
+);
 
-const SaveStatus = ({ appId, saving }: { appId: number | null; saving: boolean }) => {
-  if (saving) return (
-    <span className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
-      <Spinner className="w-3 h-3" />
-      Saving…
-    </span>
-  )
-  if (appId) return (
-    <span className="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full border border-green-200">
-      ✓ Draft saved
-    </span>
-  )
-  return null
-}
+const SaveStatus = ({
+  appId,
+  saving,
+}: {
+  appId: number | null;
+  saving: boolean;
+}) => {
+  if (saving)
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
+        <Spinner className="w-3 h-3" />
+        Saving…
+      </span>
+    );
+  if (appId)
+    return (
+      <span className="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-full border border-green-200">
+        ✓ Draft saved
+      </span>
+    );
+  return null;
+};
 
 // Success screen — inline variant has a "Back to list" button instead of dashboard
 const SuccessScreen = ({
@@ -87,24 +118,40 @@ const SuccessScreen = ({
   onPrimary,
   primaryLabel,
 }: {
-  refNumber: string
-  onPrimary: () => void
-  primaryLabel: string
+  refNumber: string;
+  onPrimary: () => void;
+  primaryLabel: string;
 }) => (
   <div className="flex items-center justify-center p-6 py-16">
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-10 max-w-md w-full text-center">
       <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-5">
-        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+        <svg
+          className="w-8 h-8 text-green-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2.5}
+            d="M5 13l4 4L19 7"
+          />
         </svg>
       </div>
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Application Submitted!</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+        Application Submitted!
+      </h2>
       <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
         The CCM onboarding application has been received.
       </p>
       <div className="bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
-        <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Reference Number</p>
-        <p className="text-3xl font-bold text-brand-600 tracking-widest">{refNumber}</p>
+        <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+          Reference Number
+        </p>
+        <p className="text-3xl font-bold text-brand-600 tracking-widest">
+          {refNumber}
+        </p>
       </div>
       <button
         onClick={onPrimary}
@@ -114,86 +161,118 @@ const SuccessScreen = ({
       </button>
     </div>
   </div>
-)
+);
 
 // Step renderer — plain switch, no nested <Routes>
-const StepContent = ({ stepId, stepProps }: { stepId: string; stepProps: any }) => {
+const StepContent = ({
+  stepId,
+  stepProps,
+}: {
+  stepId: string;
+  stepProps: any;
+}) => {
   switch (stepId) {
-    case 'personal-info': return <PersonalInfo {...stepProps} />
-    case 'address-info': return <AddressInfo {...stepProps} />
-    case 'personal-documents': return <PersonalDocuments {...stepProps} />
-    case 'education-documents': return <EducationDocuments {...stepProps} />
-    case 'preview': return <Preview {...stepProps} />
-    default: return <PersonalInfo {...stepProps} />
+    case "personal-info":
+      return <PersonalInfo {...stepProps} />;
+    case "address-info":
+      return <AddressInfo {...stepProps} />;
+    case "personal-documents":
+      return <PersonalDocuments {...stepProps} />;
+    case "education-documents":
+      return <EducationDocuments {...stepProps} />;
+    case "preview":
+      return <Preview {...stepProps} />;
+    default:
+      return <PersonalInfo {...stepProps} />;
   }
-}
+};
 
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function CCMOnboard({
-  currentId = 'personal-info',
+  currentId = "personal-info",
   currentIndex = 0,
   targetUserId,
   useRouting = true,
   roleFilter,
   onDone,
 }: OnboardProps) {
-  const navigate = useNavigate()
-  const [roleList, setRoleList] = useState<OptionType[]>([])
+  const navigate = useNavigate();
+  const [roleList, setRoleList] = useState<OptionType[]>([]);
   // Fetch admin roles for MNP User dropdown
   useEffect(() => {
     const fetchAdminRoles = async () => {
       try {
-        const adminRole = await getRoleUsers("roles__name__in", "admin")
-        const adminData = adminRole?.data?.results || adminRole || []
-        const formattedAdminList: OptionType[] = adminData.map((admin: any) => ({
-          value: admin.id?.toString() || "",
-          label: `${admin.first_name || ""} ${admin.last_name || ""}`.trim() || admin.email || "Unnamed",
-        }))
-        setRoleList(formattedAdminList)
+        const adminRole = await getRoleUsers("roles__name__in", "admin");
+        const adminData = adminRole?.data?.results || adminRole || [];
+        const formattedAdminList: OptionType[] = adminData.map(
+          (admin: any) => ({
+            value: admin.id?.toString() || "",
+            label:
+              `${admin.first_name || ""} ${admin.last_name || ""}`.trim() ||
+              admin.email ||
+              "Unnamed",
+          }),
+        );
+        setRoleList(formattedAdminList);
       } catch (error) {
-        const errorMsg = handleAxiosError(error, "Failed to fetch admin users")
-        toast.error(errorMsg)
+        const errorMsg = handleAxiosError(error, "Failed to fetch admin users");
+        toast.error(errorMsg);
       }
-    }
+    };
 
-    fetchAdminRoles()
-  }, [])
+    fetchAdminRoles();
+  }, []);
 
   const {
-    formData, updateFormData, errors,
-    appId, refNumber,
-    saving, uploading, isInitialized,
-    currentStepId, currentStepIndex,
-    handleNext, handlePrev, handleSubmit, handleReplace,
-  } = useOnboardForm(currentId, currentIndex, targetUserId, useRouting, roleFilter)
+    formData,
+    updateFormData,
+    errors,
+    appId,
+    refNumber,
+    saving,
+    uploading,
+    isInitialized,
+    currentStepId,
+    currentStepIndex,
+    handleNext,
+    handlePrev,
+    handleSubmit,
+    handleReplace,
+  } = useOnboardForm(
+    currentId,
+    currentIndex,
+    targetUserId,
+    useRouting,
+    roleFilter,
+  );
 
-  const isFirst = currentStepIndex === 0
-  const isPreview = currentStepId === 'preview'
+  const isFirst = currentStepIndex === 0;
+  const isPreview = currentStepId === "preview";
 
   // ── Success state ─────────────────────────────────────────────────────────
   if (refNumber) {
     return (
       <SuccessScreen
         refNumber={refNumber}
-        primaryLabel={useRouting ? 'Back to CCM List' : 'Back to List'}
+        primaryLabel={useRouting ? "Back to CCM List" : "Back to List"}
         onPrimary={() => {
           if (useRouting) {
-            navigate('/ccm-list')
+            navigate("/ccm-list");
           } else {
-            onDone?.()
+            onDone?.();
           }
         }}
       />
-    )
+    );
   }
 
-  const stepProps = { 
-    formData, 
-    updateFormData, 
-    errors, 
+  const stepProps = {
+    formData,
+    updateFormData,
+    errors,
     onReplace: handleReplace,
     roleList,
-  }
+  };
 
   // ── Inline mode (no full-page layout) ────────────────────────────────────
   if (!useRouting) {
@@ -207,18 +286,38 @@ export default function CCMOnboard({
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
               title="Back to list"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
-            <span className="font-semibold text-gray-800 dark:text-white text-sm">CCM Onboarding</span>
+            <span className="font-semibold text-gray-800 dark:text-white text-sm">
+              {roleFilter === "ccm" ? "CCM" : "CM"} Onboarding
+            </span>{" "}
             {targetUserId && (
               <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
                 User #{targetUserId}
               </span>
             )}
           </div>
-          <SaveStatus appId={appId} saving={saving} />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onDone}
+              className="text-gray-600 hover:text-black dark:hover:text-gray-200 transition-colors"
+              title="Back to list"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
 
         {/* Step progress */}
@@ -252,8 +351,18 @@ export default function CCMOnboard({
                 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900
                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
               Previous
             </button>
@@ -264,7 +373,14 @@ export default function CCMOnboard({
                 disabled={saving}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
               >
-                {saving ? <><Spinner className="w-4 h-4" />Submitting…</> : 'Submit Application'}
+                {saving ? (
+                  <>
+                    <Spinner className="w-4 h-4" />
+                    Submitting…
+                  </>
+                ) : (
+                  "Submit Application"
+                )}
               </button>
             ) : (
               <button
@@ -273,14 +389,30 @@ export default function CCMOnboard({
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-brand-600 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
               >
                 {saving ? (
-                  <><Spinner className="w-4 h-4" />Saving…</>
+                  <>
+                    <Spinner className="w-4 h-4" />
+                    Saving…
+                  </>
                 ) : uploading ? (
-                  <><Spinner className="w-4 h-4" />Uploading…</>
+                  <>
+                    <Spinner className="w-4 h-4" />
+                    Uploading…
+                  </>
                 ) : (
                   <>
                     Next
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
                     </svg>
                   </>
                 )}
@@ -289,13 +421,12 @@ export default function CCMOnboard({
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   // ── URL-routing mode (full-page layout) ───────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
-
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm">
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
@@ -303,7 +434,9 @@ export default function CCMOnboard({
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-sm font-bold">C</span>
             </div>
-            <span className="font-semibold text-gray-800 dark:text-white text-sm">CCM Onboarding</span>
+            <span className="font-semibold text-gray-800 dark:text-white text-sm">
+              CCM Onboarding
+            </span>
             {targetUserId && (
               <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded ml-1">
                 User #{targetUserId}
@@ -345,8 +478,18 @@ export default function CCMOnboard({
                 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900
                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
               Previous
             </button>
@@ -357,7 +500,14 @@ export default function CCMOnboard({
                 disabled={saving}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
               >
-                {saving ? <><Spinner className="w-4 h-4" />Submitting…</> : 'Submit Application'}
+                {saving ? (
+                  <>
+                    <Spinner className="w-4 h-4" />
+                    Submitting…
+                  </>
+                ) : (
+                  "Submit Application"
+                )}
               </button>
             ) : (
               <button
@@ -366,14 +516,30 @@ export default function CCMOnboard({
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-brand-600 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
               >
                 {saving ? (
-                  <><Spinner className="w-4 h-4" />Saving…</>
+                  <>
+                    <Spinner className="w-4 h-4" />
+                    Saving…
+                  </>
                 ) : uploading ? (
-                  <><Spinner className="w-4 h-4" />Uploading…</>
+                  <>
+                    <Spinner className="w-4 h-4" />
+                    Uploading…
+                  </>
                 ) : (
                   <>
                     Next
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
                     </svg>
                   </>
                 )}
@@ -382,7 +548,6 @@ export default function CCMOnboard({
           </div>
         </div>
       </footer>
-
     </div>
-  )
+  );
 }

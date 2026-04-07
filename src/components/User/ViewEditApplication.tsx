@@ -9,6 +9,7 @@ import {
   updateApplicationStatusApi,
   documentVerifyApi,
   updateUserApplicationApi,
+  updateUsersApi,
 } from "../../api";
 import { getUserRole } from "../../config/constants";
 import PageMeta from "../../shared/components/common/PageMeta";
@@ -22,10 +23,9 @@ import {
   CheckCircle,
   XCircle,
   FileText,
+  UserCheck,
 } from "lucide-react";
 import { handleAxiosError } from "../../utils/handleAxiosError";
-
-const MAX_FILE_SIZE_MB = 20;
 
 interface StatusOption {
   value: string;
@@ -91,6 +91,8 @@ const ViewEditApplication: React.FC = () => {
   const [shgUserData, setShgUserData] = useState<SHGUserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [convertingRole, setConvertingRole] = useState(false);
+  const [updatingNotes, setUpdatingNotes] = useState(false);
 
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
@@ -223,9 +225,7 @@ const ViewEditApplication: React.FC = () => {
       });
       setTrainers(trainersList);
       setFinanciers(financiersList);
-    } catch (_) {
-      // interceptor handles toast
-    }
+    } catch (_) {}
   };
 
   const handlePersonalSave = async () => {
@@ -267,20 +267,48 @@ const ViewEditApplication: React.FC = () => {
     try {
       await documentVerifyApi(doc.id, { status: status });
       toast.success(
-        `Document ${status === "approved" ? "approved" : "rejected"}`,
+        `Document ${status === "approved" ? "approved" : "rejected"}`
       );
       setShgUserData((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
           documents: prev.documents.map((d) =>
-            d.id === doc.id ? { ...d, status: status } : d,
+            d.id === doc.id ? { ...d, status: status } : d
           ),
         };
       });
     } catch (_) {
     } finally {
       setDocVerifying((prev) => ({ ...prev, [doc.id!]: false }));
+    }
+  };
+
+  // ── Row 1: Update public_notes (rejection reason) ──────────────
+  const handleUpdatePublicNotes = async () => {
+    setUpdatingNotes(true);
+    try {
+      await updateApplicationStatusApi(parseInt(id!), {
+        public_notes: processingForm.public_notes,
+      });
+      toast.success("Rejection reason updated");
+    } catch (_) {
+    } finally {
+      setUpdatingNotes(false);
+    }
+  };
+
+  // ── Row 2: Convert CM → CCM ────────────────────────────────────
+  const handleConvertToCCM = async () => {
+    if (!shgUserData?.user?.id) return;
+    setConvertingRole(true);
+    try {
+      await updateUsersApi(shgUserData.user.id, { roles: ["ccm"] });
+      toast.success("Role converted to CCM");
+      fetchSHGUserData(shgUserData.id);
+    } catch (_) {
+    } finally {
+      setConvertingRole(false);
     }
   };
 
@@ -297,7 +325,10 @@ const ViewEditApplication: React.FC = () => {
 
       await updateApplicationStatusApi(parseInt(id!), {
         assigned_trainer: processingForm.assigned_trainer || null,
-        assigned_financier: processingForm.assigned_financier === "self" ? parsed?.id : processingForm.assigned_financier || null,
+        assigned_financier:
+          processingForm.assigned_financier === "self"
+            ? parsed?.id
+            : processingForm.assigned_financier || null,
         public_notes: processingForm.public_notes,
         private_notes: processingForm.private_notes,
         payment_status: processingForm.payment_status,
@@ -375,7 +406,6 @@ const ViewEditApplication: React.FC = () => {
       <div className="p-3 sm:p-6">
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-start gap-3 mb-5 sm:mb-6">
-          {/* Back */}
           <button
             onClick={() => navigate("/applications")}
             className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0 mt-0.5"
@@ -383,7 +413,6 @@ const ViewEditApplication: React.FC = () => {
             <ArrowLeftIcon className="w-5 h-5" />
           </button>
 
-          {/* Title + ref — grows to fill space */}
           <div className="flex-1 min-w-0">
             <h1 className="text-lg sm:text-2xl font-semibold text-gray-900 dark:text-white leading-snug">
               {currentStep === 1
@@ -396,13 +425,14 @@ const ViewEditApplication: React.FC = () => {
           </div>
         </div>
 
+        {/* ── Step 1 ─────────────────────────────────────────────────── */}
         {currentStep === 1 && (
           <div className="space-y-4 sm:space-y-6">
             {shgUserData ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+
                 {/* ── Card 1: Personal Details ──────────────────────── */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
-                  {/* Card header */}
                   <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700">
                     <h2 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
                       Personal Details
@@ -428,7 +458,7 @@ const ViewEditApplication: React.FC = () => {
                   </div>
 
                   <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
-                    {/* Full Name — always read-only */}
+                    {/* Full Name */}
                     <div>
                       <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                         Full Name
@@ -607,7 +637,9 @@ const ViewEditApplication: React.FC = () => {
                           className={inputCls}
                         />
                       ) : (
-                        <p className={readCls}>{shgUserData.language || "-"}</p>
+                        <p className={readCls}>
+                          {shgUserData.language || "-"}
+                        </p>
                       )}
                     </div>
 
@@ -700,7 +732,7 @@ const ViewEditApplication: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Save — full width on mobile */}
+                    {/* Save */}
                     {isEditingPersonal && (
                       <div className="flex justify-end pt-2">
                         <button
@@ -724,18 +756,14 @@ const ViewEditApplication: React.FC = () => {
                     <h2 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
                       Documents
                     </h2>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                        Max file size: {MAX_FILE_SIZE_MB}MB
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                        {shgUserData.documents.filter((d) => d.status).length}
-                        {" / "}
-                        {shgUserData.documents.length} verified
-                      </span>
-                    </div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                      {shgUserData.documents.filter((d) => d.status === "approved").length}
+                      {" / "}
+                      {shgUserData.documents.length} verified
+                    </span>
                   </div>
 
+                  {/* Document list */}
                   <div className="p-4 sm:p-6 flex-1">
                     {shgUserData.documents.length === 0 ? (
                       <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
@@ -777,8 +805,8 @@ const ViewEditApplication: React.FC = () => {
                                   doc.status === "approved"
                                     ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
                                     : doc.status === "rejected"
-                                      ? "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400"
-                                      : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                                    ? "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+                                    : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
                                 }`}
                               >
                                 {doc.status || "pending"}
@@ -794,7 +822,7 @@ const ViewEditApplication: React.FC = () => {
                                     disabled={isVerifying}
                                     title="Approve"
                                     className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                                      doc.status
+                                      doc.status === "approved"
                                         ? "text-green-600 bg-green-50 dark:bg-green-500/10"
                                         : "text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10"
                                     }`}
@@ -808,7 +836,7 @@ const ViewEditApplication: React.FC = () => {
                                     disabled={isVerifying}
                                     title="Reject"
                                     className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                                      !doc.status
+                                      doc.status === "rejected"
                                         ? "text-red-600 bg-red-50 dark:bg-red-500/10"
                                         : "text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
                                     }`}
@@ -823,6 +851,79 @@ const ViewEditApplication: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* ── Row 1: Rejection reason (public_notes) ──────── */}
+                  {canEdit && (
+                    <div className="px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700">
+                      <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                        <FileText className="w-3.5 h-3.5" />
+                        Rejection reason
+                        <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium normal-case tracking-normal bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400">
+                          public note
+                        </span>
+                      </label>
+                      <textarea
+                        value={processingForm.public_notes}
+                        onChange={(e) =>
+                          setProcessingForm((p) => ({
+                            ...p,
+                            public_notes: e.target.value,
+                          }))
+                        }
+                        rows={3}
+                        placeholder="Enter reason for rejection (visible to the applicant)…"
+                        className={inputCls}
+                      />
+                      <div className="flex justify-end mt-2">
+                        <button
+                          type="button"
+                          disabled={
+                            updatingNotes ||
+                            !processingForm.public_notes.trim()
+                          }
+                          onClick={handleUpdatePublicNotes}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <SaveIcon className="w-3.5 h-3.5" />
+                          {updatingNotes
+                            ? "Updating…"
+                            : "Update rejection reason"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Row 2: Convert CM → CCM ──────────────────────── */}
+                  {canEdit &&
+                    shgUserData?.user?.roles?.includes("cm") && (
+                      <div className="px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                          Member role
+                        </p>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              Current role:{" "}
+                              <span className="font-semibold">CM</span>
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                              Eligible to be promoted to CCM
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={convertingRole}
+                            onClick={handleConvertToCCM}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            {convertingRole
+                              ? "Converting…"
+                              : "Convert to CCM"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                   {/* Proceed to Step 2 — pinned to card bottom */}
                   {(() => {
@@ -867,6 +968,7 @@ const ViewEditApplication: React.FC = () => {
           </div>
         )}
 
+        {/* ── Step 2 ─────────────────────────────────────────────────── */}
         {currentStep === 2 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
             {/* Step 2 header */}
@@ -885,29 +987,30 @@ const ViewEditApplication: React.FC = () => {
 
             <form onSubmit={handleProcessingSubmit} className="p-4 sm:p-6">
               <div className="space-y-4 sm:space-y-5">
-                {/* Status — read-only */}
+                {/* Payment Status — read-only display */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Label */}
                   <label className="col-span-1 sm:col-span-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     Payment Status
                   </label>
 
-                  {/* Payment Method */}
                   <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                     <span className="px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
-                      {processingForm.payment_method === "online_payment" ? "Online Payment" :  "-"}
+                      {processingForm.payment_method === "online_payment"
+                        ? "Online Payment"
+                        : "-"}
                     </span>
                   </div>
 
-                  {/* Payment Type */}
                   <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                     <span className="px-2.5 py-1 rounded-full text-xs font-semibold">
-                      {processingForm.payment_type === "installments" ? "Installments" : "-"}
+                      {processingForm.payment_type === "installments"
+                        ? "Installments"
+                        : "-"}
                     </span>
                   </div>
                 </div>
 
-                {/* Trainer + Financier — side by side on sm+ */}
+                {/* Trainer + Financier */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {canEdit && (
                     <div>
@@ -935,7 +1038,8 @@ const ViewEditApplication: React.FC = () => {
                       </select>
                     </div>
                   )}
-                  {/* Payment Status */}
+
+                  {/* Payment Status dropdown */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Payment Status
@@ -965,6 +1069,7 @@ const ViewEditApplication: React.FC = () => {
                       ))}
                     </select>
                   </div>
+
                   {application?.payment_status === "cleared" && canEdit && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -991,7 +1096,8 @@ const ViewEditApplication: React.FC = () => {
                     </div>
                   )}
                 </div>
-                {/* Notes — Private Notes only */}
+
+                {/* Private Notes */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Private Notes
@@ -1014,7 +1120,7 @@ const ViewEditApplication: React.FC = () => {
                   />
                 </div>
 
-                {/* Save — Update button at bottom */}
+                {/* Submit */}
                 {canEdit && (
                   <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-gray-700">
                     <button

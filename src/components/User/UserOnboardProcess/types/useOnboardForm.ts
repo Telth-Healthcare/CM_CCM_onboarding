@@ -46,11 +46,11 @@ const getResumeStep = (data: any, docs: Record<string, string>): string => {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export const useOnboardForm = (
-  currentId: string, // from URL (ignored in inline mode)
-  currentIndex: number, // from URL (ignored in inline mode)
-  targetUserId?: number, // the CCM user being onboarded
-  useRouting = true, // false = inline inside ViewCCMList
-  roleFilter?: string, // optional role filter for user lookup (e.g. "ccm")
+  currentId: string,      // from URL (ignored in inline mode)
+  currentIndex: number,   // from URL (ignored in inline mode)
+  targetUserId?: number,  // the CCM user being onboarded / edited
+  useRouting = true,      // false = inline inside ViewCCMList
+  roleFilter?: string,    // role for invitation API (e.g. "ccm")
 ) => {
   const navigate = useNavigate();
 
@@ -61,11 +61,9 @@ export const useOnboardForm = (
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  // inline-mode only — tracks current step without touching the URL
   const [inlineStepIndex, setInlineStepIndex] = useState(0);
   const [userId, setUserId] = useState<number | undefined>(targetUserId);
 
-  // Unified step accessors regardless of mode
   const currentStepIndex = useRouting ? currentIndex : inlineStepIndex;
   const currentStepId = useRouting
     ? currentId
@@ -85,11 +83,119 @@ export const useOnboardForm = (
     [updateFormData],
   );
 
-  // ── Init: restore existing draft from backend if one exists ──────────────
+  // ── Hydrate form from API response ────────────────────────────────────────
+  const hydrateFromApi = useCallback((record: any, pk: number) => {
+    const docs: Record<string, string> = {};
+    record.documents?.forEach((d: any) => {
+      docs[d.document_type] = d.file;
+    });
+
+    setAppId(pk);
+    setFormData((prev) => ({
+      ...prev,
+      firstName:            record.user?.first_name      ?? prev.firstName,
+      lastName:             record.user?.last_name       ?? prev.lastName,
+      mobile: (() => {
+        const phone = record.user?.phone;
+        if (!phone) return prev.mobile;
+        return phone.replace(/^\+?91/, "").replace(/\D/g, "").slice(0, 10);
+      })(),
+      email:                record.user?.email           ?? prev.email,
+      dob:                  record.dob                   ?? prev.dob,
+      gender:               record.gender                ?? prev.gender,
+      bloodGroup:           record.blood_group           ?? prev.bloodGroup,
+      manager:              record.manager != null ? String(record.manager) : prev.manager,
+      language:             record.language              ?? prev.language,
+      maritalStatus:        record.marital_status        ?? prev.maritalStatus,
+      addressLine1:         record.address_line_1        ?? prev.addressLine1,
+      addressLine2:         record.address_line_2        ?? prev.addressLine2,
+      city:                 record.district              ?? prev.city,
+      state:                record.state                 ?? prev.state,
+      zipcode:              record.pin_code              ?? prev.zipcode,
+      country:              record.country               ?? prev.country,
+      aadharFrontUrl:       docs["aadhar_front"]         ?? prev.aadharFrontUrl,
+      aadharBackUrl:        docs["aadhar_back"]          ?? prev.aadharBackUrl,
+      panUrl:               docs["pan"]                  ?? prev.panUrl,
+      bachelorDegreeType:   record.bachelor_degree_type  ?? prev.bachelorDegreeType,
+      bachelorDocUrl:       docs["bachelor_certificate"] ?? prev.bachelorDocUrl,
+      masterDegreeType:     record.master_degree_type    ?? prev.masterDegreeType,
+      masterDocUrl:         docs["master_certificate"]   ?? prev.masterDocUrl,
+      experienceCertType:   record.experience_cert_type  ?? prev.experienceCertType,
+      experienceCertDocUrl: docs["experience_certificate"] ?? prev.experienceCertDocUrl,
+    }));
+
+    return docs;
+  }, []);
+
+  // ── Apply resume step (routing or inline) ─────────────────────────────────
+  const applyResumeStep = useCallback((resumeStep: string) => {
+    if (useRouting) {
+      navigate(`/onboardProcess/${resumeStep}`, { replace: true });
+    } else {
+      const idx = STEPS.findIndex((s) => s.id === resumeStep);
+      if (idx >= 0) setInlineStepIndex(idx);
+    }
+  }, [useRouting, navigate]);
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  //
+  // EDIT MODE  (targetUserId provided by ViewCCMList via handleEdit):
+  //   Step 1 — Check localStorage for a cached onboard pk for this user.
+  //   Step 2a — Cached pk found  → getOnboardApi(cachedPk)   fast path
+  //   Step 2b — No cached pk     → getOnboardApi(targetUserId)
+  //             Backend must support: GET /onboard/?user=<id>
+  //             Returns list [] or single {} — both handled.
+  //
+  // CREATE MODE (no targetUserId):
+  //   Restore anonymous draft from localStorage if available.
+  // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const draftKey = getDraftKey(targetUserId);
-    const savedPk = localStorage.getItem(draftKey);
 
+    if (targetUserId) {
+      // ── EDIT MODE ──────────────────────────────────────────────────────────
+      const savedPk  = localStorage.getItem(draftKey);
+      const cachedPk = savedPk ? parseInt(savedPk, 10) : null;
+
+      if (cachedPk && !isNaN(cachedPk)) {
+        // Fast path: already know the onboard record pk → fetch by pk
+        getOnboardApi(cachedPk)
+          .then((data) => {
+            const record = Array.isArray(data) ? data[0] : data;
+            if (!record) return;
+            const docs = hydrateFromApi(record, cachedPk);
+            applyResumeStep(getResumeStep(record, docs));
+          })
+          .catch(() => {
+            localStorage.removeItem(draftKey);
+            toast.error("Could not load onboarding data. Please re-open.");
+          })
+          .finally(() => setIsInitialized(true));
+
+      } else {
+        // Slow path: fetch onboard record by passing the user id.
+        // getOnboardApi(targetUserId) → backend returns the record for this user.
+        getOnboardApi(targetUserId)
+          .then((data) => {
+            const record = Array.isArray(data) ? data[0] : data;
+            if (!record) return; // no onboard record yet → blank form is correct
+
+            const pk: number = record.id ?? record.pk;
+            if (pk) localStorage.setItem(draftKey, String(pk));
+
+            const docs = hydrateFromApi(record, pk);
+            applyResumeStep(getResumeStep(record, docs));
+          })
+          .catch(() => {
+            // 404 / empty → no onboard record yet — blank form is fine
+          })
+          .finally(() => setIsInitialized(true));
+      }
+      return;
+    }
+
+    // ── CREATE MODE ────────────────────────────────────────────────────────
+    const savedPk = localStorage.getItem(draftKey);
     if (!savedPk) {
       setIsInitialized(true);
       return;
@@ -102,121 +208,68 @@ export const useOnboardForm = (
       return;
     }
 
-    setAppId(pk);
-
     getOnboardApi(pk)
       .then((data) => {
         if (data.is_submitted) {
           toast.info("This CCM onboarding is already submitted.");
-          setIsInitialized(true);
           return;
         }
-
-        const docs: Record<string, string> = {};
-        data.documents?.forEach((d: any) => {
-          docs[d.document_type] = d.file;
-        });
-
-        setFormData((prev) => ({
-          ...prev,
-          firstName: data.user?.first_name ?? prev.firstName,
-          lastName: data.user?.last_name ?? prev.lastName,
-          mobile: (() => {
-            const phone = data.user?.phone;
-            if (!phone) return prev.mobile;
-            return phone
-              .replace(/^\+?91/, "")
-              .replace(/\D/g, "")
-              .slice(0, 10);
-          })(),
-          email: data.user?.email ?? prev.email,
-          dob: data.dob ?? prev.dob,
-          gender: data.gender ?? prev.gender,
-          bloodGroup: data.blood_group ?? prev.bloodGroup,
-          manager: data.manager ?? prev.manager,
-          language: data.language ?? prev.language,
-          maritalStatus: data.marital_status ?? prev.maritalStatus,
-          addressLine1: data.address_line_1 ?? prev.addressLine1,
-          addressLine2: data.address_line_2 ?? prev.addressLine2,
-          city: data.district ?? prev.city,
-          state: data.state ?? prev.state,
-          zipcode: data.pin_code ?? prev.zipcode,
-          country: data.country ?? prev.country,
-          aadharFrontUrl: docs["aadhar_front"] ?? prev.aadharFrontUrl,
-          aadharBackUrl: docs["aadhar_back"] ?? prev.aadharBackUrl,
-          panUrl: docs["pan"] ?? prev.panUrl,
-          bachelorDocUrl: docs["bachelor_certificate"] ?? prev.bachelorDocUrl,
-          masterDocUrl: docs["master_certificate"] ?? prev.masterDocUrl,
-          experienceCertDocUrl:
-            docs["experience_certificate"] ?? prev.experienceCertDocUrl,
-        }));
-
-        const resumeStep = getResumeStep(data, docs);
-        if (useRouting) {
-          navigate(`/onboardProcess/${resumeStep}`, { replace: true });
-        } else {
-          const idx = STEPS.findIndex((s) => s.id === resumeStep);
-          if (idx >= 0) setInlineStepIndex(idx);
-        }
+        const docs = hydrateFromApi(data, pk);
+        applyResumeStep(getResumeStep(data, docs));
       })
       .catch(() => {
         localStorage.removeItem(draftKey);
         toast.error("Could not restore draft. Starting fresh.");
       })
       .finally(() => setIsInitialized(true));
+
   }, [targetUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Save progress ─────────────────────────────────────────────────────────
   const saveProgress = async (): Promise<number | null> => {
     let currentUserId = userId || targetUserId;
 
-    // Only send invitation if we don't already have a userId
+    // Send invitation only in create flow (no user exists yet)
     if (!currentUserId) {
-      const invitatepayload: SendInvitationRequest = {
+      const invitePayload: SendInvitationRequest = {
         first_name: formData.firstName,
-        last_name: formData.lastName,
-        email: formData.email,
-        phone: `+91${formData.mobile}`,
-        roles: [roleFilter || "-"],
-        ...(formData.manager ? { manager: Number(formData.manager) } : {}),
+        last_name:  formData.lastName,
+        email:      formData.email,
+        phone:      `+91${formData.mobile}`,
+        roles:      [roleFilter || "-"],
       };
-
       try {
-        const response = await sendInvitationApi([invitatepayload]);
-
+        const response = await sendInvitationApi([invitePayload]);
         if (response?.data?.[0]?.id) {
           currentUserId = response.data[0].id;
-          setUserId(currentUserId); // Update state
+          setUserId(currentUserId);
         }
       } catch (err: any) {
-        const errorMsg = handleAxiosError(err, "Failed to send invitation");
-        toast.error(errorMsg);
+        toast.error(handleAxiosError(err, "Failed to send invitation"));
       }
     }
 
     const payload: Record<string, any> = {
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      dob: formData.dob,
-      gender: formData.gender,
-      blood_group: formData.bloodGroup,
-      language: formData.language,
+      first_name:     formData.firstName,
+      last_name:      formData.lastName,
+      dob:            formData.dob,
+      gender:         formData.gender,
+      blood_group:    formData.bloodGroup,
+      language:       formData.language,
       marital_status: formData.maritalStatus,
-      mobile: formData.mobile?.replace(/^\+91/, ""),
-      email: formData.email,
+      mobile:         formData.mobile?.replace(/^\+91/, ""),
+      email:          formData.email,
       address_line_1: formData.addressLine1,
       address_line_2: formData.addressLine2,
-      district: formData.city,
-      state: formData.state,
-      pin_code: formData.zipcode,
-      country: formData.country,
-      user: currentUserId,
-      ...(formData.manager ? { manager: Number(formData.manager) } : {}),
+      district:       formData.city,
+      state:          formData.state,
+      pin_code:       formData.zipcode,
+      country:        formData.country,
+      user:           targetUserId ?? currentUserId,
+      ...(formData.manager ? { manager: formData.manager } : {}),
     };
 
-    // Override with targetUserId if provided (for admin/editing scenarios)
-    if (targetUserId) payload.user = targetUserId;
-
-    // Strip empty / null / undefined (always keep `user`)
+    // Strip empty / null / undefined — always keep `user`
     const clean = Object.fromEntries(
       Object.entries(payload).filter(([key, value]) => {
         if (key === "user") return true;
@@ -226,14 +279,13 @@ export const useOnboardForm = (
 
     setSaving(true);
     try {
-      const draftKey = getDraftKey(targetUserId || currentUserId);
-      const storedStr = localStorage.getItem(draftKey);
+      const draftKey   = getDraftKey(targetUserId ?? currentUserId);
+      const storedStr  = localStorage.getItem(draftKey);
       const existingPk = storedStr ? parseInt(storedStr, 10) : null;
 
       if (!existingPk || isNaN(existingPk)) {
         const res = await createOnboardApi(clean);
         if (!res?.id && !res?.pk) throw new Error("Server returned no ID");
-
         const pk: number = res.id ?? res.pk;
         setAppId(pk);
         localStorage.setItem(draftKey, String(pk));
@@ -251,46 +303,27 @@ export const useOnboardForm = (
     }
   };
 
+  // ── Upload documents for the current step ─────────────────────────────────
   const uploadDocuments = async (pk: number): Promise<boolean> => {
     type UploadTask = { file: File; type: string; urlField: keyof CCMFormData };
     const tasks: UploadTask[] = [];
 
     if (currentStepId === "personal-documents") {
       if (formData.aadharFront && !formData.aadharFrontUrl)
-        tasks.push({
-          file: formData.aadharFront,
-          type: "aadhar_front",
-          urlField: "aadharFrontUrl",
-        });
+        tasks.push({ file: formData.aadharFront, type: "aadhar_front", urlField: "aadharFrontUrl" });
       if (formData.aadharBack && !formData.aadharBackUrl)
-        tasks.push({
-          file: formData.aadharBack,
-          type: "aadhar_back",
-          urlField: "aadharBackUrl",
-        });
+        tasks.push({ file: formData.aadharBack,  type: "aadhar_back",  urlField: "aadharBackUrl" });
       if (formData.pan && !formData.panUrl)
-        tasks.push({ file: formData.pan, type: "pan", urlField: "panUrl" });
+        tasks.push({ file: formData.pan,          type: "pan",          urlField: "panUrl" });
     }
 
     if (currentStepId === "education-documents") {
       if (formData.bachelorDoc && !formData.bachelorDocUrl)
-        tasks.push({
-          file: formData.bachelorDoc,
-          type: "bachelor_certificate",
-          urlField: "bachelorDocUrl",
-        });
+        tasks.push({ file: formData.bachelorDoc,       type: "bachelor_certificate",   urlField: "bachelorDocUrl" });
       if (formData.masterDoc && !formData.masterDocUrl)
-        tasks.push({
-          file: formData.masterDoc,
-          type: "master_certificate",
-          urlField: "masterDocUrl",
-        });
+        tasks.push({ file: formData.masterDoc,         type: "master_certificate",     urlField: "masterDocUrl" });
       if (formData.experienceCertDoc && !formData.experienceCertDocUrl)
-        tasks.push({
-          file: formData.experienceCertDoc,
-          type: "experience_certificate",
-          urlField: "experienceCertDocUrl",
-        });
+        tasks.push({ file: formData.experienceCertDoc, type: "experience_certificate", urlField: "experienceCertDocUrl" });
     }
 
     if (tasks.length === 0) return true;
@@ -305,10 +338,10 @@ export const useOnboardForm = (
       results.forEach((result, i) => {
         if (result.status === "fulfilled") {
           const url =
-            result.value?.file ??
-            result.value?.url ??
+            result.value?.file       ??
+            result.value?.url        ??
             result.value?.data?.file ??
-            result.value?.data?.url ??
+            result.value?.data?.url  ??
             null;
           if (url) updateFormData(tasks[i].urlField, url);
         } else {
@@ -317,9 +350,7 @@ export const useOnboardForm = (
       });
 
       if (failed.length > 0) {
-        toast.error(
-          `Failed to upload: ${failed.join(", ")}. Please try again.`,
-        );
+        toast.error(`Failed to upload: ${failed.join(", ")}. Please try again.`);
         return false;
       }
       return true;
@@ -355,21 +386,20 @@ export const useOnboardForm = (
     }
   };
 
-  // ── Prev ──────────────────────────────────────────────────────────────────
   const handlePrev = () => {
     if (currentStepIndex > 0) goToStep(currentStepIndex - 1);
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!userId) {
+    const submitUserId = userId || targetUserId;
+    if (!submitUserId) {
       toast.error("No CCM user linked to this onboarding. Please restart.");
       return;
     }
 
     setSaving(true);
     try {
-      const response = await submitOnboardApi(userId);
+      const response = await submitOnboardApi(submitUserId);
       const reference = response?.reference_number ?? null;
 
       if (reference) {

@@ -16,6 +16,7 @@ import CCMOnboard from "../UserOnboardProcess/Onboard";
 
 interface User {
   id: number;
+  partner_id: number;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
@@ -50,8 +51,8 @@ const ViewCCMList = () => {
     pageIndex: 0,
     pageSize: 10,
   });
-  const [currentPage, setCurrentPage] = useState(1);   // tracks current page number
-  const [hasNext, setHasNext] = useState(false);        // is there a next page?
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
 
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
@@ -59,9 +60,6 @@ const ViewCCMList = () => {
   );
   const [currentView, setCurrentView] = useState<ViewType>(null);
 
-  // The CCM user the admin is currently onboarding.
-  // null = creating a brand-new CCM (no existing user account yet to link).
-  // number = onboarding an already-created CCM user by their id.
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   const [editingStatus, setEditingStatus] = useState<{
@@ -75,8 +73,6 @@ const ViewCCMList = () => {
   const canEditApproval = isSuperAdmin || isAdmin;
   const canEditStatus = isSuperAdmin || isAdmin;
 
-
-
   const fetchUsers = async (page: number = 1) => {
     setColumnFilters([]);
     try {
@@ -86,9 +82,9 @@ const ViewCCMList = () => {
 
       setUsers(data?.results || []);
       setTotalCount(data?.count || 0);
-      setHasNext(!!data?.next);       // true if next URL exists
-      setHasPrev(!!data?.previous);   // true if previous URL exists
-      setCurrentPage(page);           // update current page
+      setHasNext(!!data?.next);
+      setHasPrev(!!data?.previous);
+      setCurrentPage(page);
     } catch (error) {
       const errorMessage = handleAxiosError(error, "Failed to fetch users");
       toast.error(errorMessage);
@@ -99,19 +95,18 @@ const ViewCCMList = () => {
     }
   };
 
-
   useEffect(() => {
-    fetchUsers(1); // load page 1 on mount
+    fetchUsers(1);
   }, []);
 
   const handleNext = () => {
     if (!hasNext || loading) return;
-    fetchUsers(currentPage + 1);  // go to next page
+    fetchUsers(currentPage + 1);
   };
 
   const handlePrev = () => {
     if (!hasPrev || loading) return;
-    fetchUsers(currentPage - 1);  // go to previous page
+    fetchUsers(currentPage - 1);
   };
 
   const handleStatusChange = async (userId: number, newStatus: boolean) => {
@@ -144,21 +139,65 @@ const ViewCCMList = () => {
     }
   };
 
-  // Called when admin clicks "Create CCM" toolbar button (no existing user yet)
   const handleCreateNew = () => {
     setSelectedUserId(null);
     setCurrentView("create");
   };
 
-  // Called from CCMOnboard when done (success or back button)
+  const handleEdit = (userId: number) => {
+    setSelectedUserId(userId);
+    setCurrentView("edit");
+  };
+
   const handleOnboardDone = () => {
     setCurrentView(null);
     setSelectedUserId(null);
-    fetchUsers(); // refresh list to reflect new onboarding state
+    fetchUsers();
   };
 
   const columns = useMemo<MRT_ColumnDef<User>[]>(
     () => [
+      {
+        id: "actions",
+        header: "Actions",
+        size: 100,
+        enableColumnFilter: false,
+        enableSorting: false,
+        Cell: ({ row }: { row: MRT_Row<User> }) => {
+          const partnerId = row.original.partner_id;
+          // Only show action button if partner_id exists (not null, not undefined, not 0)
+          const hasPartnerId = partnerId != null && partnerId !== 0;
+          
+          if (!hasPartnerId) {
+            return null; // Don't render anything if partner_id is null/0
+          }
+          
+          return (
+            <button
+              onClick={() => handleEdit(partnerId)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
+                text-brand-600 bg-brand-50 hover:bg-brand-100
+                dark:text-brand-400 dark:bg-brand-500/10 dark:hover:bg-brand-500/20
+                transition-colors"
+              title="Edit onboarding"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                />
+              </svg>
+            </button>
+          );
+        },
+      },
       {
         accessorKey: "first_name",
         header: "First Name",
@@ -295,10 +334,11 @@ const ViewCCMList = () => {
           return (
             <div className="flex items-center gap-2">
               <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${isActive
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isActive
                     ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
                     : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
-                  }`}
+                }`}
               >
                 {isActive ? "Active" : "Inactive"}
               </span>
@@ -343,18 +383,17 @@ const ViewCCMList = () => {
         id: "invite_accepted",
         header: "Invite Accepted",
         size: 200,
-
         Cell: ({ cell }) => {
           const value = cell.getValue<string>();
-
           return (
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-medium ${value === "accepted"
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                value === "accepted"
                   ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
                   : value === "pending"
                     ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
                     : "bg-gray-100 text-gray-600"
-                }`}
+              }`}
             >
               {value === "accepted"
                 ? "Accepted"
@@ -364,7 +403,6 @@ const ViewCCMList = () => {
             </span>
           );
         },
-
         filterVariant: "select",
         filterSelectOptions: [
           { text: "Accepted", value: "accepted" },
@@ -384,16 +422,16 @@ const ViewCCMList = () => {
   const toolbarActions: ToolbarAction[] = [
     ...(canEditApproval
       ? [
-        {
-          label: "Create CCM",
-          onClick: handleCreateNew,
-          icon: <PlusIcon className="w-4 h-4" />,
-        },
-      ]
+          {
+            label: "Create CCM",
+            onClick: handleCreateNew,
+            icon: <PlusIcon className="w-4 h-4" />,
+          },
+        ]
       : []),
     {
       label: "Refresh",
-      onClick: fetchUsers,
+      onClick: () => fetchUsers(currentPage),
       icon: (
         <svg
           className="w-5 h-5"
@@ -412,8 +450,8 @@ const ViewCCMList = () => {
     },
   ];
 
-  // ── Render onboarding wizard inline ──────────────────────────────────────
-  if (currentView === "create") {
+  // ── Render onboarding wizard inline (create or edit) ─────────────────────
+  if (currentView === "create" || currentView === "edit") {
     return (
       <CCMOnboard
         useRouting={false}
@@ -461,11 +499,10 @@ const ViewCCMList = () => {
         />
         {/* Custom Pagination Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-end gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrev}
-              disabled={!hasPrev || loading}     // ← use hasPrev, not prevUrl
+              disabled={!hasPrev || loading}
               className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               ← Previous
@@ -475,7 +512,7 @@ const ViewCCMList = () => {
             </span>
             <button
               onClick={handleNext}
-              disabled={!hasNext || loading}     // ← use hasNext, not nextUrl
+              disabled={!hasNext || loading}
               className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Next →
