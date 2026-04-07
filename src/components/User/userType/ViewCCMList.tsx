@@ -50,6 +50,10 @@ const ViewCCMList = () => {
     pageIndex: 0,
     pageSize: 10,
   });
+  const [currentPage, setCurrentPage] = useState(1);   // tracks current page number
+  const [hasNext, setHasNext] = useState(false);        // is there a next page?
+  const [hasPrev, setHasPrev] = useState(false);
+
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
@@ -71,18 +75,20 @@ const ViewCCMList = () => {
   const canEditApproval = isSuperAdmin || isAdmin;
   const canEditStatus = isSuperAdmin || isAdmin;
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
 
-  const fetchUsers = async () => {
+
+  const fetchUsers = async (page: number = 1) => {
     setColumnFilters([]);
     try {
       setLoading(true);
-      const response = await getRoleUsers("roles__name__in", "ccm");
-      const userData = response?.data?.results || response || [];
-      setUsers(userData);
-      setTotalCount(response?.data?.count || 0);
+      const response = await getRoleUsers("roles__name__in", "ccm", page);
+      const data = response?.data;
+
+      setUsers(data?.results || []);
+      setTotalCount(data?.count || 0);
+      setHasNext(!!data?.next);       // true if next URL exists
+      setHasPrev(!!data?.previous);   // true if previous URL exists
+      setCurrentPage(page);           // update current page
     } catch (error) {
       const errorMessage = handleAxiosError(error, "Failed to fetch users");
       toast.error(errorMessage);
@@ -91,6 +97,22 @@ const ViewCCMList = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const pageIndex = pagination.pageIndex;
+
+  useEffect(() => {
+    fetchUsers(1); // load page 1 on mount
+  }, []);
+
+  const handleNext = () => {
+    if (!hasNext || loading) return;
+    fetchUsers(currentPage + 1);  // go to next page
+  };
+
+  const handlePrev = () => {
+    if (!hasPrev || loading) return;
+    fetchUsers(currentPage - 1);  // go to previous page
   };
 
   const handleStatusChange = async (userId: number, newStatus: boolean) => {
@@ -274,11 +296,10 @@ const ViewCCMList = () => {
           return (
             <div className="flex items-center gap-2">
               <span
-                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  isActive
+                className={`px-2 py-1 rounded-full text-xs font-medium ${isActive
                     ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
                     : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
-                }`}
+                  }`}
               >
                 {isActive ? "Active" : "Inactive"}
               </span>
@@ -329,13 +350,12 @@ const ViewCCMList = () => {
 
           return (
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                value === "accepted"
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${value === "accepted"
                   ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
                   : value === "pending"
                     ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
                     : "bg-gray-100 text-gray-600"
-              }`}
+                }`}
             >
               {value === "accepted"
                 ? "Accepted"
@@ -365,12 +385,12 @@ const ViewCCMList = () => {
   const toolbarActions: ToolbarAction[] = [
     ...(canEditApproval
       ? [
-          {
-            label: "Create CCM",
-            onClick: handleCreateNew,
-            icon: <PlusIcon className="w-4 h-4" />,
-          },
-        ]
+        {
+          label: "Create CCM",
+          onClick: handleCreateNew,
+          icon: <PlusIcon className="w-4 h-4" />,
+        },
+      ]
       : []),
     {
       label: "Refresh",
@@ -440,6 +460,29 @@ const ViewCCMList = () => {
           columnFilters={columnFilters}
           onColumnFiltersChange={setColumnFilters}
         />
+        {/* Custom Pagination Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrev}
+              disabled={!hasPrev || loading}     // ← use hasPrev, not prevUrl
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              ← Previous
+            </button>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              Page <span className="font-semibold">{currentPage}</span>
+            </span>
+            <button
+              onClick={handleNext}
+              disabled={!hasNext || loading}     // ← use hasNext, not nextUrl
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
