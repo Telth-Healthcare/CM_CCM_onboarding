@@ -5,7 +5,7 @@ import Select from '../../../components/form/Select'
 import { Trash2Icon, UploadCloudIcon, Upload, RefreshCw } from 'lucide-react'
 import { StepProps } from './types'
 
-const MAX_SIZE_MB    = 5
+const MAX_SIZE_MB    = 1
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
 
 const BACHELOR_DEGREES = [
