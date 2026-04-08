@@ -31,6 +31,8 @@ interface User {
   groups: any[];
   roles: string[];
   user_permissions: any[];
+  invite_accepted: boolean | null;
+  application_id: number | null;
 }
 
 interface ToolbarAction {
@@ -69,6 +71,7 @@ const ViewCMList = () => {
   const [currentPage, setCurrentPage] = useState(1); // tracks current page number
   const [hasNext, setHasNext] = useState(false); // is there a next page?
   const [hasPrev, setHasPrev] = useState(false);
+  const [editingDetail, setEditingDetail] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUsers(1);
@@ -136,8 +139,9 @@ const ViewCMList = () => {
     }
   };
 
-  const handleEdit = (userId: number) => {
+  const handleEdit = (userId: number, user: User) => {
     setSelectedUserId(userId);
+    setEditingDetail(user);
     setCurrentView("edit");
   };
 
@@ -146,11 +150,10 @@ const ViewCMList = () => {
     setCurrentView("create");
   };
 
-  // Called from CCMOnboard when done (success or back button)
   const handleOnboardDone = () => {
     setCurrentView(null);
     setSelectedUserId(null);
-    fetchUsers(currentPage); // refresh list to reflect new onboarding state
+    fetchUsers(currentPage);
   };
 
   const columns = useMemo<MRT_ColumnDef<User>[]>(
@@ -163,16 +166,15 @@ const ViewCMList = () => {
         enableSorting: false,
         Cell: ({ row }: { row: MRT_Row<User> }) => {
           const partnerId = row.original.partner_id;
-          // Only show action button if partner_id exists (not null, not undefined, not 0)
           const hasPartnerId = partnerId != null && partnerId !== 0;
-          
+
           if (!hasPartnerId) {
-            return null; // Don't render anything if partner_id is null/0
+            return null;
           }
-          
+
           return (
             <button
-              onClick={() => handleEdit(partnerId)}
+              onClick={() => handleEdit(partnerId, row.original)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
                       text-brand-600 bg-brand-50 hover:bg-brand-100
                       dark:text-brand-400 dark:bg-brand-500/10 dark:hover:bg-brand-500/20
@@ -419,6 +421,7 @@ const ViewCMList = () => {
         targetUserId={selectedUserId ?? undefined}
         onDone={handleOnboardDone}
         roleFilter="cm"
+        initialData={editingDetail}
       />
     );
   }

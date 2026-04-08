@@ -792,47 +792,98 @@ span.flatpickr-weekday,
 }
 
 
-.btn-button {
-  display: flex;
-  width: 100%;
+/* Base Button */
+.btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   border-radius: 9999px;
-  border: 1px solid #d1d5db;
-  background-color: #ffffff;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Sizes */
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.btn-md {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
-  font-weight: 500;
+}
+
+.btn-lg {
+  padding: 0.625rem 1.25rem;
+  font-size: 1rem;
+}
+
+/* Variants */
+.btn-primary {
+  background-color: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.btn-primary:hover {
+  background-color: #1d4ed8;
+}
+
+.btn-outline {
+  background-color: #fff;
   color: #374151;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  transition-property: background-color, color;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+  border-color: #d1d5db;
 }
 
-.btn-button:hover {
+.btn-outline:hover {
   background-color: #f9fafb;
-  color: #1f2937;
 }
 
-/* Dark mode styles */
-.dark .btn-button {
-  border-color: #374151;
+.btn-danger {
+  background-color: #dc2626;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+/* Disabled */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Full width (mobile first) */
+.btn-block {
+  width: 100%;
+}
+
+/* Dark mode */
+.dark .btn-outline {
   background-color: #1f2937;
-  color: #9ca3af;
+  border-color: #374151;
+  color: #d1d5db;
 }
 
-.dark .btn-button:hover {
-  background-color: rgba(255, 255, 255, 0.03);
-  color: #e5e7eb; 
+.dark .btn-outline:hover {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Responsive styles */
-@media (min-width: 1024px) {
-  .btn-button {
-    display: inline-flex;
+/* Responsive behavior */
+@media (min-width: 640px) {
+  .btn-responsive {
     width: auto;
+  }
+}
+
+@media (max-width: 639px) {
+  .btn-responsive {
+    width: 100%;
   }
 }
 

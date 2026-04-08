@@ -152,11 +152,11 @@ const CommonTable = <T extends MRT_RowData>({
           },
         }}
         renderTopToolbarCustomActions={() => (
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {toolbarActions.map((action, index) => (
               <button
                 key={index}
-                className="btn-button"
+                className="btn btn-outline btn-sm btn-responsive"
                 onClick={action.onClick}
               >
                 {action.label}
@@ -167,11 +167,11 @@ const CommonTable = <T extends MRT_RowData>({
         renderRowActions={
           rowActions.length > 0
             ? ({ row }) => (
-                <div className="flex gap-3">
+                <div className="flex items-center gap-2">
                   {rowActions.map((action, index) => (
                     <button
                       key={index}
-                      className={`${action.className} flex items-center justify-center transition-colors`}
+                      className={`flex items-center justify-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition ${action.className}`}
                       onClick={() => action.onClick(row.original)}
                       title={action.label}
                     >

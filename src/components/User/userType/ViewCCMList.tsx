@@ -32,6 +32,7 @@ interface User {
   roles: string[];
   user_permissions: any[];
   invite_accepted: boolean | null;
+  application_id: number | null;
 }
 
 interface ToolbarAction {
@@ -61,7 +62,7 @@ const ViewCCMList = () => {
   const [currentView, setCurrentView] = useState<ViewType>(null);
 
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-
+  const [editingDetail, setEditingDetail] = useState<User | null>(null);
   const [editingStatus, setEditingStatus] = useState<{
     userId: number;
     isActive: boolean;
@@ -144,8 +145,9 @@ const ViewCCMList = () => {
     setCurrentView("create");
   };
 
-  const handleEdit = (userId: number) => {
+  const handleEdit = (userId: number, user: User) => {
     setSelectedUserId(userId);
+    setEditingDetail(user);
     setCurrentView("edit");
   };
 
@@ -165,16 +167,15 @@ const ViewCCMList = () => {
         enableSorting: false,
         Cell: ({ row }: { row: MRT_Row<User> }) => {
           const partnerId = row.original.partner_id;
-          // Only show action button if partner_id exists (not null, not undefined, not 0)
           const hasPartnerId = partnerId != null && partnerId !== 0;
           
           if (!hasPartnerId) {
-            return null; // Don't render anything if partner_id is null/0
+            return null;
           }
           
           return (
             <button
-              onClick={() => handleEdit(partnerId)}
+              onClick={() => handleEdit(partnerId, row.original)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
                 text-brand-600 bg-brand-50 hover:bg-brand-100
                 dark:text-brand-400 dark:bg-brand-500/10 dark:hover:bg-brand-500/20
@@ -450,7 +451,6 @@ const ViewCCMList = () => {
     },
   ];
 
-  // ── Render onboarding wizard inline (create or edit) ─────────────────────
   if (currentView === "create" || currentView === "edit") {
     return (
       <CCMOnboard
@@ -458,6 +458,7 @@ const ViewCCMList = () => {
         targetUserId={selectedUserId ?? undefined}
         onDone={handleOnboardDone}
         roleFilter="ccm"
+        initialData={editingDetail}
       />
     );
   }

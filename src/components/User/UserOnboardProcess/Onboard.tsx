@@ -20,6 +20,7 @@ export interface OnboardProps {
   useRouting?: boolean;
   onDone?: () => void;
   roleFilter?: string;
+  initialData?: any;
 }
 
 const Spinner = ({ className = "" }: { className?: string }) => (
@@ -195,6 +196,7 @@ export default function CCMOnboard({
   useRouting = true,
   roleFilter,
   onDone,
+  initialData,
 }: OnboardProps) {
   const navigate = useNavigate();
   const [roleList, setRoleList] = useState<OptionType[]>([]);
@@ -312,7 +314,9 @@ export default function CCMOnboard({
           <div className="flex items-center gap-3">
             <button
               onClick={onDone}
-              className="text-gray-600 hover:text-black dark:hover:text-gray-200 transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600
+                text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900
+                hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               title="Back to list"
             >
               Cancel
@@ -368,20 +372,34 @@ export default function CCMOnboard({
             </button>
 
             {isPreview ? (
-              <button
-                onClick={handleSubmit}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-              >
-                {saving ? (
-                  <>
-                    <Spinner className="w-4 h-4" />
-                    Submitting…
-                  </>
+              <>
+                {!initialData?.application_id ? (
+                  <button
+                    onClick={handleSubmit}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                  >
+                    {saving ? (
+                      <>
+                        <Spinner className="w-4 h-4" />
+                        Submitting…
+                      </>
+                    ) : (
+                      "Submit Application"
+                    )}
+                  </button>
                 ) : (
-                  "Submit Application"
+                  <button
+                    onClick={onDone}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600
+                text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900
+                hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title="Back to list"
+                  >
+                    Cancel
+                  </button>
                 )}
-              </button>
+              </>
             ) : (
               <button
                 onClick={handleNext}
