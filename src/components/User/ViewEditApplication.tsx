@@ -24,6 +24,7 @@ import {
   XCircle,
   FileText,
   UserCheck,
+  AlertCircle,
 } from "lucide-react";
 import { handleAxiosError } from "../../utils/handleAxiosError";
 
@@ -44,6 +45,7 @@ interface AppDocument {
   document_type: string;
   file: string;
   status: string;
+  rejection_reason?: string; // local-only per-doc reason field
 }
 interface SHGUserData {
   id: number;
@@ -81,6 +83,24 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   aadhar_front: "Aadhaar (Front)",
   aadhar_back: "Aadhaar (Back)",
   bachelor_certificate: "Bachelor Certificate",
+};
+
+/**
+ * Builds a combined public_notes string from all rejected docs.
+ * Format per line: "<Doc Type Label>: <reason or 'No reason provided'>"
+ */
+const buildPublicNotes = (docs: AppDocument[]): string => {
+  const rejected = docs.filter((d) => d.status === "rejected");
+  if (rejected.length === 0) return "";
+  return rejected
+    .map((d) => {
+      const label =
+        DOC_TYPE_LABELS[d.document_type] ??
+        d.document_type.replace(/_/g, " ");
+      const reason = d.rejection_reason?.trim() || "";
+      return reason ? `${label}: ${reason}` : `${label}: No reason provided`;
+    })
+    .join("\n");
 };
 
 const ViewEditApplication: React.FC = () => {
@@ -128,6 +148,11 @@ const ViewEditApplication: React.FC = () => {
     payment_type: "",
   });
 
+  // per-doc inline rejection reason: { [docId]: string }
+  const [docRejectReasons, setDocRejectReasons] = useState<
+    Record<number, string>
+  >({});
+
   const [docVerifying, setDocVerifying] = useState<Record<number, boolean>>({});
 
   const userRole = getUserRole("admin");
@@ -138,9 +163,7 @@ const ViewEditApplication: React.FC = () => {
   useEffect(() => {
     if (id) {
       fetchApplicationDetails(parseInt(id));
-      if (canEdit) {
-        fetchUsers();
-      }
+      if (canEdit) fetchUsers();
       fetchStatusOptions();
     }
   }, [id]);
@@ -203,7 +226,7 @@ const ViewEditApplication: React.FC = () => {
     try {
       const response = await getAllUsers();
       const usersArray: any[] = Array.isArray(response?.results ?? response)
-        ? (response?.results ?? response)
+        ? response?.results ?? response
         : [];
       const trainersList: Trainer[] = [];
       const financiersList: Financier[] = [];
@@ -258,33 +281,72 @@ const ViewEditApplication: React.FC = () => {
     }
   };
 
+  /**
+   * Verify a document. On rejection, carries the per-doc inline reason
+   * into the doc object and rebuilds the combined public_notes textarea.
+   */
   const handleDocumentVerify = async (doc: AppDocument, status: string) => {
     if (!doc.id) {
       toast.error("Document ID not available");
       return;
     }
-    setDocVerifying((prev) => ({ ...prev, [doc.id!]: true }));
+    const docId = doc.id;
+    setDocVerifying((prev) => ({ ...prev, [docId]: true }));
     try {
-      await documentVerifyApi(doc.id, { status: status });
+      await documentVerifyApi(docId, { status });
       toast.success(
         `Document ${status === "approved" ? "approved" : "rejected"}`
       );
+
       setShgUserData((prev) => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          documents: prev.documents.map((d) =>
-            d.id === doc.id ? { ...d, status: status } : d
-          ),
-        };
+        const updatedDocs = prev.documents.map((d) =>
+          d.id === docId
+            ? {
+                ...d,
+                status,
+                rejection_reason:
+                  status === "rejected"
+                    ? (docRejectReasons[docId] ?? "")
+                    : "",
+              }
+            : d
+        );
+        // Rebuild combined public_notes from all rejected docs
+        setProcessingForm((pf) => ({
+          ...pf,
+          public_notes: buildPublicNotes(updatedDocs),
+        }));
+        return { ...prev, documents: updatedDocs };
       });
     } catch (_) {
     } finally {
-      setDocVerifying((prev) => ({ ...prev, [doc.id!]: false }));
+      setDocVerifying((prev) => ({ ...prev, [docId]: false }));
     }
   };
 
-  // ── Row 1: Update public_notes (rejection reason) ──────────────
+  /**
+   * Admin types a per-doc rejection reason inline.
+   * Updates local docRejectReasons AND immediately syncs into
+   * the combined public_notes (only for already-rejected docs).
+   */
+  const handleDocReasonChange = (docId: number, value: string) => {
+    setDocRejectReasons((prev) => ({ ...prev, [docId]: value }));
+
+    setShgUserData((prev) => {
+      if (!prev) return prev;
+      const updatedDocs = prev.documents.map((d) =>
+        d.id === docId ? { ...d, rejection_reason: value } : d
+      );
+      setProcessingForm((pf) => ({
+        ...pf,
+        public_notes: buildPublicNotes(updatedDocs),
+      }));
+      return { ...prev, documents: updatedDocs };
+    });
+  };
+
+  // ── Row 1: Patch public_notes only ────────────────────────────
   const handleUpdatePublicNotes = async () => {
     setUpdatingNotes(true);
     try {
@@ -317,11 +379,8 @@ const ViewEditApplication: React.FC = () => {
     setSubmitting(true);
     try {
       let derivedStatus = application?.status;
-      if (processingForm.assigned_trainer) {
-        derivedStatus = "training";
-      } else if (processingForm.assigned_financier) {
-        derivedStatus = "assigned";
-      }
+      if (processingForm.assigned_trainer) derivedStatus = "training";
+      else if (processingForm.assigned_financier) derivedStatus = "assigned";
 
       await updateApplicationStatusApi(parseInt(id!), {
         assigned_trainer: processingForm.assigned_trainer || null,
@@ -371,6 +430,17 @@ const ViewEditApplication: React.FC = () => {
     "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
   const readCls =
     "text-sm font-medium text-gray-900 dark:text-white break-words";
+
+  const docs = shgUserData?.documents ?? [];
+
+  // Enable "Update rejection reason" only when every doc has been reviewed
+  const allDocsHaveStatus =
+    docs.length > 0 &&
+    docs.every((d) => d.status === "approved" || d.status === "rejected");
+
+  // Enable "Proceed to Step 2" only when every doc is approved
+  const allDocsApproved =
+    docs.length > 0 && docs.every((d) => d.status === "approved");
 
   if (loading) {
     return (
@@ -425,7 +495,9 @@ const ViewEditApplication: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Step 1 ─────────────────────────────────────────────────── */}
+        {/* ══════════════════════════════════════════════════════════════
+            STEP 1
+        ══════════════════════════════════════════════════════════════ */}
         {currentStep === 1 && (
           <div className="space-y-4 sm:space-y-6">
             {shgUserData ? (
@@ -561,7 +633,9 @@ const ViewEditApplication: React.FC = () => {
                             <option value="other">Other</option>
                           </select>
                         ) : (
-                          <p className={readCls}>{shgUserData.gender || "-"}</p>
+                          <p className={readCls}>
+                            {shgUserData.gender || "-"}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -751,19 +825,24 @@ const ViewEditApplication: React.FC = () => {
 
                 {/* ── Card 2: Documents ─────────────────────────────── */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm flex flex-col">
+
                   {/* Card header */}
                   <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700">
                     <h2 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
                       Documents
                     </h2>
                     <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                      {shgUserData.documents.filter((d) => d.status === "approved").length}
+                      {
+                        shgUserData.documents.filter(
+                          (d) => d.status === "approved"
+                        ).length
+                      }
                       {" / "}
                       {shgUserData.documents.length} verified
                     </span>
                   </div>
 
-                  {/* Document list */}
+                  {/* ── Document list ────────────────────────────────── */}
                   <div className="p-4 sm:p-6 flex-1">
                     {shgUserData.documents.length === 0 ? (
                       <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
@@ -774,75 +853,135 @@ const ViewEditApplication: React.FC = () => {
                         {shgUserData.documents.map((doc, index) => {
                           const docId = doc.id ?? index;
                           const isVerifying = docVerifying[docId] ?? false;
+                          const isRejected = doc.status === "rejected";
+                          const isApproved = doc.status === "approved";
+                          const docLabel =
+                            DOC_TYPE_LABELS[doc.document_type] ??
+                            doc.document_type.replace(/_/g, " ");
+
                           return (
-                            <div
-                              key={docId}
-                              className="flex items-center gap-2 sm:gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
-                            >
-                              {/* Icon */}
-                              <div className="flex-shrink-0 w-8 h-8 bg-brand-50 dark:bg-brand-500/20 rounded-lg flex items-center justify-center">
-                                <FileText className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-                              </div>
+                            <div key={docId} className="space-y-1.5">
 
-                              {/* Doc info */}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
-                                  {DOC_TYPE_LABELS[doc.document_type] ??
-                                    doc.document_type.replace(/_/g, " ")}
-                                </p>
-                                <a
-                                  href={doc.file}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-brand-600 dark:text-brand-400 hover:underline"
-                                >
-                                  View file
-                                </a>
-                              </div>
-
-                              <span
-                                className={`hidden sm:inline-flex flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  doc.status === "approved"
-                                    ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
-                                    : doc.status === "rejected"
-                                    ? "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400"
-                                    : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                              {/* Main doc row — colour-coded by status */}
+                              <div
+                                className={`flex items-center gap-2 sm:gap-3 p-3 rounded-lg transition-colors ${
+                                  isRejected
+                                    ? "bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20"
+                                    : isApproved
+                                    ? "bg-green-50 dark:bg-green-500/10 border border-green-100 dark:border-green-500/20"
+                                    : "bg-gray-50 dark:bg-gray-900"
                                 }`}
                               >
-                                {doc.status || "pending"}
-                              </span>
+                                {/* Icon */}
+                                <div
+                                  className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                                    isRejected
+                                      ? "bg-red-100 dark:bg-red-500/20"
+                                      : isApproved
+                                      ? "bg-green-100 dark:bg-green-500/20"
+                                      : "bg-brand-50 dark:bg-brand-500/20"
+                                  }`}
+                                >
+                                  <FileText
+                                    className={`w-4 h-4 ${
+                                      isRejected
+                                        ? "text-red-600 dark:text-red-400"
+                                        : isApproved
+                                        ? "text-green-600 dark:text-green-400"
+                                        : "text-brand-600 dark:text-brand-400"
+                                    }`}
+                                  />
+                                </div>
 
-                              {/* Approve / Reject */}
-                              {canEdit && (
-                                <div className="flex-shrink-0 flex items-center gap-0.5 sm:gap-1">
-                                  <button
-                                    onClick={() =>
-                                      handleDocumentVerify(doc, "approved")
-                                    }
-                                    disabled={isVerifying}
-                                    title="Approve"
-                                    className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                                      doc.status === "approved"
-                                        ? "text-green-600 bg-green-50 dark:bg-green-500/10"
-                                        : "text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10"
-                                    }`}
+                                {/* Doc info */}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
+                                    {docLabel}
+                                  </p>
+                                  <a
+                                    href={doc.file}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-brand-600 dark:text-brand-400 hover:underline"
                                   >
-                                    <CheckCircle className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleDocumentVerify(doc, "rejected")
-                                    }
-                                    disabled={isVerifying}
-                                    title="Reject"
-                                    className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                                      doc.status === "rejected"
-                                        ? "text-red-600 bg-red-50 dark:bg-red-500/10"
-                                        : "text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
-                                    }`}
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                  </button>
+                                    View file
+                                  </a>
+                                </div>
+
+                                {/* Status badge */}
+                                <span
+                                  className={`hidden sm:inline-flex flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    isApproved
+                                      ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                                      : isRejected
+                                      ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+                                      : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                                  }`}
+                                >
+                                  {doc.status || "pending"}
+                                </span>
+
+                                {/* Approve / Reject */}
+                                {canEdit && (
+                                  <div className="flex-shrink-0 flex items-center gap-0.5 sm:gap-1">
+                                    <button
+                                      onClick={() =>
+                                        handleDocumentVerify(doc, "approved")
+                                      }
+                                      disabled={isVerifying}
+                                      title="Approve"
+                                      className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                        isApproved
+                                          ? "text-green-600 bg-green-100 dark:bg-green-500/20"
+                                          : "text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10"
+                                      }`}
+                                    >
+                                      <CheckCircle className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleDocumentVerify(doc, "rejected")
+                                      }
+                                      disabled={isVerifying}
+                                      title="Reject"
+                                      className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                                        isRejected
+                                          ? "text-red-600 bg-red-100 dark:bg-red-500/20"
+                                          : "text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                      }`}
+                                    >
+                                      <XCircle className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* ── Inline rejection reason input ──
+                                  Shown only when the doc is rejected and admin can edit.
+                                  Typing here auto-updates the combined public_notes below. */}
+                              {isRejected && canEdit && (
+                                <div className="ml-11 flex items-start gap-2">
+                                  <AlertCircle className="w-3.5 h-3.5 text-red-500 dark:text-red-400 flex-shrink-0 mt-2" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-red-600 dark:text-red-400 font-medium mb-1">
+                                      Rejection reason for{" "}
+                                      <span className="font-semibold">
+                                        {docLabel}
+                                      </span>
+                                    </p>
+                                    <input
+                                      type="text"
+                                      value={docRejectReasons[docId] ?? ""}
+                                      onChange={(e) =>
+                                        handleDocReasonChange(
+                                          docId as number,
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder={`Why was ${docLabel} rejected?`}
+                                      className="w-full px-2.5 py-1.5 text-xs border border-red-200 dark:border-red-500/30 rounded-lg focus:ring-2 focus:ring-red-300 dark:focus:ring-red-500/40 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                                    />
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -852,16 +991,25 @@ const ViewEditApplication: React.FC = () => {
                     )}
                   </div>
 
-                  {/* ── Row 1: Rejection reason (public_notes) ──────── */}
+                  {/* ── Row 1: Rejection summary (public_notes) ──────── */}
                   {canEdit && (
                     <div className="px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700">
-                      <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                        <FileText className="w-3.5 h-3.5" />
-                        Rejection reason
-                        <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium normal-case tracking-normal bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400">
-                          public note
-                        </span>
-                      </label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                          <FileText className="w-3.5 h-3.5" />
+                          Rejection summary
+                          <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium normal-case tracking-normal bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400">
+                            public note
+                          </span>
+                        </label>
+                        {!allDocsHaveStatus && docs.length > 0 && (
+                          <span className="text-xs text-amber-600 dark:text-amber-400">
+                            Review all documents first
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Auto-built editable textarea */}
                       <textarea
                         value={processingForm.public_notes}
                         onChange={(e) =>
@@ -870,19 +1018,34 @@ const ViewEditApplication: React.FC = () => {
                             public_notes: e.target.value,
                           }))
                         }
-                        rows={3}
-                        placeholder="Enter reason for rejection (visible to the applicant)…"
-                        className={inputCls}
+                        rows={4}
+                        disabled={!allDocsHaveStatus}
+                        placeholder={
+                          allDocsHaveStatus
+                            ? "Auto-filled from rejected documents above. Edit if needed…"
+                            : "Approve or reject all documents above to enable this field…"
+                        }
+                        className={`${inputCls} ${
+                          !allDocsHaveStatus
+                            ? "opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-900"
+                            : ""
+                        }`}
                       />
-                      <div className="flex justify-end mt-2">
+
+                      <div className="flex items-start justify-between gap-3 mt-2">
+                        <p className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
+                          Auto-filled from rejected documents above. You can
+                          edit before updating.
+                        </p>
                         <button
                           type="button"
                           disabled={
                             updatingNotes ||
+                            !allDocsHaveStatus ||
                             !processingForm.public_notes.trim()
                           }
                           onClick={handleUpdatePublicNotes}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <SaveIcon className="w-3.5 h-3.5" />
                           {updatingNotes
@@ -894,68 +1057,57 @@ const ViewEditApplication: React.FC = () => {
                   )}
 
                   {/* ── Row 2: Convert CM → CCM ──────────────────────── */}
-                  {canEdit &&
-                    shgUserData?.user?.roles?.includes("cm") && (
-                      <div className="px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                          Member role
-                        </p>
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              Current role:{" "}
-                              <span className="font-semibold">CM</span>
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                              Eligible to be promoted to CCM
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            disabled={convertingRole}
-                            onClick={handleConvertToCCM}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
-                          >
-                            <UserCheck className="w-3.5 h-3.5" />
-                            {convertingRole
-                              ? "Converting…"
-                              : "Convert to CCM"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                  {/* Proceed to Step 2 — pinned to card bottom */}
-                  {(() => {
-                    const docs = shgUserData?.documents ?? [];
-                    const allApproved =
-                      docs.length > 0 &&
-                      docs.every((d) => d.status === "approved");
-                    return (
-                      <div className="flex flex-col items-stretch sm:items-end gap-1.5 px-4 sm:px-6 pb-4 sm:pb-5 pt-3 sm:pt-4 border-t border-gray-100 dark:border-gray-700 mt-auto">
-                        {!allApproved && docs.length > 0 && (
-                          <p className="text-xs text-amber-600 dark:text-amber-400 sm:text-right">
-                            All documents must be approved before proceeding
+                  {canEdit && shgUserData?.user?.roles?.includes("cm") && (
+                    <div className="px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                        Member role
+                      </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            Current role:{" "}
+                            <span className="font-semibold">CM</span>
                           </p>
-                        )}
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Eligible to be promoted to CCM
+                          </p>
+                        </div>
                         <button
-                          onClick={() => allApproved && setCurrentStep(2)}
-                          disabled={!allApproved}
-                          title={
-                            !allApproved ? "Approve all documents first" : ""
-                          }
-                          className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                            allApproved
-                              ? "text-brand-700 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/20 dark:text-brand-400"
-                              : "text-gray-400 bg-gray-100 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
-                          }`}
+                          type="button"
+                          disabled={convertingRole}
+                          onClick={handleConvertToCCM}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
                         >
-                          Application Processing
-                          <ChevronRight className="w-4 h-4" />
+                          <UserCheck className="w-3.5 h-3.5" />
+                          {convertingRole ? "Converting…" : "Convert to CCM"}
                         </button>
                       </div>
-                    );
-                  })()}
+                    </div>
+                  )}
+
+                  {/* ── Proceed to Step 2 ────────────────────────────── */}
+                  <div className="flex flex-col items-stretch sm:items-end gap-1.5 px-4 sm:px-6 pb-4 sm:pb-5 pt-3 sm:pt-4 border-t border-gray-100 dark:border-gray-700 mt-auto">
+                    {!allDocsApproved && docs.length > 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 sm:text-right">
+                        All documents must be approved before proceeding
+                      </p>
+                    )}
+                    <button
+                      onClick={() => allDocsApproved && setCurrentStep(2)}
+                      disabled={!allDocsApproved}
+                      title={
+                        !allDocsApproved ? "Approve all documents first" : ""
+                      }
+                      className={`flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        allDocsApproved
+                          ? "text-brand-700 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/20 dark:text-brand-400"
+                          : "text-gray-400 bg-gray-100 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                      }`}
+                    >
+                      Application Processing
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -968,10 +1120,11 @@ const ViewEditApplication: React.FC = () => {
           </div>
         )}
 
-        {/* ── Step 2 ─────────────────────────────────────────────────── */}
+        {/* ══════════════════════════════════════════════════════════════
+            STEP 2
+        ══════════════════════════════════════════════════════════════ */}
         {currentStep === 2 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
-            {/* Step 2 header */}
             <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700">
               <button
                 onClick={() => setCurrentStep(1)}
@@ -987,12 +1140,12 @@ const ViewEditApplication: React.FC = () => {
 
             <form onSubmit={handleProcessingSubmit} className="p-4 sm:p-6">
               <div className="space-y-4 sm:space-y-5">
-                {/* Payment Status — read-only display */}
+
+                {/* Payment read-only display */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className="col-span-1 sm:col-span-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     Payment Status
                   </label>
-
                   <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                     <span className="px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
                       {processingForm.payment_method === "online_payment"
@@ -1000,7 +1153,6 @@ const ViewEditApplication: React.FC = () => {
                         : "-"}
                     </span>
                   </div>
-
                   <div className="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                     <span className="px-2.5 py-1 rounded-full text-xs font-semibold">
                       {processingForm.payment_type === "installments"
@@ -1010,7 +1162,7 @@ const ViewEditApplication: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Trainer + Financier */}
+                {/* Financier + Payment Status + Trainer */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {canEdit && (
                     <div>
@@ -1039,7 +1191,6 @@ const ViewEditApplication: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Payment Status dropdown */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Payment Status
