@@ -85,6 +85,14 @@ export const getAllRegionsApi = () => {
     .then(res => res.data); 
 }
 
+export const patchAllRegionsApi = (regionId: number,payload: { name: string; pincodes: { code: string }[] }) => {
+  return client.patch(`accounts/regions/${regionId}/`, payload).then(res => res.data);
+};
+
+export const deleteRegionApi = (regionId: number) => {
+  return client.delete(`accounts/regions/${regionId}/`).then(res => res.data);
+};
+
 export const getSHGUserByIdApi = (userId: number) => {
     return client.get(`partners/app/cm-ccm/${userId}/`)
     .then(res => res.data)
