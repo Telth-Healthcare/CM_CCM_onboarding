@@ -240,7 +240,7 @@ export default function SignInForm() {
 
                 {/* Sign In Button with Loading Animation */}
                 <Button 
-                  className="w-full" 
+                  className="w-full text-white" 
                   size="sm" 
                   disabled={loading}
                 >
