@@ -103,7 +103,7 @@ export const useOnboardForm = (
       dob: record.dob ?? prev.dob,
       gender: record.gender ?? prev.gender,
       bloodGroup: record.blood_group ?? prev.bloodGroup,
-      manager: record.manager != null ? String(record.manager) : prev.manager,
+      manager: record.user?.manager_name != null ? String(record.manager) : prev.manager,
       language: record.language ?? prev.language,
       maritalStatus: record.marital_status ?? prev.maritalStatus,
       addressLine1: record.address_line_1 ?? prev.addressLine1,

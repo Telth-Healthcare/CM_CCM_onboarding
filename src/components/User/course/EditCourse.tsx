@@ -19,8 +19,6 @@ import { getUserRole } from "../../../config/constants";
 const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 interface Material {
   id?: number;
   title: string;
@@ -95,9 +93,9 @@ interface EditCourseProps {
 type SectionStatus = "idle" | "saving" | "saved" | "error";
 
 const inputCls =
-  "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg " +
-  "focus:outline-none focus:ring-2 focus:ring-blue-500 " +
-  "dark:bg-gray-800 dark:text-white placeholder-gray-400";
+  "w-full px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl " +
+  "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent " +
+  "dark:bg-gray-800 dark:text-white placeholder-gray-400 transition-all duration-200";
 
 const CheckIcon = () => (
   <svg
@@ -159,7 +157,7 @@ const TrashIcon = () => (
 
 const ChevronRightIcon = ({ open }: { open: boolean }) => (
   <svg
-    className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+    className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
@@ -172,18 +170,22 @@ const ChevronRightIcon = ({ open }: { open: boolean }) => (
 const StatusBadge = ({ status }: { status: SectionStatus }) => {
   if (status === "saving")
     return (
-      <span className="flex items-center gap-1 text-xs text-blue-500">
+      <span className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400 rounded-full">
         <SpinnerIcon /> Saving…
       </span>
     );
   if (status === "saved")
     return (
-      <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+      <span className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 rounded-full">
         <CheckIcon /> Saved
       </span>
     );
   if (status === "error")
-    return <span className="text-xs text-red-500">Failed — try again</span>;
+    return (
+      <span className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-full">
+        Failed
+      </span>
+    );
   return null;
 };
 
@@ -200,14 +202,14 @@ const Section = ({
   children: React.ReactNode;
   action?: React.ReactNode;
 }) => (
-  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-    <div className="px-5 py-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2.5">
-          <span className="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center bg-blue-600 text-white">
+  <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div className="px-6 py-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full text-sm font-bold flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-sm">
             {index}
-          </span>
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          </div>
+          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
             {title}
           </h3>
         </div>
@@ -236,8 +238,6 @@ function normaliseMaterial(m: Material): Material {
     fileSizeError: undefined,
   };
 }
-
-// ── Main component ────────────────────────────────────────────────────────────
 
 const EditCourse: React.FC<EditCourseProps> = ({
   course,
@@ -567,7 +567,6 @@ const EditCourse: React.FC<EditCourseProps> = ({
     (e: React.ChangeEvent<HTMLInputElement>, si: number, mi: number) => {
       const picked = e.target.files?.[0];
       if (picked) {
-        // Check file size
         if (picked.size > MAX_FILE_SIZE_BYTES) {
           updateMaterial(si, mi, "fileSizeError", `File size must be less than ${MAX_FILE_SIZE_MB} MB`);
           updateMaterial(si, mi, "newFile", null);
@@ -608,7 +607,6 @@ const EditCourse: React.FC<EditCourseProps> = ({
         return;
       }
       
-      // Check file size before saving
       if (material.inputType === "file") {
         if (material.newFile && material.newFile.size > MAX_FILE_SIZE_BYTES) {
           toast.error(`File too large! Maximum size is ${MAX_FILE_SIZE_MB}MB`);
@@ -740,7 +738,6 @@ const EditCourse: React.FC<EditCourseProps> = ({
             continue;
           if (material.inputType === "url" && !material.url?.trim()) continue;
           
-          // Check file size before saving
           if (material.inputType === "file") {
             if (material.newFile && material.newFile.size > MAX_FILE_SIZE_BYTES) {
               toast.error(`File too large for "${material.title}"! Maximum size is ${MAX_FILE_SIZE_MB}MB`);
@@ -810,30 +807,33 @@ const EditCourse: React.FC<EditCourseProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            Edit Course
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Update course info, subjects, and materials.
-          </p>
+    <div className="max-w-4xl mx-auto p-6">
+      {/* Header with gradient background */}
+      <div className="relative mb-8">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl -z-10" />
+        <div className="flex items-start justify-between p-6">
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+              Edit Course
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Update course information, subjects, and learning materials
+            </p>
+          </div>
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
         </div>
-        <button
-          onClick={onCancel}
-          className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-        >
-          Cancel
-        </button>
       </div>
 
-      <div className="space-y-3">
-        <Section index={1} title="Course Info" status={courseStatus}>
-          <div className="space-y-3">
+      <div className="space-y-4">
+        <Section index={1} title="Course Information" status={courseStatus}>
+          <div className="space-y-4">
             <div>
-              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Course Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -848,7 +848,7 @@ const EditCourse: React.FC<EditCourseProps> = ({
                 onKeyDown={handleCourseKeyDown}
                 placeholder={
                   isAdminOrSuperAdmin
-                    ? "Course name"
+                    ? "Enter course name"
                     : "Course name — press Enter to save"
                 }
                 className={inputCls}
@@ -856,45 +856,45 @@ const EditCourse: React.FC<EditCourseProps> = ({
             </div>
 
             {isAdminOrSuperAdmin && (
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                  Trainer
-                </label>
-                <select
-                  value={selectedTrainer ?? ""}
-                  onChange={(e) => {
-                    setSelectedTrainer(
-                      e.target.value ? Number(e.target.value) : null,
-                    );
-                    setCourseStatus("idle");
-                  }}
-                  className={inputCls}
-                >
-                  <option value="">Select trainer</option>
-                  {trainers.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Assign Trainer
+                  </label>
+                  <select
+                    value={selectedTrainer ?? ""}
+                    onChange={(e) => {
+                      setSelectedTrainer(
+                        e.target.value ? Number(e.target.value) : null,
+                      );
+                      setCourseStatus("idle");
+                    }}
+                    className={inputCls}
+                  >
+                    <option value="">Select a trainer</option>
+                    {trainers.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {isAdminOrSuperAdmin && (
-              <button
-                type="button"
-                onClick={saveCourseInfo}
-                disabled={courseStatus === "saving" || !courseName.trim()}
-                className="w-full py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                {courseStatus === "saving" ? (
-                  <>
-                    <SpinnerIcon /> Saving…
-                  </>
-                ) : (
-                  "Update Course"
-                )}
-              </button>
+                <button
+                  type="button"
+                  onClick={saveCourseInfo}
+                  disabled={courseStatus === "saving" || !courseName.trim()}
+                  className="w-full py-2.5 text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {courseStatus === "saving" ? (
+                    <>
+                      <SpinnerIcon /> Saving Changes…
+                    </>
+                  ) : (
+                    "Update Course Information"
+                  )}
+                </button>
+              </>
             )}
           </div>
         </Section>
@@ -906,51 +906,57 @@ const EditCourse: React.FC<EditCourseProps> = ({
             <button
               type="button"
               onClick={addSubject}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl hover:from-blue-700 hover:to-blue-600 transition-all duration-200 shadow-sm"
             >
               <PlusIcon /> Add Subject
             </button>
           }
         >
           {subjects.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+            <div className="text-center py-12 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+              <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                <PlusIcon />
+              </div>
               <p className="text-sm text-gray-400">
                 No subjects yet. Click "Add Subject" to begin.
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {subjects.map((subject, si) => (
                 <div
                   key={subject.id ?? `new-${si}`}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                  className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden bg-gray-50/50 dark:bg-gray-800/30"
                 >
-                  {/* Subject row */}
-                  <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 dark:bg-gray-800/50">
+                  {/* Subject header */}
+                  <div className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
                     <button
                       type="button"
                       onClick={() => toggleExpand(si)}
-                      className="p-0.5 shrink-0"
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
                       <ChevronRightIcon open={expandedSubjects.has(si)} />
                     </button>
 
-                    <input
-                      type="text"
-                      value={subject.name}
-                      onChange={(e) => updateSubjectName(si, e.target.value)}
-                      onBlur={() => saveSubjectName(si)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          saveSubjectName(si);
-                        }
-                      }}
-                      placeholder="Subject name — press Enter to save"
-                      className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400"
-                    />
-
-                    <StatusBadge status={subjectStatuses[si] || "idle"} />
+                    <div className="flex-1 flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={subject.name}
+                          onChange={(e) => updateSubjectName(si, e.target.value)}
+                          onBlur={() => saveSubjectName(si)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              saveSubjectName(si);
+                            }
+                          }}
+                          placeholder="Subject name — press Enter to save"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white placeholder-gray-400 transition-all"
+                        />
+                      </div>
+                      <StatusBadge status={subjectStatuses[si] || "idle"} />
+                    </div>
 
                     <button
                       type="button"
@@ -959,7 +965,7 @@ const EditCourse: React.FC<EditCourseProps> = ({
                       title={
                         subject.id ? "Add material" : "Save subject name first"
                       }
-                      className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <PlusIcon />
                     </button>
@@ -967,20 +973,22 @@ const EditCourse: React.FC<EditCourseProps> = ({
                     <button
                       type="button"
                       onClick={() => removeSubject(si)}
-                      className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                       title="Remove subject"
                     >
                       <TrashIcon />
                     </button>
                   </div>
 
-                  {/* Materials list */}
+                  {/* Materials section */}
                   {expandedSubjects.has(si) && (
-                    <div className="px-3 py-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                    <div className="px-4 py-4 space-y-3">
                       {subject.materials.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-2">
-                          No materials yet. Click + to add.
-                        </p>
+                        <div className="text-center py-8">
+                          <p className="text-sm text-gray-400">
+                            No materials yet. Click + to add learning materials.
+                          </p>
+                        </div>
                       ) : (
                         subject.materials.map((material, mi) => {
                           const matKey = `${si}-${mi}`;
@@ -989,54 +997,58 @@ const EditCourse: React.FC<EditCourseProps> = ({
                           return (
                             <div
                               key={material.id ?? `newmat-${si}-${mi}`}
-                              className="bg-gray-50 dark:bg-gray-800/40 rounded-lg p-3 space-y-2"
+                              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow"
                             >
-                              {/* Title + type + delete */}
-                              <div className="flex gap-2 items-start">
-                                <input
-                                  type="text"
-                                  value={material.title}
-                                  onChange={(e) =>
-                                    updateMaterial(
-                                      si,
-                                      mi,
-                                      "title",
-                                      e.target.value,
-                                    )
-                                  }
-                                  placeholder="Material title"
-                                  className="flex-1 px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400"
-                                />
-                                <select
-                                  value={material.type}
-                                  onChange={(e) =>
-                                    updateMaterial(
-                                      si,
-                                      mi,
-                                      "type",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className="w-40 px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                                >
-                                  <option value="">Type</option>
-                                  {materialTypes.map((t) => (
-                                    <option key={t.value} value={t.value}>
-                                      {t.label}
-                                    </option>
-                                  ))}
-                                </select>
+                              {/* Title + type row */}
+                              <div className="flex gap-3 items-start mb-3">
+                                <div className="flex-1">
+                                  <input
+                                    type="text"
+                                    value={material.title}
+                                    onChange={(e) =>
+                                      updateMaterial(
+                                        si,
+                                        mi,
+                                        "title",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="Material title"
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white placeholder-gray-400"
+                                  />
+                                </div>
+                                <div className="w-48">
+                                  <select
+                                    value={material.type}
+                                    onChange={(e) =>
+                                      updateMaterial(
+                                        si,
+                                        mi,
+                                        "type",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                                  >
+                                    <option value="">Select type</option>
+                                    {materialTypes.map((t) => (
+                                      <option key={t.value} value={t.value}>
+                                        {t.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => removeMaterial(si, mi)}
-                                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg shrink-0"
+                                  className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0"
                                 >
                                   <TrashIcon />
                                 </button>
                               </div>
 
-                              {/* URL / File toggle */}
-                              <div className="flex gap-2">
+                              {/* URL/File toggle buttons */}
+                              <div className="flex gap-2 mb-3">
                                 {(["url", "file"] as const).map((type) => (
                                   <button
                                     key={type}
@@ -1056,49 +1068,50 @@ const EditCourse: React.FC<EditCourseProps> = ({
                                         updateMaterial(si, mi, "url", null);
                                       }
                                     }}
-                                    className={`flex-1 py-1.5 text-xs rounded-lg border font-medium transition-all ${
+                                    className={`flex-1 py-2 text-sm rounded-lg font-medium transition-all ${
                                       material.inputType === type
-                                        ? "bg-blue-600 text-white border-blue-600"
-                                        : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-400"
+                                        ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-sm"
+                                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                                     }`}
                                   >
-                                    {type === "url" ? "URL" : "File Upload"}
+                                    {type === "url" ? "URL Link" : "File Upload"}
                                   </button>
                                 ))}
                               </div>
 
                               {/* URL input */}
                               {material.inputType === "url" && (
-                                <input
-                                  type="url"
-                                  value={material.url || ""}
-                                  onChange={(e) =>
-                                    updateMaterial(
-                                      si,
-                                      mi,
-                                      "url",
-                                      e.target.value,
-                                    )
-                                  }
-                                  placeholder="https://example.com/resource"
-                                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400"
-                                />
+                                <div className="mb-3">
+                                  <input
+                                    type="url"
+                                    value={material.url || ""}
+                                    onChange={(e) =>
+                                      updateMaterial(
+                                        si,
+                                        mi,
+                                        "url",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="https://example.com/resource"
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white placeholder-gray-400"
+                                  />
+                                </div>
                               )}
 
-                              {/* File input */}
+                              {/* File upload area */}
                               {material.inputType === "file" && (
-                                <div>
+                                <div className="mb-3">
                                   <label
                                     htmlFor={`mat-file-${si}-${mi}`}
-                                    className="flex items-center gap-2 px-3 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-400 transition-colors"
+                                    className="flex items-center justify-between gap-2 px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all"
                                   >
-                                    <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                    <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
                                       {material.newFile
                                         ? material.newFile.name
                                         : material.file
-                                          ? "Current: " +
-                                            getFileName(material.file)
-                                          : `Click to choose file (Max ${MAX_FILE_SIZE_MB}MB)`}
+                                          ?  getFileName(material.file)
+                                          : "Click to choose file (Max " + MAX_FILE_SIZE_MB + "MB)"}
                                     </span>
                                   </label>
                                   <input
@@ -1111,38 +1124,38 @@ const EditCourse: React.FC<EditCourseProps> = ({
                                     accept=".pdf,.doc,.docx,.txt,.zip,.mp4,.jpg,.png"
                                   />
                                   {material.file && !material.newFile && (
-                                    <p className="text-xs text-green-600 mt-1">
+                                    <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
                                       ✓ Current file will be kept
                                     </p>
                                   )}
                                   {material.newFile && (
-                                    <p className="text-xs text-blue-600 mt-1">
+                                    <p className="text-xs text-blue-600 mt-2">
                                       New file selected: {(material.newFile.size / (1024 * 1024)).toFixed(2)} MB
                                     </p>
                                   )}
                                   {material.fileSizeError && (
-                                    <p className="text-xs text-red-500 mt-1">
-                                      {material.fileSizeError}
+                                    <p className="text-xs text-red-500 mt-2">
+                                       {material.fileSizeError}
                                     </p>
                                   )}
                                 </div>
                               )}
 
-                              {/* Save / Update button + status */}
-                              <div className="flex items-center justify-between gap-2 pt-1">
+                              {/* Save button row */}
+                              <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
                                 <StatusBadge status={matStatus} />
                                 <button
                                   type="button"
                                   onClick={() => saveMaterial(si, mi)}
                                   disabled={matStatus === "saving" || !!material.fileSizeError}
-                                  className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                  className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:from-green-700 hover:to-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-sm"
                                 >
                                   {matStatus === "saving" ? (
                                     <>
                                       <SpinnerIcon /> Saving…
                                     </>
                                   ) : material.isNew ? (
-                                    "Save Material"
+                                    "Create Material"
                                   ) : (
                                     "Update Material"
                                   )}
@@ -1161,12 +1174,12 @@ const EditCourse: React.FC<EditCourseProps> = ({
         </Section>
       </div>
 
-      {/* Footer */}
-      <div className="flex justify-end gap-3 mt-6">
+      {/* Footer with gradient button */}
+      <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          className="px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
         >
           Cancel
         </button>
@@ -1174,14 +1187,14 @@ const EditCourse: React.FC<EditCourseProps> = ({
           type="button"
           onClick={handleSaveAll}
           disabled={saving}
-          className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          className="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-md"
         >
           {saving ? (
             <>
-              <SpinnerIcon /> Saving…
+              <SpinnerIcon /> Saving All Changes…
             </>
           ) : (
-            "Save Changes →"
+            "Save All Changes"
           )}
         </button>
       </div>

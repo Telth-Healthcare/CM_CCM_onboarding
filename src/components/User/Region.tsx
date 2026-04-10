@@ -6,7 +6,12 @@ import {
   type MRT_ColumnDef,
 } from "material-react-table";
 import PageMeta from "../common/PageMeta";
-import { createRegionsApi, deleteRegionApi, getAllRegionsApi, patchAllRegionsApi } from "../../api";
+import {
+  createRegionsApi,
+  deleteRegionApi,
+  getAllRegionsApi,
+  patchAllRegionsApi,
+} from "../../api";
 import CommonTable from "../mui/MuiTable";
 import { RightSideModal } from "../mui/RightSideModal";
 import Button from "../ui/button/Button";
@@ -101,7 +106,9 @@ const Region = () => {
   const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>([]);
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
+    [],
+  );
 
   // ── View modal state (your original) ────────────────────────────────────────
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -112,11 +119,16 @@ const Region = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [syncUser, setSyncUser] = useState(true);
-  const [formData, setFormData] = useState<NewRegionForm>({ name: "", pincodes: [] });
+  const [formData, setFormData] = useState<NewRegionForm>({
+    name: "",
+    pincodes: [],
+  });
   const [pincodeInput, setPincodeInput] = useState("");
   const [pincodes, setPincodes] = useState<string[]>([]);
   const [pincodeError, setPincodeError] = useState("");
-  const [errors, setErrors] = useState<Partial<Record<keyof NewRegionForm, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof NewRegionForm, string>>
+  >({});
 
   // ── Edit modal state ─────────────────────────────────────────────────────────
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -125,12 +137,15 @@ const Region = () => {
   const [editPincodes, setEditPincodes] = useState<string[]>([]);
   const [editPincodeInput, setEditPincodeInput] = useState("");
   const [editPincodeError, setEditPincodeError] = useState("");
-  const [editErrors, setEditErrors] = useState<{ name?: string; pincodes?: string }>({});
+  const [editErrors, setEditErrors] = useState<{
+    name?: string;
+    pincodes?: string;
+  }>({});
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-const [deleteRegion, setDeleteRegion] = useState<Region | null>(null);
-const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteRegion, setDeleteRegion] = useState<Region | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const isSuperAdmin = userRole === "super_admin";
 
@@ -163,8 +178,6 @@ const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   useEffect(() => {
     fetchRegions();
   }, []);
-
-  // ─── API Calls ────────────────────────────────────────────────────────────────
 
   const fetchRegions = async () => {
     setColumnFilters([]);
@@ -208,13 +221,14 @@ const [deleteSubmitting, setDeleteSubmitting] = useState(false);
     e.preventDefault();
     const newErrors: { name?: string; pincodes?: string } = {};
     if (!editFormData.name.trim()) newErrors.name = "Region name is required";
-    if (editPincodes.length === 0) newErrors.pincodes = "At least one pincode is required";
+    if (editPincodes.length === 0)
+      newErrors.pincodes = "At least one pincode is required";
     setEditErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
     try {
       setEditSubmitting(true);
-      await patchAllRegionsApi(editRegionId!, {       // real DB id goes in URL
+      await patchAllRegionsApi(editRegionId!, {
         name: editFormData.name,
         pincodes: editPincodes.map((code) => ({ code })),
       });
@@ -227,8 +241,6 @@ const [deleteSubmitting, setDeleteSubmitting] = useState(false);
       setEditSubmitting(false);
     }
   };
-
-  // ─── CSV Helpers (your original parseCSV, untouched) ─────────────────────────
 
   const parseCSV = (text: string): string[] => {
     const seen = new Set<string>();
@@ -252,7 +264,6 @@ const [deleteSubmitting, setDeleteSubmitting] = useState(false);
     return [...seen];
   };
 
-  // CSV upload for ADD modal (your original, untouched)
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -269,15 +280,23 @@ const [deleteSubmitting, setDeleteSubmitting] = useState(false);
           return;
         }
 
-        const validPincodes = extractedPincodes.filter((pin) => /^\d{6}$/.test(pin));
-        const invalidPincodes = extractedPincodes.filter((pin) => !/^\d{6}$/.test(pin));
+        const validPincodes = extractedPincodes.filter((pin) =>
+          /^\d{6}$/.test(pin),
+        );
+        const invalidPincodes = extractedPincodes.filter(
+          (pin) => !/^\d{6}$/.test(pin),
+        );
 
         if (invalidPincodes.length > 0) {
           toast.warning(`${invalidPincodes.length} invalid pincodes skipped`);
         }
 
-        const duplicates = validPincodes.filter((pin) => pincodes.includes(pin));
-        const newPincodes = validPincodes.filter((pin) => !pincodes.includes(pin));
+        const duplicates = validPincodes.filter((pin) =>
+          pincodes.includes(pin),
+        );
+        const newPincodes = validPincodes.filter(
+          (pin) => !pincodes.includes(pin),
+        );
 
         if (duplicates.length > 0) {
           toast.warning(
@@ -310,7 +329,6 @@ const [deleteSubmitting, setDeleteSubmitting] = useState(false);
     reader.readAsText(file);
   };
 
-  // CSV upload for EDIT modal — same logic, checks against editPincodes
   const handleEditCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -320,22 +338,30 @@ const [deleteSubmitting, setDeleteSubmitting] = useState(false);
     reader.onload = (e) => {
       try {
         const text = e.target?.result as string;
-        const extractedPincodes = parseCSV(text);       // reuse same parser
+        const extractedPincodes = parseCSV(text); // reuse same parser
 
         if (extractedPincodes.length === 0) {
           toast.warning("No valid pincodes found in CSV file");
           return;
         }
 
-        const validPincodes = extractedPincodes.filter((pin) => /^\d{6}$/.test(pin));
-        const invalidPincodes = extractedPincodes.filter((pin) => !/^\d{6}$/.test(pin));
+        const validPincodes = extractedPincodes.filter((pin) =>
+          /^\d{6}$/.test(pin),
+        );
+        const invalidPincodes = extractedPincodes.filter(
+          (pin) => !/^\d{6}$/.test(pin),
+        );
 
         if (invalidPincodes.length > 0) {
           toast.warning(`${invalidPincodes.length} invalid pincodes skipped`);
         }
 
-        const duplicates = validPincodes.filter((pin) => editPincodes.includes(pin)); // check against edit list
-        const newPincodes = validPincodes.filter((pin) => !editPincodes.includes(pin));
+        const duplicates = validPincodes.filter((pin) =>
+          editPincodes.includes(pin),
+        ); // check against edit list
+        const newPincodes = validPincodes.filter(
+          (pin) => !editPincodes.includes(pin),
+        );
 
         if (duplicates.length > 0) {
           toast.warning(
@@ -368,29 +394,26 @@ const [deleteSubmitting, setDeleteSubmitting] = useState(false);
     reader.readAsText(file);
   };
 
-  // handler — add alongside handleEditRegion
-const handleDeleteRegion = (row: Region) => {
-  setDeleteRegion(row);        // store which region to delete
-  setIsDeleteModalOpen(true);  // open confirm modal
-};
+  const handleDeleteRegion = (row: Region) => {
+    setDeleteRegion(row);
+    setIsDeleteModalOpen(true);
+  };
 
-const confirmDelete = async () => {
-  if (!deleteRegion) return;
-  try {
-    setDeleteSubmitting(true);
-    await deleteRegionApi(deleteRegion.id);
-    toast.success("Region deleted successfully");
-    setIsDeleteModalOpen(false);
-    setDeleteRegion(null);
-    fetchRegions();
-  } catch (error) {
-    handleRegionError(error);
-  } finally {
-    setDeleteSubmitting(false);
-  }
-};
-
-  // ─── Pincode helpers for ADD modal (your original, untouched) ────────────────
+  const confirmDelete = async () => {
+    if (!deleteRegion) return;
+    try {
+      setDeleteSubmitting(true);
+      await deleteRegionApi(deleteRegion.id);
+      toast.success("Region deleted successfully");
+      setIsDeleteModalOpen(false);
+      setDeleteRegion(null);
+      fetchRegions();
+    } catch (error) {
+      handleRegionError(error);
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  };
 
   const addPincode = () => {
     const val = pincodeInput.trim();
@@ -423,8 +446,6 @@ const confirmDelete = async () => {
     }
   };
 
-  // ─── Pincode helpers for EDIT modal ──────────────────────────────────────────
-
   const addEditPincode = () => {
     const val = editPincodeInput.trim();
     if (!val) return;
@@ -442,17 +463,21 @@ const confirmDelete = async () => {
     setEditPincodeError("");
   };
 
-  const handleEditPincodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleEditPincodeKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (e.key === "Enter") {
       e.preventDefault();
       addEditPincode();
     }
-    if (e.key === "Backspace" && editPincodeInput === "" && editPincodes.length > 0) {
-      setEditPincodes((prev) => prev.slice(0, -1)); // remove last on backspace
+    if (
+      e.key === "Backspace" &&
+      editPincodeInput === "" &&
+      editPincodes.length > 0
+    ) {
+      setEditPincodes((prev) => prev.slice(0, -1)); 
     }
   };
-
-  // ─── Form helpers ─────────────────────────────────────────────────────────────
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof NewRegionForm, string>> = {};
@@ -474,14 +499,17 @@ const confirmDelete = async () => {
     setErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
-  const handleViewPincodes = (regionName: string, pincodes: { code: string }[]) => {
+  const handleViewPincodes = (
+    regionName: string,
+    pincodes: { code: string }[],
+  ) => {
     setViewRegionName(regionName);
     setViewPincodes(pincodes.map((p) => p.code));
     setIsViewModalOpen(true);
   };
 
   const handleEditRegion = (row: Region) => {
-    setEditRegionId(row.id);                          // real DB id → used in PATCH URL
+    setEditRegionId(row.id); // real DB id → used in PATCH URL
     setEditFormData({ name: row.name });
     setEditPincodes(row.pincodes.map((p) => p.code)); // pre-fill existing pincodes
     setIsEditModalOpen(true);
@@ -496,28 +524,26 @@ const confirmDelete = async () => {
     () => [
       {
         accessorKey: "id",
-        header: "S.No",
+        header: "Actions",
         size: 80,
         enableColumnFilter: false,
-      Cell: ({ row }) => (
-  <div className="flex items-center justify-between">
-    <span>{row.index + 1}</span>
-    <div className="flex items-center gap-2">
-      <PencilIcon
-        size={14}
-        onClick={() => handleEditRegion(row.original)}
-        className="cursor-pointer opacity-60 hover:opacity-100 text-blue-500 hover:text-blue-600 transition-all"
-        
-      />
-      <Trash2
-        size={14}
-        onClick={() => handleDeleteRegion(row.original)} // real DB id via row.original
-        className="cursor-pointer opacity-60 hover:opacity-100 text-red-800 hover:text-red-600 transition-all "
-       
-      />
-    </div>
-  </div>
-),
+        Cell: ({ row }) => (
+          <div className="flex items-center justify-between">
+            {/* <span>{row.index + 1}</span> */}
+            <div className="flex items-center gap-2">
+              <PencilIcon
+                size={14}
+                onClick={() => handleEditRegion(row.original)}
+                className="cursor-pointer text-blue-600 hover:text-blue-800 transition-all"
+              />
+              <Trash2
+                size={14}
+                onClick={() => handleDeleteRegion(row.original)} 
+                className="cursor-pointer text-red-600 hover:text-red-800 transition-all"
+              />
+            </div>
+          </div>
+        ),
       },
       {
         accessorKey: "name",
@@ -533,7 +559,10 @@ const confirmDelete = async () => {
           const value = cell.getValue<{ code: string }[]>();
           if (!value || value.length === 0) return "-";
 
-          const displayText = value.slice(0, 3).map((p) => p.code).join(", ");
+          const displayText = value
+            .slice(0, 3)
+            .map((p) => p.code)
+            .join(", ");
           const remainingCount = value.length - 3;
 
           return (
@@ -557,17 +586,32 @@ const confirmDelete = async () => {
   );
 
   const toolbarActions = [
-    ...(isSuperAdmin ? [{ label: "Add Region", onClick: handleAddRegion }] : []),
+    ...(isSuperAdmin
+      ? [{ label: "Add Region", onClick: handleAddRegion }]
+      : []),
     { label: "Refresh", onClick: fetchRegions },
   ];
 
   // ─── Shared CSV Upload Button UI ──────────────────────────────────────────────
 
-  const CSVUploadButton = ({ onChange }: { onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
+  const CSVUploadButton = ({
+    onChange,
+  }: {
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  }) => (
     <label className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+        />
       </svg>
       Upload CSV File
       <input type="file" accept=".csv" onChange={onChange} className="hidden" />
@@ -644,7 +688,10 @@ const confirmDelete = async () => {
                 </thead>
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
                   {viewPincodes.map((pincode, index) => (
-                    <tr key={pincode} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <tr
+                      key={pincode}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
                       <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
                         {index + 1}
                       </td>
@@ -684,7 +731,6 @@ const confirmDelete = async () => {
 
             <form onSubmit={handleCreateRegion} noValidate>
               <div className="space-y-5">
-
                 {/* Region Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -697,7 +743,9 @@ const confirmDelete = async () => {
                     onChange={handleInputChange}
                     placeholder="Enter region name"
                     className={`w-full px-3 py-2 text-sm border ${
-                      errors.name ? "border-red-400" : "border-gray-300 dark:border-gray-600"
+                      errors.name
+                        ? "border-red-400"
+                        : "border-gray-300 dark:border-gray-600"
                     } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400`}
                   />
                   {errors.name && (
@@ -735,7 +783,9 @@ const confirmDelete = async () => {
                     {/* Tag box */}
                     <div
                       className={`w-full border ${
-                        errors.pincodes ? "border-red-400" : "border-gray-300 dark:border-gray-600"
+                        errors.pincodes
+                          ? "border-red-400"
+                          : "border-gray-300 dark:border-gray-600"
                       } rounded-lg bg-white dark:bg-gray-800`}
                     >
                       {pincodes.length > 0 && (
@@ -761,7 +811,9 @@ const confirmDelete = async () => {
 
                       <div
                         className="flex items-center px-2 py-1.5 cursor-text border-t border-gray-200 dark:border-gray-700"
-                        onClick={() => document.getElementById("pincode-input")?.focus()}
+                        onClick={() =>
+                          document.getElementById("pincode-input")?.focus()
+                        }
                       >
                         <input
                           id="pincode-input"
@@ -772,7 +824,10 @@ const confirmDelete = async () => {
                           onChange={(e) => {
                             setPincodeInput(e.target.value.replace(/\D/g, "")); // digits only
                             setPincodeError("");
-                            setErrors((prev) => ({ ...prev, pincode: undefined }));
+                            setErrors((prev) => ({
+                              ...prev,
+                              pincode: undefined,
+                            }));
                           }}
                           onKeyDown={handlePincodeKeyDown}
                           placeholder="Enter 6-digit pincode…"
@@ -794,7 +849,9 @@ const confirmDelete = async () => {
                     <p className="mt-1 text-xs text-red-500">{pincodeError}</p>
                   )}
                   {errors.pincodes && !pincodeError && (
-                    <p className="mt-1 text-xs text-red-500">{errors.pincodes}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.pincodes}
+                    </p>
                   )}
                 </div>
               </div>
@@ -834,7 +891,6 @@ const confirmDelete = async () => {
 
             <form onSubmit={handleUpdateRegion} noValidate>
               <div className="space-y-5">
-
                 {/* Region Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -849,11 +905,15 @@ const confirmDelete = async () => {
                     }}
                     placeholder="Enter region name"
                     className={`w-full px-3 py-2 text-sm border ${
-                      editErrors.name ? "border-red-400" : "border-gray-300 dark:border-gray-600"
+                      editErrors.name
+                        ? "border-red-400"
+                        : "border-gray-300 dark:border-gray-600"
                     } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white placeholder-gray-400`}
                   />
                   {editErrors.name && (
-                    <p className="mt-1 text-xs text-red-500">{editErrors.name}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {editErrors.name}
+                    </p>
                   )}
                 </div>
 
@@ -876,7 +936,9 @@ const confirmDelete = async () => {
                     {/* Tag box with pre-filled + removable pincodes */}
                     <div
                       className={`w-full border ${
-                        editErrors.pincodes ? "border-red-400" : "border-gray-300 dark:border-gray-600"
+                        editErrors.pincodes
+                          ? "border-red-400"
+                          : "border-gray-300 dark:border-gray-600"
                       } rounded-lg bg-white dark:bg-gray-800`}
                     >
                       {editPincodes.length > 0 && (
@@ -889,8 +951,11 @@ const confirmDelete = async () => {
                               <span className="font-mono">{pin}</span>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setEditPincodes((prev) => prev.filter((p) => p !== pin)) // remove individual pin
+                                onClick={
+                                  () =>
+                                    setEditPincodes((prev) =>
+                                      prev.filter((p) => p !== pin),
+                                    ) // remove individual pin
                                 }
                                 className="leading-none opacity-60 hover:opacity-100 text-base ml-1 flex-shrink-0"
                                 title="Remove"
@@ -904,7 +969,9 @@ const confirmDelete = async () => {
 
                       <div
                         className="flex items-center px-2 py-1.5 cursor-text border-t border-gray-200 dark:border-gray-700"
-                        onClick={() => document.getElementById("edit-pincode-input")?.focus()}
+                        onClick={() =>
+                          document.getElementById("edit-pincode-input")?.focus()
+                        }
                       >
                         <input
                           id="edit-pincode-input"
@@ -913,7 +980,9 @@ const confirmDelete = async () => {
                           maxLength={6}
                           value={editPincodeInput}
                           onChange={(e) => {
-                            setEditPincodeInput(e.target.value.replace(/\D/g, "")); // digits only
+                            setEditPincodeInput(
+                              e.target.value.replace(/\D/g, ""),
+                            ); // digits only
                             setEditPincodeError("");
                           }}
                           onKeyDown={handleEditPincodeKeyDown}
@@ -933,10 +1002,14 @@ const confirmDelete = async () => {
                   </div>
 
                   {editPincodeError && (
-                    <p className="mt-1 text-xs text-red-500">{editPincodeError}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {editPincodeError}
+                    </p>
                   )}
                   {editErrors.pincodes && !editPincodeError && (
-                    <p className="mt-1 text-xs text-red-500">{editErrors.pincodes}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {editErrors.pincodes}
+                    </p>
                   )}
                 </div>
               </div>
@@ -959,56 +1032,51 @@ const confirmDelete = async () => {
             </form>
           </div>
         </RightSideModal>
-
-        
       )}
-      
+
       {/* ── Delete Confirm Modal ── */}
-<RightSideModal
-  isOpen={isDeleteModalOpen}
-  onClose={() => setIsDeleteModalOpen(false)}
-  showCloseButton
-  width="420px"
->
-  <div className="p-6 flex flex-col gap-6">
-
-    {/* Icon + message */}
-    <div className="flex flex-col items-center text-center gap-3">
-      <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-        <Trash2 size={22} className="text-red-600 dark:text-red-400" />
-      </div>
-      <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-        Delete Region
-      </h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        Are you sure you want to delete{" "}
-        <span className="font-semibold text-gray-800 dark:text-white">
-          {deleteRegion?.name}
-        </span>
-        ? This action cannot be undone.
-      </p>
-    </div>
-
-    {/* Actions */}
-    <div className="flex justify-end gap-3">
-      <Button
-        onClick={() => setIsDeleteModalOpen(false)}
-        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+      <RightSideModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        showCloseButton
+        width="420px"
       >
-        Cancel
-      </Button>
-      <Button
-        onClick={confirmDelete}
-        disabled={deleteSubmitting}
-        className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {deleteSubmitting ? "Deleting..." : "Delete"}
-      </Button>
-    </div>
+        <div className="p-6 flex flex-col gap-6">
+          {/* Icon + message */}
+          <div className="flex flex-col items-center text-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <Trash2 size={22} className="text-red-600 dark:text-red-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Delete Region
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-gray-800 dark:text-white">
+                {deleteRegion?.name}
+              </span>
+              ? This action cannot be undone.
+            </p>
+          </div>
 
-  </div>
-</RightSideModal>
-      
+          {/* Actions */}
+          <div className="flex justify-end gap-3">
+            <Button
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDelete}
+              disabled={deleteSubmitting}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deleteSubmitting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </div>
+      </RightSideModal>
     </div>
   );
 };

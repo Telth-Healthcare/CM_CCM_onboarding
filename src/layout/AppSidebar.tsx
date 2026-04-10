@@ -2,7 +2,6 @@ import { useCallback, useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen,
-  ClipboardList,
   Layers,
   LayoutDashboard,
   Mail,
@@ -82,11 +81,11 @@ const navItems: NavItem[] = [
     path: "/miscellaneous",
     roles: ["super_admin"],
   },
-  {
-    icon: <ClipboardList className={iconClass} />,
-    name: "Training Enrollments",
-    path: "/enrollments",
-  },
+  // {
+  //   icon: <ClipboardList className={iconClass} />,
+  //   name: "Training Enrollments",
+  //   path: "/enrollments",
+  // },
   {
     icon: <BookOpen className={iconClass} />,
     name: "Course",

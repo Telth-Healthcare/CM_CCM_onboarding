@@ -47,6 +47,7 @@ interface FormErrors {
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isClearing, setIsClearing] = useState(true);
   const navigate = useNavigate();
 
   const [state, setState] = useState<FormState>({
@@ -57,11 +58,19 @@ export default function SignInForm() {
   const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      navigate("/dashboard");
+    localStorage.clear();    
+    sessionStorage.clear();
+    setIsClearing(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isClearing) {
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        navigate("/dashboard");
+      }
     }
-  }, [navigate]);
+  }, [navigate, isClearing]);
 
   const validateForm = () => {
     const newErrors: FormErrors = {};

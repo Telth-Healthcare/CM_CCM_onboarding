@@ -12,7 +12,7 @@ import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import { getUserRole } from "../../../config/constants";
 import CCMOnboard from "../UserOnboardProcess/Onboard";
-import { PlusIcon } from "lucide-react";
+import { PencilIcon, PlusIcon } from "lucide-react";
 
 interface User {
   id: number;
@@ -173,28 +173,11 @@ const ViewCMList = () => {
           }
 
           return (
-            <button
+            <PencilIcon
+              size={14}
               onClick={() => handleEdit(partnerId, row.original)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
-                      text-brand-600 bg-brand-50 hover:bg-brand-100
-                      dark:text-brand-400 dark:bg-brand-500/10 dark:hover:bg-brand-500/20
-                      transition-colors"
-              title="Edit onboarding"
-            >
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                />
-              </svg>
-            </button>
+              className="cursor-pointer text-blue-600 hover:text-blue-800 transition-all"
+            />
           );
         },
       },
