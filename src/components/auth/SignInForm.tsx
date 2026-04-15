@@ -8,26 +8,27 @@ import { signinApi } from "../../api";
 import { setToken } from "../../config/constants";
 import { toast } from "react-toastify";
 import { handleAxiosError } from "../../utils/handleAxiosError";
+import { PasswordResetModal } from "./PasswordResetModal";
 
 // Simple Spinner Component
 const Spinner = () => (
-  <svg 
-    className="animate-spin h-5 w-5 text-white" 
-    xmlns="http://www.w3.org/2000/svg" 
-    fill="none" 
+  <svg
+    className="animate-spin h-5 w-5 text-white"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
     viewBox="0 0 24 24"
   >
-    <circle 
-      className="opacity-25" 
-      cx="12" 
-      cy="12" 
-      r="10" 
-      stroke="currentColor" 
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
       strokeWidth="4"
     />
-    <path 
-      className="opacity-75" 
-      fill="currentColor" 
+    <path
+      className="opacity-75"
+      fill="currentColor"
       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
     />
   </svg>
@@ -45,10 +46,11 @@ interface FormErrors {
 }
 
 export default function SignInForm() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isClearing, setIsClearing] = useState(true);
-  const navigate = useNavigate();
+  const [passwordResetModalOpen, setPasswordResetModalOpen] = useState(false);
 
   const [state, setState] = useState<FormState>({
     phone: "",
@@ -58,7 +60,7 @@ export default function SignInForm() {
   const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
-    localStorage.clear();    
+    localStorage.clear();
     sessionStorage.clear();
     setIsClearing(false);
   }, []);
@@ -159,6 +161,10 @@ export default function SignInForm() {
     }
   };
 
+    const handlePwdRequest = () => {
+    setPasswordResetModalOpen(true);
+  };
+
   return (
     <div className="flex flex-col flex-1">
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
@@ -183,11 +189,13 @@ export default function SignInForm() {
                   <Label>
                     Phone Number <span className="text-error-500">*</span>
                   </Label>
-                  <div className={`flex items-center border rounded-lg overflow-hidden ${
+                  <div
+                    className={`flex items-center border rounded-lg overflow-hidden ${
                       errors.phone
                         ? "border-red-500 dark:border-red-500"
                         : "border-gray-300 dark:border-gray-700"
-                    }`}>
+                    }`}
+                  >
                     <span className="px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium border-r border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 select-none">
                       +91
                     </span>
@@ -237,11 +245,16 @@ export default function SignInForm() {
                     </p>
                   )}
                 </div>
-
+                <div
+                  onClick={handlePwdRequest}
+                  className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400 cursor-pointer"
+                >
+                  Forgot password?
+                </div>
                 {/* Sign In Button with Loading Animation */}
-                <Button 
-                  className="w-full text-white" 
-                  size="sm" 
+                <Button
+                  className="w-full text-white"
+                  size="sm"
                   disabled={loading}
                 >
                   {loading ? (
@@ -258,6 +271,10 @@ export default function SignInForm() {
           </div>
         </div>
       </div>
+        <PasswordResetModal
+        isOpen={passwordResetModalOpen}
+        onClose={() => setPasswordResetModalOpen(false)}
+      />
     </div>
   );
 }

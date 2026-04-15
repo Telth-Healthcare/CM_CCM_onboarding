@@ -20,6 +20,7 @@ interface InputProps {
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   autoComplete?: string;                                        // suppress browser suggestions
   style?: React.CSSProperties;                                  // inline styles for chevron padding etc.
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;    // for validation on blur
 }
 
 // forwardRef — lets EditableDropdown call inputRef.current.focus() / setSelectionRange()
@@ -43,6 +44,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
   inputMode,
   autoComplete,
   style,
+  onBlur,
 }, ref) => {
 
   let inputClasses = `h-11 w-full rounded-lg border appearance-none px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:outline-hidden focus:ring-3 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 ${className}`;
@@ -77,6 +79,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
         autoComplete={autoComplete}
         style={style}            // chevron padding / pointer cursor from parent
         className={`${inputClasses} ${type === "date" ? "cursor-pointer" : ""}`}
+        onBlur={onBlur}
       />
 
       {hint && (

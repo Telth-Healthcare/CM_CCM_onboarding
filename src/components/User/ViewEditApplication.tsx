@@ -1272,7 +1272,7 @@ const ViewEditApplication: React.FC = () => {
                 </div>
 
                 {/* Submit */}
-                {canEdit && (
+                {/* {canEdit && ( */}
                   <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-gray-700">
                     <button
                       type="submit"
@@ -1283,7 +1283,7 @@ const ViewEditApplication: React.FC = () => {
                       {submitting ? "Updating..." : "Submitted"}
                     </button>
                   </div>
-                )}
+                {/* )} */}
               </div>
             </form>
           </div>

@@ -25,6 +25,7 @@ import { setNavigate } from "./api";
 
 import CCMOnboard from "./components/User/UserOnboardProcess/Onboard";
 import { STEPS } from "./components/User/UserOnboardProcess/types/Constants";
+import ResetPasswordForm from "./components/auth/ResetPasswordForm";
 
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
 const AcceptInvitationPage = lazy(
@@ -309,6 +310,7 @@ function AppRoutes() {
       {/* Admin Auth */}
       <Route path="/admin/signin" element={<SignIn />} />
       <Route path="/invite/accept" element={<AcceptInvitationPage />} />
+       <Route path="/reset-password" element={<ResetPasswordForm />} />
 
       {/* CCM Auth */}
       <Route path="/ccm-auth/signin" element={<CCMSignInPage />} />
