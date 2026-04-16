@@ -7,12 +7,18 @@ import {
 } from "material-react-table";
 import { toast } from "react-toastify";
 import PageMeta from "../../common/PageMeta";
-import { getRoleUsers, updateUsersApi } from "../../../api";
+import {
+  getRoleUsers,
+  updateUsersApi,
+  requestPasswordApi,
+  PasswordRequestRequest,
+  resendInvitationApi,
+} from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import { getUserRole } from "../../../config/constants";
 import CCMOnboard from "../UserOnboardProcess/Onboard";
-import { PencilIcon, PlusIcon } from "lucide-react";
+import { PencilIcon, PlusIcon, MailCheck, MailWarning, X } from "lucide-react";
 
 interface User {
   id: number;
@@ -43,6 +49,70 @@ interface ToolbarAction {
 
 type ViewType = "view" | "edit" | "create" | null;
 
+// Confirm Modal Component
+interface ConfirmModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  email: string;
+  loading: boolean;
+  title?: string;
+  message?: string;
+}
+
+const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  email,
+  loading,
+  title = "Confirm Password Reset",
+  message = "Are you sure you want to send a password reset email to",
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {title}
+          </h3>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-4">
+          <p className="text-gray-700 dark:text-gray-300">
+            {message}{" "}
+            <span className="font-semibold">{email}</span>?
+          </p>
+        </div>
+        <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+          >
+            {loading ? "Sending..." : "Send Email"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ViewCMList = () => {
   const userRole = getUserRole("admin");
   const [users, setUsers] = useState<User[]>([]);
@@ -60,6 +130,20 @@ const ViewCMList = () => {
     isActive: boolean;
   } | null>(null);
 
+  // State for confirm modal
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [emailToSend, setEmailToSend] = useState<string>("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    type: "reset" | "invitation";
+    title: string;
+    message: string;
+  }>({
+    type: "reset",
+    title: "Confirm Password Reset",
+    message: "Are you sure you want to send a password reset email to",
+  });
+
   // Check user roles
   const isSuperAdmin = userRole === "super_admin";
   const isAdmin = userRole === "admin";
@@ -68,8 +152,8 @@ const ViewCMList = () => {
   const canEditStatus = isSuperAdmin || isAdmin;
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [currentView, setCurrentView] = useState<ViewType>(null);
-  const [currentPage, setCurrentPage] = useState(1); // tracks current page number
-  const [hasNext, setHasNext] = useState(false); // is there a next page?
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
   const [editingDetail, setEditingDetail] = useState<User | null>(null);
 
@@ -96,9 +180,9 @@ const ViewCMList = () => {
 
       setUsers(data?.results || []);
       setTotalCount(data?.count || 0);
-      setHasNext(!!data?.next); // true if next URL exists
-      setHasPrev(!!data?.previous); // true if previous URL exists
-      setCurrentPage(page); // update current page
+      setHasNext(!!data?.next);
+      setHasPrev(!!data?.previous);
+      setCurrentPage(page);
     } catch (error) {
       const errorMessage = handleAxiosError(error, "Failed to fetch users");
       toast.error(errorMessage);
@@ -139,6 +223,68 @@ const ViewCMList = () => {
     }
   };
 
+  // Handle password reset
+  const handleResetPassword = (userEmail: string | null) => {
+    if (!userEmail) {
+      toast.error("User does not have an email address");
+      return;
+    }
+    setEmailToSend(userEmail);
+    setModalConfig({
+      type: "reset",
+      title: "Confirm Password Reset",
+      message: "Are you sure you want to send a password reset email to",
+    });
+    setConfirmModalOpen(true);
+  };
+
+  // Handle resend invitation
+  const handleResendInvitation = (userEmail: string | null) => {
+    if (!userEmail) {
+      toast.error("User does not have an email address");
+      return;
+    }
+    setEmailToSend(userEmail);
+    setModalConfig({
+      type: "invitation",
+      title: "Confirm Resend Invitation",
+      message: "Are you sure you want to resend the invitation email to",
+    });
+    setConfirmModalOpen(true);
+  };
+
+  // Confirm send email based on type
+  const confirmSendEmail = async () => {
+    if (!emailToSend) return;
+
+    const request: PasswordRequestRequest = { email: emailToSend };
+
+    try {
+      setSendingEmail(true);
+      
+      if (modalConfig.type === "reset") {
+        await requestPasswordApi(request);
+        toast.success(`Password reset email sent successfully to ${emailToSend}`);
+      } else {
+        await resendInvitationApi(request);
+        toast.success(`Invitation email resent successfully to ${emailToSend}`);
+      }
+      
+      setConfirmModalOpen(false);
+      setEmailToSend("");
+    } catch (error) {
+      const errorMessage = handleAxiosError(
+        error,
+        modalConfig.type === "reset" 
+          ? "Failed to send password reset email"
+          : "Failed to resend invitation email"
+      );
+      toast.error(errorMessage);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const handleEdit = (userId: number, user: User) => {
     setSelectedUserId(userId);
     setEditingDetail(user);
@@ -161,23 +307,45 @@ const ViewCMList = () => {
       {
         id: "actions",
         header: "Actions",
-        size: 100,
+        size: 150,
         enableColumnFilter: false,
         enableSorting: false,
         Cell: ({ row }: { row: MRT_Row<User> }) => {
           const partnerId = row.original.partner_id;
           const hasPartnerId = partnerId != null && partnerId !== 0;
+          const userEmail = row.original.email;
+          const inviteAccepted = row.original.invite_accepted;
 
           if (!hasPartnerId) {
             return null;
           }
 
           return (
-            <PencilIcon
-              size={14}
-              onClick={() => handleEdit(partnerId, row.original)}
-              className="cursor-pointer text-blue-600 hover:text-blue-800 transition-all"
-            />
+            <div className="flex items-center gap-2">
+              <span title="Edit User">
+                <PencilIcon
+                  size={14}
+                  onClick={() => handleEdit(partnerId, row.original)}
+                  className="cursor-pointer text-blue-600 hover:text-blue-800 transition-all"
+                />
+              </span>
+              <span title="Reset Password">
+                <MailCheck
+                  size={14}
+                  onClick={() => handleResetPassword(userEmail)}
+                  className="cursor-pointer text-green-600 hover:text-green-800 transition-all"
+                />
+              </span>
+              {!inviteAccepted && userEmail && (
+                <span title="Resend Invitation">
+                  <MailWarning
+                    size={14}
+                    onClick={() => handleResendInvitation(userEmail)}
+                    className="cursor-pointer text-yellow-600 hover:text-yellow-800 transition-all"
+                  />
+                </span>
+              )}
+            </div>
           );
         },
       },
@@ -356,6 +524,42 @@ const ViewCMList = () => {
         ],
         enableColumnFilter: true,
       },
+      {
+        accessorFn: (row) =>
+          row.invite_accepted === true
+            ? "accepted"
+            : row.invite_accepted === false
+              ? "pending"
+              : "",
+        id: "invite_accepted",
+        header: "Invite Accepted",
+        size: 200,
+        Cell: ({ cell }) => {
+          const value = cell.getValue<string>();
+          return (
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                value === "accepted"
+                  ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                  : value === "pending"
+                    ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                    : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {value === "accepted"
+                ? "Accepted"
+                : value === "pending"
+                  ? "Pending"
+                  : "-"}
+            </span>
+          );
+        },
+        filterVariant: "select",
+        filterSelectOptions: [
+          { text: "Accepted", value: "accepted" },
+          { text: "Pending", value: "pending" },
+        ],
+      },
     ],
     [
       pagination.pageIndex,
@@ -464,6 +668,20 @@ const ViewCMList = () => {
           </button>
         </div>
       </div>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        onClose={() => {
+          setConfirmModalOpen(false);
+          setEmailToSend("");
+        }}
+        onConfirm={confirmSendEmail}
+        email={emailToSend}
+        loading={sendingEmail}
+        title={modalConfig.title}
+        message={modalConfig.message}
+      />
     </div>
   );
 };

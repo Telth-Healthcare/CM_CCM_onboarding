@@ -1,4 +1,5 @@
 import { client } from "./client"
+import { PasswordRequestRequest } from "./auth.api";
 
 
 interface invitationReseponse {
@@ -57,6 +58,11 @@ export const updateApplicationStatusApi = (applicationId: number, updateStatus: 
 
 export const sendInvitationApi = (userData: SendInvitationRequestArray) => {
     return client.post("accounts/invite/send/", userData)
+        .then(res => res.data);
+}
+
+export const resendInvitationApi = (userData: PasswordRequestRequest) => {
+    return client.post("accounts/invite/resend/", userData)
         .then(res => res.data);
 }
 
