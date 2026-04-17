@@ -116,3 +116,12 @@ export const getAllContactApi = () => {
     return client.get("web/contacts/") 
     .then(res => res.data); 
 }
+
+export const getActivityLogsApi = (applicationId: number) => {
+    return client.get("applications/app/logs/", {
+        params:{
+            object_id: applicationId
+        }
+    })
+    .then(res => res.data);
+}

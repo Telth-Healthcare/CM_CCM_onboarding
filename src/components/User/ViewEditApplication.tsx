@@ -2,18 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
-  contactApi,
-  getAllUsers,
-  getApplicationByIdApi,
-  getSHGUserByIdApi,
-  updateApplicationStatusApi,
-  documentVerifyApi,
-  updateUserApplicationApi,
-  updateUsersApi,
-} from "../../api";
-import { getUserRole } from "../../config/constants";
-import PageMeta from "../../shared/components/common/PageMeta";
-import {
   ArrowLeftIcon,
   PencilIcon,
   SaveIcon,
@@ -26,7 +14,20 @@ import {
   UserCheck,
   AlertCircle,
 } from "lucide-react";
+import {
+  contactApi,
+  getAllUsers,
+  getApplicationByIdApi,
+  getSHGUserByIdApi,
+  updateApplicationStatusApi,
+  documentVerifyApi,
+  updateUserApplicationApi,
+  updateUsersApi,
+} from "../../api";
+import { getUserRole } from "../../config/constants";
+import PageMeta from "../../shared/components/common/PageMeta";
 import { handleAxiosError } from "../../utils/handleAxiosError";
+import ActivityLogs from "../ecommerce/ActivityLogs";
 
 interface StatusOption {
   value: string;
@@ -85,18 +86,13 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   bachelor_certificate: "Bachelor Certificate",
 };
 
-/**
- * Builds a combined public_notes string from all rejected docs.
- * Format per line: "<Doc Type Label>: <reason or 'No reason provided'>"
- */
 const buildPublicNotes = (docs: AppDocument[]): string => {
   const rejected = docs.filter((d) => d.status === "rejected");
   if (rejected.length === 0) return "";
   return rejected
     .map((d) => {
       const label =
-        DOC_TYPE_LABELS[d.document_type] ??
-        d.document_type.replace(/_/g, " ");
+        DOC_TYPE_LABELS[d.document_type] ?? d.document_type.replace(/_/g, " ");
       const reason = d.rejection_reason?.trim() || "";
       return reason ? `${label}: ${reason}` : `${label}: No reason provided`;
     })
@@ -226,7 +222,7 @@ const ViewEditApplication: React.FC = () => {
     try {
       const response = await getAllUsers();
       const usersArray: any[] = Array.isArray(response?.results ?? response)
-        ? response?.results ?? response
+        ? (response?.results ?? response)
         : [];
       const trainersList: Trainer[] = [];
       const financiersList: Financier[] = [];
@@ -295,7 +291,7 @@ const ViewEditApplication: React.FC = () => {
     try {
       await documentVerifyApi(docId, { status });
       toast.success(
-        `Document ${status === "approved" ? "approved" : "rejected"}`
+        `Document ${status === "approved" ? "approved" : "rejected"}`,
       );
 
       setShgUserData((prev) => {
@@ -306,11 +302,9 @@ const ViewEditApplication: React.FC = () => {
                 ...d,
                 status,
                 rejection_reason:
-                  status === "rejected"
-                    ? (docRejectReasons[docId] ?? "")
-                    : "",
+                  status === "rejected" ? (docRejectReasons[docId] ?? "") : "",
               }
-            : d
+            : d,
         );
         // Rebuild combined public_notes from all rejected docs
         setProcessingForm((pf) => ({
@@ -336,7 +330,7 @@ const ViewEditApplication: React.FC = () => {
     setShgUserData((prev) => {
       if (!prev) return prev;
       const updatedDocs = prev.documents.map((d) =>
-        d.id === docId ? { ...d, rejection_reason: value } : d
+        d.id === docId ? { ...d, rejection_reason: value } : d,
       );
       setProcessingForm((pf) => ({
         ...pf,
@@ -502,7 +496,6 @@ const ViewEditApplication: React.FC = () => {
           <div className="space-y-4 sm:space-y-6">
             {shgUserData ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-
                 {/* ── Card 1: Personal Details ──────────────────────── */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
                   <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700">
@@ -633,9 +626,7 @@ const ViewEditApplication: React.FC = () => {
                             <option value="other">Other</option>
                           </select>
                         ) : (
-                          <p className={readCls}>
-                            {shgUserData.gender || "-"}
-                          </p>
+                          <p className={readCls}>{shgUserData.gender || "-"}</p>
                         )}
                       </div>
                     </div>
@@ -711,9 +702,7 @@ const ViewEditApplication: React.FC = () => {
                           className={inputCls}
                         />
                       ) : (
-                        <p className={readCls}>
-                          {shgUserData.language || "-"}
-                        </p>
+                        <p className={readCls}>{shgUserData.language || "-"}</p>
                       )}
                     </div>
 
@@ -825,7 +814,6 @@ const ViewEditApplication: React.FC = () => {
 
                 {/* ── Card 2: Documents ─────────────────────────────── */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm flex flex-col">
-
                   {/* Card header */}
                   <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700">
                     <h2 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
@@ -834,7 +822,7 @@ const ViewEditApplication: React.FC = () => {
                     <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
                       {
                         shgUserData.documents.filter(
-                          (d) => d.status === "approved"
+                          (d) => d.status === "approved",
                         ).length
                       }
                       {" / "}
@@ -861,15 +849,14 @@ const ViewEditApplication: React.FC = () => {
 
                           return (
                             <div key={docId} className="space-y-1.5">
-
                               {/* Main doc row — colour-coded by status */}
                               <div
                                 className={`flex items-center gap-2 sm:gap-3 p-3 rounded-lg transition-colors ${
                                   isRejected
                                     ? "bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20"
                                     : isApproved
-                                    ? "bg-green-50 dark:bg-green-500/10 border border-green-100 dark:border-green-500/20"
-                                    : "bg-gray-50 dark:bg-gray-900"
+                                      ? "bg-green-50 dark:bg-green-500/10 border border-green-100 dark:border-green-500/20"
+                                      : "bg-gray-50 dark:bg-gray-900"
                                 }`}
                               >
                                 {/* Icon */}
@@ -878,8 +865,8 @@ const ViewEditApplication: React.FC = () => {
                                     isRejected
                                       ? "bg-red-100 dark:bg-red-500/20"
                                       : isApproved
-                                      ? "bg-green-100 dark:bg-green-500/20"
-                                      : "bg-brand-50 dark:bg-brand-500/20"
+                                        ? "bg-green-100 dark:bg-green-500/20"
+                                        : "bg-brand-50 dark:bg-brand-500/20"
                                   }`}
                                 >
                                   <FileText
@@ -887,8 +874,8 @@ const ViewEditApplication: React.FC = () => {
                                       isRejected
                                         ? "text-red-600 dark:text-red-400"
                                         : isApproved
-                                        ? "text-green-600 dark:text-green-400"
-                                        : "text-brand-600 dark:text-brand-400"
+                                          ? "text-green-600 dark:text-green-400"
+                                          : "text-brand-600 dark:text-brand-400"
                                     }`}
                                   />
                                 </div>
@@ -914,8 +901,8 @@ const ViewEditApplication: React.FC = () => {
                                     isApproved
                                       ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400"
                                       : isRejected
-                                      ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
-                                      : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+                                        ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+                                        : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
                                   }`}
                                 >
                                   {doc.status || "pending"}
@@ -975,7 +962,7 @@ const ViewEditApplication: React.FC = () => {
                                       onChange={(e) =>
                                         handleDocReasonChange(
                                           docId as number,
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                       placeholder={`Why was ${docLabel} rejected?`}
@@ -1119,10 +1106,10 @@ const ViewEditApplication: React.FC = () => {
             )}
           </div>
         )}
+        <div className="col-span-12 xl:col-span-4 mt-5">
+          <ActivityLogs applicationId={Number(id)} />
+        </div>
 
-        {/* ══════════════════════════════════════════════════════════════
-            STEP 2
-        ══════════════════════════════════════════════════════════════ */}
         {currentStep === 2 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
             <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700">
@@ -1140,7 +1127,6 @@ const ViewEditApplication: React.FC = () => {
 
             <form onSubmit={handleProcessingSubmit} className="p-4 sm:p-6">
               <div className="space-y-4 sm:space-y-5">
-
                 {/* Payment read-only display */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className="col-span-1 sm:col-span-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1273,16 +1259,16 @@ const ViewEditApplication: React.FC = () => {
 
                 {/* Submit */}
                 {/* {canEdit && ( */}
-                  <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-                    >
-                      <SaveIcon className="w-4 h-4" />
-                      {submitting ? "Updating..." : "Submitted"}
-                    </button>
-                  </div>
+                <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                  >
+                    <SaveIcon className="w-4 h-4" />
+                    {submitting ? "Updating..." : "Submitted"}
+                  </button>
+                </div>
                 {/* )} */}
               </div>
             </form>

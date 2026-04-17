@@ -1,8 +1,9 @@
-import { SidebarProvider, useSidebar } from "../context/SidebarContext";
-import { Outlet, useLocation } from "react-router-dom";
 import { Suspense } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import { SidebarProvider, useSidebar } from "../context/SidebarContext";
 import Backdrop from "./Backdrop";
 import AppSidebar from "./AppSidebar";
+import AppHeader from "./AppHeader";
 
 const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
@@ -19,7 +20,7 @@ const LayoutContent: React.FC = () => {
           isExpanded || isHovered ? "lg:ml-[230px]" : "lg:ml-[90px]"
         } ${isMobileOpen ? "ml-0" : ""}`}
       >
-        
+        <AppHeader />
         <div className="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">
           <Suspense
             fallback={
