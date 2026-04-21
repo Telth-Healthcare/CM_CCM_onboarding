@@ -95,9 +95,6 @@ const validate = (stepId: string, data: CCMFormData) => {
   return errs
 }
 
-
-
-
 export default function CCMOnboard() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -142,7 +139,7 @@ const getResumeStep = (data: any, docs: Record<string, string>): string => {
     data.address_line_1 &&
     data.district       &&
     data.state          &&
-    data.pin_code
+    data.pincode
 
   if (!hasAddress) return 'address-info'
 
@@ -218,7 +215,7 @@ useEffect(() => {
         addressLine2:  data.address_line_2 ?? prev.addressLine2,
         city:          data.district       ?? prev.city,
         state:         data.state          ?? prev.state,
-        zipcode:       data.pin_code       ?? prev.zipcode,
+        zipcode:       data.pincode       ?? prev.zipcode,
         country:       data.country        ?? prev.country,
         aadharFrontUrl:       docs['aadhar_front']           ?? prev.aadharFrontUrl,
         aadharBackUrl:        docs['aadhar_back']            ?? prev.aadharBackUrl,
@@ -262,7 +259,7 @@ useEffect(() => {
       address_line_2: rest.addressLine2,   // backend key
       district: rest.city,           // backend = district
       state: rest.state,
-      pin_code: rest.zipcode,        // backend = pin_code
+      pincode: rest.zipcode,        // backend = pincode
       country: rest.country,
       user: currentUser?.id,
     }

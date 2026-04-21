@@ -31,7 +31,7 @@ const getResumeStep = (data: any, docs: Record<string, string>): string => {
   if (!hasPersonal) return "personal-info";
 
   const hasAddress =
-    data.address_line_1 && data.district && data.state && data.pin_code;
+    data.address_line_1 && data.district && data.state && data.pincode;
   if (!hasAddress) return "address-info";
 
   const hasDocs = docs["aadhar_front"] && docs["aadhar_back"] && docs["pan"];
@@ -110,7 +110,7 @@ export const useOnboardForm = (
       addressLine2: record.address_line_2 ?? prev.addressLine2,
       city: record.district ?? prev.city,
       state: record.state ?? prev.state,
-      zipcode: record.pin_code ?? prev.zipcode,
+      zipcode: record.pincode ?? prev.zipcode,
       country: record.country ?? prev.country,
       aadharFrontUrl: docs["aadhar_front"] ?? prev.aadharFrontUrl,
       aadharBackUrl: docs["aadhar_back"] ?? prev.aadharBackUrl,
@@ -249,7 +249,7 @@ export const useOnboardForm = (
       address_line_2: formData.addressLine2,
       district: formData.city,
       state: formData.state,
-      pin_code: formData.zipcode,
+      pincode: formData.zipcode,
       country: formData.country,
       user: targetUserId ?? currentUserId,
       ...(formData.manager ? { manager: Number(formData.manager) } : {}),

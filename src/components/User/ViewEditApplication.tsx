@@ -62,7 +62,7 @@ interface SHGUserData {
   is_submitted: boolean;
   language: string;
   marital_status: string;
-  pin_code: string;
+  pincode: string;
   registration_status: string;
   state: string;
   user: {
@@ -128,7 +128,7 @@ const ViewEditApplication: React.FC = () => {
     village: "",
     district: "",
     state: "",
-    pin_code: "",
+    pincode: "",
   });
 
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -206,7 +206,7 @@ const ViewEditApplication: React.FC = () => {
         village: response.village || "",
         district: response.district || "",
         state: response.state || "",
-        pin_code: response.pin_code || "",
+        pincode: response.pincode || "",
       });
     } catch (_) {}
   };
@@ -262,7 +262,7 @@ const ViewEditApplication: React.FC = () => {
         village: personalForm.village,
         district: personalForm.district,
         state: personalForm.state,
-        pin_code: personalForm.pin_code,
+        pincode: personalForm.pincode,
         user: {
           phone: personalForm.phone,
           email: personalForm.email,
@@ -413,7 +413,7 @@ const ViewEditApplication: React.FC = () => {
         shgUserData.village,
         shgUserData.district,
         shgUserData.state,
-        shgUserData.pin_code,
+        shgUserData.pincode,
       ]
         .filter(Boolean)
         .join(", ") || "-"
@@ -777,11 +777,11 @@ const ViewEditApplication: React.FC = () => {
                             <input
                               type="text"
                               placeholder="PIN Code"
-                              value={personalForm.pin_code}
+                              value={personalForm.pincode}
                               onChange={(e) =>
                                 setPersonalForm((p) => ({
                                   ...p,
-                                  pin_code: e.target.value,
+                                  pincode: e.target.value,
                                 }))
                               }
                               className={inputCls}

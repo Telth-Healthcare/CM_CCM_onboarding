@@ -127,7 +127,7 @@ const UserProfile = () => {
   const addressLine1  = app?.address_line_1 ?? "";
   const addressLine2  = app?.address_line_2 ?? "";
   const district      = app?.district       ?? "";
-  const pinCode       = app?.pin_code       ?? "";
+  const pinCode       = app?.pincode       ?? "";
   const fullAddress   = [addressLine1, addressLine2, district, state, pinCode, country].filter(Boolean).join(", ") || "—";
 
   const copyRef = () => {
