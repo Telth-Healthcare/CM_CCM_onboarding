@@ -12,6 +12,9 @@ import {
   sendInvitationApi,
   SendInvitationRequest,
   updateUsersApi,
+  requestPasswordApi,
+  PasswordRequestRequest,
+  resendInvitationApi,
 } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
@@ -20,6 +23,7 @@ import { RightSideModal } from "../../mui/RightSideModal";
 import Input from "../../form/input/InputField";
 import Label from "../../form/Label";
 import Button from "../../ui/button/Button";
+import { MailCheck, MailWarning, X } from "lucide-react";
 
 interface User {
   id: number;
@@ -57,7 +61,7 @@ interface NewUserForm {
   email: string;
   phone: string;
   role: string;
-  mnpUser: string; // Made required instead of optional
+  mnpUser: string;
 }
 
 interface EditingState {
@@ -65,6 +69,70 @@ interface EditingState {
   isActive?: boolean;
   isApproved?: boolean;
 }
+
+// Confirm Modal Component
+interface ConfirmModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  email: string;
+  loading: boolean;
+  title?: string;
+  message?: string;
+}
+
+const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  email,
+  loading,
+  title = "Confirm Password Reset",
+  message = "Are you sure you want to send a password reset email to",
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {title}
+          </h3>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-4">
+          <p className="text-gray-700 dark:text-gray-300">
+            {message}{" "}
+            <span className="font-semibold">{email}</span>?
+          </p>
+        </div>
+        <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+          >
+            {loading ? "Sending..." : "Send Email"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ViewFinancier: React.FC = () => {
   const userRole = getUserRole("admin");
@@ -81,11 +149,25 @@ const ViewFinancier: React.FC = () => {
   const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
     [],
   );
-  const [currentPage, setCurrentPage] = useState(1);   // tracks current page number
-  const [hasNext, setHasNext] = useState(false);        // is there a next page?
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
 
   const [editingStatus, setEditingStatus] = useState<EditingState | null>(null);
+
+  // State for confirm modal
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [emailToSend, setEmailToSend] = useState<string>("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{
+    type: "reset" | "invitation";
+    title: string;
+    message: string;
+  }>({
+    type: "reset",
+    title: "Confirm Password Reset",
+    message: "Are you sure you want to send a password reset email to",
+  });
 
   const [formData, setFormData] = useState<NewUserForm>({
     first_name: "",
@@ -146,13 +228,13 @@ const ViewFinancier: React.FC = () => {
           "Unnamed",
       }));
 
-      const userData = response?.data?.results || response || [];
-      setUsers(userData);
+      const data = response?.data;
+      setUsers(data?.results || []);
       setRoleList(formattedAdminList);
-      setTotalCount(response?.data?.count || 0);
-      setHasNext(!!userData?.next);       // true if next URL exists
-      setHasPrev(!!userData?.previous);   // true if previous URL exists
-      setCurrentPage(userData.page);
+      setTotalCount(data?.count || 0);
+      setHasNext(!!data?.next);
+      setHasPrev(!!data?.previous);
+      setCurrentPage(page);
     } catch (error) {
       const errorMessage = handleAxiosError(error, "Failed to fetch users");
       toast.error(errorMessage);
@@ -165,13 +247,14 @@ const ViewFinancier: React.FC = () => {
 
   const handleNext = () => {
     if (!hasNext || loading) return;
-    fetchUsers(currentPage + 1);  // go to next page
+    fetchUsers(currentPage + 1);
   };
 
   const handlePrev = () => {
     if (!hasPrev || loading) return;
-    fetchUsers(currentPage - 1);  // go to previous page
-  }
+    fetchUsers(currentPage - 1);
+  };
+
   const handleStatusChange = async (
     userId: number,
     newStatus: boolean,
@@ -202,6 +285,68 @@ const ViewFinancier: React.FC = () => {
     } finally {
       setLoading(false);
       setEditingStatus(null);
+    }
+  };
+
+  // Handle password reset
+  const handleResetPassword = (userEmail: string | null) => {
+    if (!userEmail) {
+      toast.error("User does not have an email address");
+      return;
+    }
+    setEmailToSend(userEmail);
+    setModalConfig({
+      type: "reset",
+      title: "Confirm Password Reset",
+      message: "Are you sure you want to send a password reset email to",
+    });
+    setConfirmModalOpen(true);
+  };
+
+  // Handle resend invitation
+  const handleResendInvitation = (userEmail: string | null) => {
+    if (!userEmail) {
+      toast.error("User does not have an email address");
+      return;
+    }
+    setEmailToSend(userEmail);
+    setModalConfig({
+      type: "invitation",
+      title: "Confirm Resend Invitation",
+      message: "Are you sure you want to resend the invitation email to",
+    });
+    setConfirmModalOpen(true);
+  };
+
+  // Confirm send email based on type
+  const confirmSendEmail = async () => {
+    if (!emailToSend) return;
+
+    const request: PasswordRequestRequest = { email: emailToSend };
+
+    try {
+      setSendingEmail(true);
+
+      if (modalConfig.type === "reset") {
+        await requestPasswordApi(request);
+        toast.success(`Password reset email sent successfully to ${emailToSend}`);
+      } else {
+        await resendInvitationApi(request);
+        toast.success(`Invitation email resent successfully to ${emailToSend}`);
+      }
+
+      setConfirmModalOpen(false);
+      setEmailToSend("");
+    } catch (error) {
+      const errorMessage = handleAxiosError(
+        error,
+        modalConfig.type === "reset"
+          ? "Failed to send password reset email"
+          : "Failed to resend invitation email"
+      );
+      toast.error(errorMessage);
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -288,7 +433,7 @@ const ViewFinancier: React.FC = () => {
       await sendInvitationApi([payload]);
       toast.success("User invitation sent successfully");
       handleCloseModal();
-      fetchUsers();
+      fetchUsers(currentPage);
     } catch (error) {
       const errorMessage = handleAxiosError(
         error,
@@ -302,6 +447,38 @@ const ViewFinancier: React.FC = () => {
 
   const columns = useMemo<MRT_ColumnDef<User>[]>(
     () => [
+      {
+        id: "actions",
+        header: "Actions",
+        size: 150,
+        enableColumnFilter: false,
+        enableSorting: false,
+        Cell: ({ row }: { row: MRT_Row<User> }) => {
+          const userEmail = row.original.email;
+          const inviteAccepted = row.original.invite_accepted;
+
+          return (
+            <div className="flex items-center gap-2">
+              <span title="Reset Password">
+                <MailCheck
+                  size={14}
+                  onClick={() => handleResetPassword(userEmail)}
+                  className="cursor-pointer text-green-600 hover:text-green-800 transition-all"
+                />
+              </span>
+              {!inviteAccepted && userEmail && (
+                <span title="Resend Invitation">
+                  <MailWarning
+                    size={14}
+                    onClick={() => handleResendInvitation(userEmail)}
+                    className="cursor-pointer text-yellow-600 hover:text-yellow-800 transition-all"
+                  />
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
       {
         accessorKey: "first_name",
         header: "First Name",
@@ -442,7 +619,7 @@ const ViewFinancier: React.FC = () => {
                 className={`px-2 py-1 rounded-full text-xs font-medium ${isActive
                   ? "bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-400"
                   : "bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400"
-                  }`}
+                }`}
               >
                 {isActive ? "Active" : "Inactive"}
               </span>
@@ -487,10 +664,8 @@ const ViewFinancier: React.FC = () => {
         id: "invite_accepted",
         header: "Invite Accepted",
         size: 200,
-
         Cell: ({ cell }) => {
           const value = cell.getValue<string>();
-
           return (
             <span
               className={`px-2 py-0.5 rounded-full text-xs font-medium ${value === "accepted"
@@ -498,7 +673,7 @@ const ViewFinancier: React.FC = () => {
                 : value === "pending"
                   ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
                   : "bg-gray-100 text-gray-600"
-                }`}
+              }`}
             >
               {value === "accepted"
                 ? "Accepted"
@@ -508,7 +683,6 @@ const ViewFinancier: React.FC = () => {
             </span>
           );
         },
-
         filterVariant: "select",
         filterSelectOptions: [
           { text: "Accepted", value: "accepted" },
@@ -522,30 +696,30 @@ const ViewFinancier: React.FC = () => {
   const toolbarActions: ToolbarAction[] = [
     ...(canAddUsers
       ? [
-        {
-          label: "Add Financier",
-          onClick: handleAddUser,
-          icon: (
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-          ),
-        },
-      ]
+          {
+            label: "Add Financier",
+            onClick: handleAddUser,
+            icon: (
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            ),
+          },
+        ]
       : []),
     {
       label: "Refresh",
-      onClick: fetchUsers,
+      onClick: () => fetchUsers(currentPage),
       icon: (
         <svg
           className="w-5 h-5"
@@ -621,8 +795,6 @@ const ViewFinancier: React.FC = () => {
           </button>
         </div>
       </div>
-
-
 
       {canAddUsers && (
         <RightSideModal
@@ -705,10 +877,11 @@ const ViewFinancier: React.FC = () => {
                     Phone <span className="text-red-500">*</span>
                   </Label>
                   <div
-                    className={`flex items-center border rounded-lg overflow-hidden ${errors.phone
-                      ? "border-red-500 dark:border-red-500"
-                      : "border-gray-300 dark:border-gray-700"
-                      }`}
+                    className={`flex items-center border rounded-lg overflow-hidden ${
+                      errors.phone
+                        ? "border-red-500 dark:border-red-500"
+                        : "border-gray-300 dark:border-gray-700"
+                    }`}
                   >
                     <span className="px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium border-r border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 select-none">
                       +91
@@ -740,10 +913,11 @@ const ViewFinancier: React.FC = () => {
                       value={formData.mnpUser}
                       onChange={handleInputChange}
                       required={!isAdmin}
-                      className={`w-full px-3 py-2 border ${errors.mnpUser
-                        ? "border-red-500 dark:border-red-500"
-                        : "border-gray-300 dark:border-gray-600"
-                        } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
+                      className={`w-full px-3 py-2 border ${
+                        errors.mnpUser
+                          ? "border-red-500 dark:border-red-500"
+                          : "border-gray-300 dark:border-gray-600"
+                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
                     >
                       <option value="" disabled>
                         Select a MNP User
@@ -780,9 +954,22 @@ const ViewFinancier: React.FC = () => {
               </div>
             </form>
           </div>
-
         </RightSideModal>
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        onClose={() => {
+          setConfirmModalOpen(false);
+          setEmailToSend("");
+        }}
+        onConfirm={confirmSendEmail}
+        email={emailToSend}
+        loading={sendingEmail}
+        title={modalConfig.title}
+        message={modalConfig.message}
+      />
     </div>
   );
 };
