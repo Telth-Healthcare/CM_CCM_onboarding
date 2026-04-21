@@ -24,7 +24,7 @@ import { getUserRole } from "../../../config/constants";
 import Label from "../../form/Label";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import PageMeta from "../../common/PageMeta";
-import { MailCheck, MailWarning, PencilIcon, X } from "lucide-react";
+import { MailCheck, MailWarning, X } from "lucide-react";
 
 interface User {
   id: number;
