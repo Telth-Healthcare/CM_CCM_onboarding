@@ -154,6 +154,42 @@ const Preview: React.FC<StepProps> = ({ formData }) => {
             <DocRow label="" file={formData.experienceCertDoc} url={(formData as any).experienceCertDocUrl} />
           </div>
         </div>
+ <div className="flex flex-col sm:flex-row sm:items-center py-2.5">
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-48 flex-shrink-0">Tenth Cert</span>
+          <div className="flex flex-col gap-1 mt-0.5 sm:mt-0">
+            {formData.experienceCertType && (
+              <span className="text-xs text-brand-600 font-medium">{formData.experienceCertType}</span>
+            )}
+         <DocRow label="Tenth Certificate"   file={formData.tenthDoc}   url={(formData as any).tenthDocUrl} />
+          </div>
+        </div>
+ <div className="flex flex-col sm:flex-row sm:items-center py-2.5">
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-48 flex-shrink-0">Twelfth Cert</span>
+          <div className="flex flex-col gap-1 mt-0.5 sm:mt-0">
+            {formData.experienceCertType && (
+              <span className="text-xs text-brand-600 font-medium">{formData.experienceCertType}</span>
+            )}
+        <DocRow label="Twelfth Certificate" file={formData.twelfthDoc} url={(formData as any).twelfthDocUrl} />
+          </div>
+        </div>
+ <div className="flex flex-col sm:flex-row sm:items-center py-2.5">
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-48 flex-shrink-0">Diploma Cert</span>
+          <div className="flex flex-col gap-1 mt-0.5 sm:mt-0">
+            {formData.experienceCertType && (
+              <span className="text-xs text-brand-600 font-medium">{formData.experienceCertType}</span>
+            )}
+        <DocRow label="Diploma"             file={formData.diplomaDoc} url={(formData as any).diplomaDocUrl} />
+          </div>
+        </div>
+ <div className="flex flex-col sm:flex-row sm:items-center py-2.5">
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-48 flex-shrink-0">Other DocumentCert</span>
+          <div className="flex flex-col gap-1 mt-0.5 sm:mt-0">
+            {formData.experienceCertType && (
+              <span className="text-xs text-brand-600 font-medium">{formData.experienceCertType}</span>
+            )}
+        <DocRow label="Other Document"      file={formData.otherDoc}   url={(formData as any).otherDocUrl} />
+          </div>
+        </div>
       </Section>
 
       <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 dark:bg-amber-900/20 dark:border-amber-800">

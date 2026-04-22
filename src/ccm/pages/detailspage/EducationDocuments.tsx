@@ -41,9 +41,16 @@ const EXP_CERT_TYPES = [
   { value: 'service_cert',      label: 'Service Certificate' },
   { value: 'other',             label: 'Other' },
 ]
-
+const OTHER_DOC_TYPES = [
+  { value: 'tenth_certificate',   label: 'Tenth Certificate' },
+  { value: 'twelfth_certificate', label: 'Twelfth Certificate' },
+  { value: 'diploma',             label: 'Diploma' },
+  { value: 'other',               label: 'Other' },
+]
 type DocField = 'bachelorDoc' | 'masterDoc' | 'experienceCertDoc'
+              | 'tenthDoc' | 'twelfthDoc' | 'diplomaDoc' | 'otherDoc'
 type UrlField = 'bachelorDocUrl' | 'masterDocUrl' | 'experienceCertDocUrl'
+              | 'tenthDocUrl' | 'twelfthDocUrl' | 'diplomaDocUrl' | 'otherDocUrl'
 
 const formatSize = (bytes?: number) => {
   if (!bytes) return ''
@@ -59,8 +66,12 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
 
   const refs = {
     bachelorDoc:       useRef<HTMLInputElement>(null),
-    masterDoc:         useRef<HTMLInputElement>(null),
-    experienceCertDoc: useRef<HTMLInputElement>(null),
+  masterDoc:         useRef<HTMLInputElement>(null),
+  experienceCertDoc: useRef<HTMLInputElement>(null),
+  tenthDoc:          useRef<HTMLInputElement>(null),   // ← 10th cert ref
+  twelfthDoc:        useRef<HTMLInputElement>(null),   // ← 12th cert ref
+  diplomaDoc:        useRef<HTMLInputElement>(null),   
+  otherDoc:   useRef<HTMLInputElement>(null),
   }
 
   const handleDrag = (e: React.DragEvent, field: string, entering: boolean) => {
@@ -100,6 +111,8 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
 
     return (
       <>
+
+          
         {/* State 1: new file just picked */}
         {file ? (
           <div className="mt-1.5 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/50">
@@ -176,8 +189,47 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
     <div>
       <h2 className="text-2xl font-bold mb-1 text-gray-900 dark:text-white">Document Upload</h2>
       <p className="text-sm text-gray-500 mb-1">Education Details</p>
+
+      {/* Tenth & Twelfth — side by side */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          {/* LEFT — Tenth — always active */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+            <h3 className="font-semibold text-gray-800 dark:text-white mb-4">
+              Tenth Certificate Tenth Certificate <span className="text-red-500">*</span>
+
+            </h3>
+            <Label>Upload Document</Label>
+            <FileUploadZone field="tenthDoc" urlField="tenthDocUrl" required />
+
+          </div>
+
+          {/* RIGHT — Twelfth — disabled when diploma picked/saved */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+            <h3 className="font-semibold text-gray-800 dark:text-white mb-4">
+              Twelfth Certificate Twelfth Certificate <span className="text-gray-400 font-normal text-sm">(Optional)</span>
+            </h3>
+            <div className={formData.diplomaDoc || formData.diplomaDocUrl ? 'opacity-40 pointer-events-none' : ''}>
+              <Label>Upload Document</Label>
+              <FileUploadZone field="twelfthDoc" urlField="twelfthDocUrl" />
+            </div>
+            {(formData.diplomaDoc || formData.diplomaDocUrl) && (
+              <p className="mt-2 text-xs text-amber-500">Diploma uploaded</p>
+            )}
+          </div>
+
+        </div>
+
+        {/* Diploma — full width, disables Twelfth when uploaded */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+          <h3 className="font-semibold text-gray-800 dark:text-white mb-1">
+            Diploma <span className="text-gray-400 font-normal text-sm">(Optional)</span>
+          </h3>
+          <Label>Upload Document</Label>
+          <FileUploadZone field="diplomaDoc" urlField="diplomaDocUrl" />
+        </div>
       <p className="text-xs text-gray-400 mb-6">
-        Bachelor's degree is mandatory. Master's and experience certificate are optional. Max {MAX_SIZE_MB}MB per file.
+        Bachelor's degree file Max {MAX_SIZE_MB}MB per file.
       </p>
 
       <div className="space-y-6">
@@ -200,8 +252,8 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
               />
             </div>
             <div>
-              <Label>Upload Document <span className="text-red-500">*</span></Label>
-              <FileUploadZone field="bachelorDoc" urlField="bachelorDocUrl" required />
+              <Label>Upload Document <span className="text-gray-400 font-normal text-sm">(Optional)</span></Label>
+              <FileUploadZone field="bachelorDoc" urlField="bachelorDocUrl"  />
             </div>
           </div>
         </div>
@@ -246,6 +298,30 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
             <div>
               <Label>Upload Document</Label>
               <FileUploadZone field="experienceCertDoc" urlField="experienceCertDocUrl" />
+            </div>
+          </div>
+        </div>
+
+        
+
+        {/* Other Document */}
+        <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+          <h3 className="font-semibold text-gray-800 dark:text-white mb-4">
+            Other Document <span className="text-gray-400 font-normal text-sm">(Optional)</span>
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Document Type</Label>
+              <Select
+                value={formData.otherDocType}
+                onChange={val => updateFormData('otherDocType', val)}
+                options={OTHER_DOC_TYPES}
+                placeholder="Select Document Type"
+              />
+            </div>
+            <div>
+              <Label>Upload Document</Label>
+              <FileUploadZone field="otherDoc" urlField="otherDocUrl" />
             </div>
           </div>
         </div>

@@ -115,6 +115,10 @@ export const useOnboardForm = (
       aadharFrontUrl: docs["aadhar_front"] ?? prev.aadharFrontUrl,
       aadharBackUrl: docs["aadhar_back"] ?? prev.aadharBackUrl,
       panUrl: docs["pan"] ?? prev.panUrl,
+      tenthDocUrl:    docs['tenth_certificate']   ?? prev.tenthDocUrl,
+twelfthDocUrl:  docs['twelfth_certificate'] ?? prev.twelfthDocUrl,
+diplomaDocUrl:  docs['diploma']             ?? prev.diplomaDocUrl,
+otherDocUrl:    docs['other']               ?? prev.otherDocUrl,
       bachelorDegreeType:
         record.bachelor_degree_type ?? prev.bachelorDegreeType,
       bachelorDocUrl: docs["bachelor_certificate"] ?? prev.bachelorDocUrl,
@@ -310,6 +314,15 @@ export const useOnboardForm = (
     }
 
     if (currentStepId === "education-documents") {
+      if (formData.tenthDoc && !formData.tenthDocUrl)
+   if (formData.tenthDoc && !formData.tenthDocUrl)
+        tasks.push({ file: formData.tenthDoc,   type: "tenth_certificate",   urlField: "tenthDocUrl" });
+      if (formData.twelfthDoc && !formData.twelfthDocUrl)
+        tasks.push({ file: formData.twelfthDoc, type: "twelfth_certificate", urlField: "twelfthDocUrl" });
+      if (formData.diplomaDoc && !formData.diplomaDocUrl)
+        tasks.push({ file: formData.diplomaDoc, type: "diploma",             urlField: "diplomaDocUrl" });
+      if (formData.otherDoc && !formData.otherDocUrl)
+        tasks.push({ file: formData.otherDoc,   type: "other",               urlField: "otherDocUrl" });
       if (formData.bachelorDoc && !formData.bachelorDocUrl)
         tasks.push({
           file: formData.bachelorDoc,

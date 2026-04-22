@@ -33,6 +33,7 @@ export interface CCMFormData {
   panUrl:         string | null
 
   // ── Step 5: Document Upload – Education Details ───────────────────
+
   bachelorDegreeType:   string
   bachelorDoc:          File | null   // Mandatory
   bachelorDocUrl:       string | null
@@ -42,6 +43,17 @@ export interface CCMFormData {
   experienceCertType:   string
   experienceCertDoc:    File | null
   experienceCertDocUrl: string | null
+
+  tenthDoc:             File | null   // 10th certificate upload
+tenthDocUrl:          string | null
+twelfthDoc:           File | null   // 12th certificate upload
+twelfthDocUrl:        string | null
+diplomaDoc:           File | null   // Diploma certificate upload
+diplomaDocUrl:        string | null
+otherDoc:             File | null
+otherDocUrl:          string | null
+otherDocType:         string        // ← add this
+
 }
 
 export interface StepProps {

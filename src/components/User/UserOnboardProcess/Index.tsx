@@ -165,12 +165,13 @@ export const EditableDropdown: React.FC<EditableDropdownProps> = ({
 }
 
 type FileField = keyof Pick<CCMFormData,
-  'aadharFront' | 'aadharBack' | 'pan' |
   'bachelorDoc' | 'masterDoc' | 'experienceCertDoc'
+| 'tenthDoc' | 'twelfthDoc' | 'diplomaDoc' | 'otherDoc'
+
 >
 type UrlField = keyof Pick<CCMFormData,
-  'aadharFrontUrl' | 'aadharBackUrl' | 'panUrl' |
   'bachelorDocUrl' | 'masterDocUrl' | 'experienceCertDocUrl'
+| 'tenthDocUrl' | 'twelfthDocUrl' | 'diplomaDocUrl' | 'otherDocUrl'
 >
 
 interface FileUploadZoneProps {

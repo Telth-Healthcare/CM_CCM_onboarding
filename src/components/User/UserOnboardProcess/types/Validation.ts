@@ -70,10 +70,9 @@ const validatePersonalDocuments = (data: CCMFormData): FormErrors => {
 const validateEducationDocuments = (data: CCMFormData): FormErrors => {
   const errors: FormErrors = {}
 
-  if (!data.bachelorDegreeType && !data.bachelorDocUrl)
-    errors.bachelorDegreeType = "Select a bachelor's degree"
-  if (!data.bachelorDoc && !data.bachelorDocUrl)
-    errors.bachelorDoc = "Bachelor's document is required"
+  if (!data.tenthDoc && !data.tenthDocUrl)
+  errors.tenthDoc = 'Tenth certificate is required'
+
 
   return errors
 }

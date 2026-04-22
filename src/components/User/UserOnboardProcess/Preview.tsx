@@ -151,6 +151,10 @@ const Preview: React.FC<any> = ({ formData }) => (
         file={formData.experienceCertDoc}
         url={formData.experienceCertDocUrl ?? undefined}
       />
+       <DocRow label="Tenth Certificate"   file={formData.tenthDoc}   url={(formData as any).tenthDocUrl} />
+        <DocRow label="Twelfth Certificate" file={formData.twelfthDoc} url={(formData as any).twelfthDocUrl} />
+        <DocRow label="Diploma"             file={formData.diplomaDoc} url={(formData as any).diplomaDocUrl} />
+        <DocRow label="Other Document"      file={formData.otherDoc}   url={(formData as any).otherDocUrl} />
     </Section>
   </div>
 )

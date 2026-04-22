@@ -43,9 +43,13 @@ const INITIAL_FORM: CCMFormData = {
   aadharFront: null, aadharBack: null, pan: null,
   aadharFrontUrl: null, aadharBackUrl: null, panUrl: null,
   bachelorDocUrl: null, masterDocUrl: null, experienceCertDocUrl: null,
-  bachelorDegreeType: '', bachelorDoc: null,
-  masterDegreeType: '', masterDoc: null,
-  experienceCertType: '', experienceCertDoc: null,
+bachelorDegreeType: '', bachelorDoc: null,
+masterDegreeType: '', masterDoc: null,
+experienceCertType: '', experienceCertDoc: null,
+tenthDoc: null,    tenthDocUrl: null,     // 10th cert
+twelfthDoc: null,  twelfthDocUrl: null,   // 12th cert
+diplomaDoc: null,  diplomaDocUrl: null,   // diploma
+otherDocType: '',  otherDoc: null,  otherDocUrl: null,  // other doc
 }
 
 // ── Validation per step ───────────────────────────────────────────────────────
@@ -88,9 +92,7 @@ const validate = (stepId: string, data: CCMFormData) => {
   }
 
   if (stepId === 'education-documents') {
-    if (!data.bachelorDegreeType && !data.bachelorDocUrl) errs.bachelorDegreeType = "Select bachelor's degree"
-    if (!data.bachelorDoc && !data.bachelorDocUrl) errs.bachelorDoc = "Bachelor's document required"
-  }
+    if (!data.tenthDoc && !data.tenthDocUrl)   errs.tenthDoc   = 'Tenth certificate is required'
 
   return errs
 }
@@ -220,9 +222,13 @@ useEffect(() => {
         aadharFrontUrl:       docs['aadhar_front']           ?? prev.aadharFrontUrl,
         aadharBackUrl:        docs['aadhar_back']            ?? prev.aadharBackUrl,
         panUrl:               docs['pan']                    ?? prev.panUrl,
-        bachelorDocUrl:       docs['bachelor_certificate']   ?? prev.bachelorDocUrl,
-        masterDocUrl:         docs['master_certificate']     ?? prev.masterDocUrl,
-        experienceCertDocUrl: docs['experience_certificate'] ?? prev.experienceCertDocUrl,
+       bachelorDocUrl:       docs['bachelor_certificate']   ?? prev.bachelorDocUrl,
+masterDocUrl:         docs['master_certificate']     ?? prev.masterDocUrl,
+experienceCertDocUrl: docs['experience_certificate'] ?? prev.experienceCertDocUrl,
+tenthDocUrl:          docs['tenth_certificate']      ?? prev.tenthDocUrl,
+twelfthDocUrl:        docs['twelfth_certificate']    ?? prev.twelfthDocUrl,
+diplomaDocUrl:        docs['diploma']                ?? prev.diplomaDocUrl,
+otherDocUrl:          docs['other']                  ?? prev.otherDocUrl,
       }))
 
       // Smart resume — goes to first incomplete step, not blindly address-info
@@ -321,6 +327,14 @@ useEffect(() => {
         uploads.push({ file: formData.masterDoc, type: 'master_certificate', urlField: 'masterDocUrl', isReplace: replacedDocs.has('master_certificate') })
       if (formData.experienceCertDoc && !formData.experienceCertDocUrl)
         uploads.push({ file: formData.experienceCertDoc, type: 'experience_certificate', urlField: 'experienceCertDocUrl', isReplace: replacedDocs.has('experience_certificate') })
+      if (formData.tenthDoc && !formData.tenthDocUrl)
+  uploads.push({ file: formData.tenthDoc, type: 'tenth_certificate', urlField: 'tenthDocUrl', isReplace: replacedDocs.has('tenth_certificate') })
+if (formData.twelfthDoc && !formData.twelfthDocUrl)
+  uploads.push({ file: formData.twelfthDoc, type: 'twelfth_certificate', urlField: 'twelfthDocUrl', isReplace: replacedDocs.has('twelfth_certificate') })
+if (formData.diplomaDoc && !formData.diplomaDocUrl)
+  uploads.push({ file: formData.diplomaDoc, type: 'diploma', urlField: 'diplomaDocUrl', isReplace: replacedDocs.has('diploma') })
+if (formData.otherDoc && !formData.otherDocUrl)
+  uploads.push({ file: formData.otherDoc, type: 'other', urlField: 'otherDocUrl', isReplace: replacedDocs.has('other') })
     }
 
     if (uploads.length === 0) return true  // nothing to upload — skip

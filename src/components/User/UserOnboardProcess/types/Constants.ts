@@ -10,7 +10,12 @@ export const STEPS: Step[] = [
   { id: 'education-documents', name: 'Education',     step: 4 },
   { id: 'preview',             name: 'Preview',       step: 5 },
 ]
-
+export const OTHER_DOC_OPTIONS = [
+  { value: 'tenth_certificate',   label: 'Tenth Certificate' },
+  { value: 'twelfth_certificate', label: 'Twelfth Certificate' },
+  { value: 'diploma',             label: 'Diploma' },
+  { value: 'other',               label: 'Other' },
+]
 // ── Select options ────────────────────────────────────────────────────────────
 export const LANGUAGE_OPTIONS = [
   { value: 'english',   label: 'English' },
@@ -114,5 +119,9 @@ export const INITIAL_FORM_DATA = {
   bachelorDegreeType: '', bachelorDoc: null, bachelorDocUrl: null,
   masterDegreeType: '',   masterDoc: null,   masterDocUrl: null,
   experienceCertType: '', experienceCertDoc: null, experienceCertDocUrl: null,
+  tenthDoc: null,    tenthDocUrl: null,
+twelfthDoc: null,  twelfthDocUrl: null,
+diplomaDoc: null,  diplomaDocUrl: null,
+otherDocType: '',  otherDoc: null,  otherDocUrl: null,
   manager: '',
 }
