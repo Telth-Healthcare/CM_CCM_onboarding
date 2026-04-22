@@ -198,9 +198,9 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
   const [isDragging, setIsDragging] = useState(false)
   const [sizeError, setSizeError]   = useState('')
   const inputRef                    = useRef<HTMLInputElement>(null)
-
-  const file        = formData[field] as File | null
-  const existingUrl = formData[urlField] as string | null
+// AFTER
+const file        = formData[field as keyof CCMFormData] as File | null
+const existingUrl = formData[urlField as keyof CCMFormData] as string | null
 
   const handleFile = (f: File) => {
     if (f.size > MAX_FILE_SIZE_BYTES) {
