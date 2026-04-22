@@ -96,7 +96,7 @@ const validate = (stepId: string, data: CCMFormData) => {
 
   return errs
 }
-
+}
 export default function CCMOnboard() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -381,7 +381,7 @@ if (formData.otherDoc && !formData.otherDocUrl)
 
   // ── Next: validate → save → upload → navigate ────────────────────────────
  const handleNext = async () => {
-  const errs = validate(currentId, formData)
+  const errs = validate(currentId, formData) ?? {}
   if (Object.keys(errs).length) { setErrors(errs); return }
   setErrors({})
 
