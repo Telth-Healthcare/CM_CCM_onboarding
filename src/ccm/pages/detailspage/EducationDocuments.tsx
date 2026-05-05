@@ -207,7 +207,7 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
           {/* RIGHT — Twelfth — disabled when diploma picked/saved */}
           <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-5">
             <h3 className="font-semibold text-gray-800 dark:text-white mb-4">
-              12th/HSC/Intermediate<span className="text-red-500">*</span>
+              12th/HSC/Intermediate <span className="text-gray-400 font-normal text-sm">(Optional)</span>
             </h3>
             <div className={formData.diplomaDoc || formData.diplomaDocUrl ? 'opacity-40 pointer-events-none' : ''}>
               <Label>Upload Document</Label>
@@ -237,7 +237,7 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
         {/* Bachelor's Degree */}
         <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-5">
           <h3 className="font-semibold text-gray-800 dark:text-white mb-4">
-            Bachelor's Degree <span className="text-red-500">*</span>
+            Bachelor's Degree <span className="text-gray-400 font-normal text-sm">(Optional)</span>
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
