@@ -1,4 +1,4 @@
-// types.ts — CCM onboard form (5 steps)
+// Types.ts — CCM onboard form (5 steps)
 
 export interface CCMFormData {
   id?: number
@@ -13,7 +13,7 @@ export interface CCMFormData {
   bloodGroup: string
   manager: string
 
-  // Step 2 — Contact (inside Step 1 UI)
+  // Step 2 — Contact
   mobile: string
   email: string
 
@@ -33,26 +33,43 @@ export interface CCMFormData {
   aadharBackUrl: string | null
   panUrl: string | null
 
-  // Step 5 — Education Documents
-  bachelorDegreeType: string
+  // Step 5 — Education
+  qualLevel: string
+  qualStream: string
+  qualSub: string
+  educationType: string
+  
+  // Education Documents
+  tenthDoc: File | null
+  tenthDocUrl: string | null
+  twelfthDoc: File | null
+  twelfthDocUrl: string | null
+  diplomaDoc: File | null
+  diplomaDocUrl: string | null
   bachelorDoc: File | null
   bachelorDocUrl: string | null
-  masterDegreeType: string
   masterDoc: File | null
   masterDocUrl: string | null
+  otherDoc: File | null
+  otherDocUrl: string | null
+  otherDocType: string  // ← Add this line
+  
+  // Generic education document (for backward compatibility)
+  eduDoc: File | null
+  eduDocUrl: string | null
+
+  // Year / percentage fields
+  eduYear: string
+  eduPercent: string
+
+  // Experience certificate
   experienceCertType: string
   experienceCertDoc: File | null
   experienceCertDocUrl: string | null
-
-   tenthDoc:             File | null   // 10th certificate upload
-tenthDocUrl:          string | null
-twelfthDoc:           File | null   // 12th certificate upload
-twelfthDocUrl:        string | null
-diplomaDoc:           File | null   // Diploma certificate upload
-diplomaDocUrl:        string | null
-otherDoc:             File | null
-otherDocUrl:          string | null
-otherDocType:         string        // ← add this
+  
+  // Legacy fields
+  bachelorDegreeType: string
+  masterDegreeType: string
 }
 
 export type FormErrors = Partial<Record<keyof CCMFormData, string>>
@@ -61,7 +78,7 @@ export interface StepProps {
   formData: CCMFormData
   updateFormData: (field: keyof CCMFormData, value: any) => void
   errors?: FormErrors
-  onReplace?: (urlField: keyof CCMFormData, docType: string) => void
+  onReplace?: (urlField: keyof CCMFormData, docType?: string) => void
   roleList?: OptionType[]
 }
 

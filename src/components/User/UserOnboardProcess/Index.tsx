@@ -12,7 +12,6 @@ export const StepHeader = ({ title, subtitle }: { title: string; subtitle?: stri
   </div>
 )
 
-
 export const FormGrid = ({ children, cols = 2 }: { children: React.ReactNode; cols?: 1 | 2 }) => (
   <div className={`grid grid-cols-1 ${cols === 2 ? 'sm:grid-cols-2' : ''} gap-5`}>
     {children}
@@ -102,7 +101,6 @@ export const EditableDropdown: React.FC<EditableDropdownProps> = ({
           ref={inputRef}
           type="text"
           id={id}
-          // FIX: when open and filtering, show filter text; otherwise show value
           value={readOnly ? value : (open && filter ? filter : value)}
           placeholder={placeholder}
           disabled={disabled}
@@ -164,21 +162,23 @@ export const EditableDropdown: React.FC<EditableDropdownProps> = ({
   )
 }
 
+// Define all possible file fields
 type FileField = keyof Pick<CCMFormData,
-'aadharFront' | 'aadharBack' | 'pan'
-              | 'bachelorDoc' | 'masterDoc' | 'experienceCertDoc'
-              | 'tenthDoc' | 'twelfthDoc' | 'diplomaDoc' | 'otherDoc'
-
+  'aadharFront' | 'aadharBack' | 'pan' |
+  'bachelorDoc' | 'masterDoc' | 'experienceCertDoc' |
+  'tenthDoc' | 'twelfthDoc' | 'diplomaDoc' | 'otherDoc' | 'eduDoc'
 >
+
+// Define all possible URL fields
 type UrlField = keyof Pick<CCMFormData,
- 'aadharFrontUrl' | 'aadharBackUrl' | 'panUrl'
-              | 'bachelorDocUrl' | 'masterDocUrl' | 'experienceCertDocUrl'
-              | 'tenthDocUrl' | 'twelfthDocUrl' | 'diplomaDocUrl' | 'otherDocUrl'
+  'aadharFrontUrl' | 'aadharBackUrl' | 'panUrl' |
+  'bachelorDocUrl' | 'masterDocUrl' | 'experienceCertDocUrl' |
+  'tenthDocUrl' | 'twelfthDocUrl' | 'diplomaDocUrl' | 'otherDocUrl' | 'eduDocUrl'
 >
 
 interface FileUploadZoneProps {
-  field: FileField
-  urlField: UrlField
+  field: FileField  // Made required instead of optional
+  urlField: UrlField  // Made required instead of optional
   formData: CCMFormData
   updateFormData: (field: keyof CCMFormData, value: any) => void
   required?: boolean
@@ -193,7 +193,12 @@ const formatSize = (bytes: number) =>
 const getFilename = (path: string) => path.split('/').pop() ?? path
 
 export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
-  field, urlField, formData, updateFormData, required: isRequired, error,
+  field,
+  urlField,
+  formData,
+  updateFormData,
+  required: isRequired,
+  error,
 }) => {
   const [isDragging, setIsDragging] = useState(false)
   const [sizeError, setSizeError]   = useState('')
@@ -208,7 +213,9 @@ const existingUrl = formData[urlField as keyof CCMFormData] as string | null
       return
     }
     setSizeError('')
-    updateFormData(field, f)
+    if (field) {
+      updateFormData(field, f)
+    }
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -218,16 +225,33 @@ const existingUrl = formData[urlField as keyof CCMFormData] as string | null
     if (f) handleFile(f)
   }
 
-  const handleDragOver  = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true) }
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+  
   const handleDragLeave = () => setIsDragging(false)
 
   const removeFile = () => {
-    updateFormData(field, null)
+    if (field) {
+      updateFormData(field, null)
+    }
     setSizeError('')
     if (inputRef.current) inputRef.current.value = ''
   }
 
+  const handleReplace = () => {
+    if (urlField) {
+      updateFormData(urlField, null)
+    }
+  }
+
   const displayError = sizeError || error
+
+  // If no field or urlField provided, don't render
+  if (!field || !urlField) {
+    return null
+  }
 
   if (file) {
     return (
@@ -267,7 +291,7 @@ const existingUrl = formData[urlField as keyof CCMFormData] as string | null
           </div>
           <button
             type="button"
-            onClick={() => updateFormData(urlField, null)}
+            onClick={handleReplace}
             className="flex-shrink-0 flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium text-gray-500 border border-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <RefreshCw className="h-3 w-3" />
