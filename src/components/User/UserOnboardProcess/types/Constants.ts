@@ -10,11 +10,16 @@ export const STEPS: Step[] = [
   { id: 'education-documents', name: 'Education',     step: 4 },
   { id: 'preview',             name: 'Preview',       step: 5 },
 ]
+
+// Other Document Type Options
 export const OTHER_DOC_OPTIONS = [
-  { value: 'tenth_certificate',   label: 'Tenth Certificate' },
-  { value: 'twelfth_certificate', label: 'Twelfth Certificate' },
-  { value: 'diploma',             label: 'Diploma' },
-  { value: 'other',               label: 'Other' },
+  { value: 'certificate', label: 'Certificate' },
+  { value: 'diploma', label: 'Diploma' },
+  { value: 'training', label: 'Training Certificate' },
+  { value: 'workshop', label: 'Workshop Certificate' },
+  { value: 'internship', label: 'Internship Certificate' },
+  { value: 'achievement', label: 'Achievement Certificate' },
+  { value: 'other', label: 'Other' },
 ]
 // ── Select options ────────────────────────────────────────────────────────────
 export const LANGUAGE_OPTIONS = [
@@ -97,7 +102,7 @@ export const ID_DOCUMENT_FIELDS = [
 ] as const
 
 // ── Limits ────────────────────────────────────────────────────────────────────
-export const MAX_FILE_SIZE_MB = 5
+export const MAX_FILE_SIZE_MB = 1
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 // ── DOB bounds (age 18–80) ────────────────────────────────────────────────────
@@ -107,21 +112,31 @@ export const DOB_MAX = new Date(today.getFullYear() - 18, today.getMonth(), toda
 export const DOB_MIN = new Date(today.getFullYear() - 80, today.getMonth(), today.getDate())
   .toISOString().split('T')[0]
 
-// ── Initial form state ────────────────────────────────────────────────────────
+// Constants.ts - Update INITIAL_FORM_DATA
 export const INITIAL_FORM_DATA = {
   id: undefined,
   firstName: '', lastName: '', dob: '',
   language: '', maritalStatus: '', gender: '', bloodGroup: '',
-  mobile: '', email: '',
+  mobile: '', email: '', manager: '',
   addressLine1: '', addressLine2: '', city: '', state: '', zipcode: '', country: 'IN',
   aadharFront: null, aadharBack: null, pan: null,
   aadharFrontUrl: null, aadharBackUrl: null, panUrl: null,
-  bachelorDegreeType: '', bachelorDoc: null, bachelorDocUrl: null,
-  masterDegreeType: '',   masterDoc: null,   masterDocUrl: null,
+  // Education
+  qualLevel: '', qualStream: '', qualSub: '',
+  educationType: '',
+  // Education Documents
+  tenthDoc: null, tenthDocUrl: null,
+  twelfthDoc: null, twelfthDocUrl: null,
+  diplomaDoc: null, diplomaDocUrl: null,
+  bachelorDoc: null, bachelorDocUrl: null,
+  masterDoc: null, masterDocUrl: null,
+  otherDoc: null, otherDocUrl: null,
+  otherDocType: '',  // ← Add this
+  // Generic education document
+  eduDoc: null, eduDocUrl: null,
+  eduYear: '', eduPercent: '',
+  // Experience certificate
   experienceCertType: '', experienceCertDoc: null, experienceCertDocUrl: null,
-  tenthDoc: null,    tenthDocUrl: null,
-twelfthDoc: null,  twelfthDocUrl: null,
-diplomaDoc: null,  diplomaDocUrl: null,
-otherDocType: '',  otherDoc: null,  otherDocUrl: null,
-  manager: '',
+  // Legacy fields
+  bachelorDegreeType: '', masterDegreeType: '',
 }

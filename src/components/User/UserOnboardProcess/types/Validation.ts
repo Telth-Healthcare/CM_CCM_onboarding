@@ -67,14 +67,29 @@ const validatePersonalDocuments = (data: CCMFormData): FormErrors => {
   return errors
 }
 
-const validateEducationDocuments = (data: CCMFormData): FormErrors => {
-  const errors: FormErrors = {}
+// In Validation.ts, update validateEducationDocuments if needed
+const validateEducationDocuments = (d: CCMFormData): FormErrors => {
+  const e: FormErrors = {}
 
-  if (!data.tenthDoc && !data.tenthDocUrl)
-  errors.tenthDoc = 'Tenth certificate is required'
+  // Validate tenth document (mandatory)
+  if (!d.tenthDoc && !d.tenthDocUrl) {
+    e.tenthDoc = ' certificate is required'
+  }
 
+  // Validate twelfth or diploma (at least one)
+  const hasTwelfth = !!(d.twelfthDoc || d.twelfthDocUrl)
+  const hasDiploma = !!(d.diplomaDoc || d.diplomaDocUrl)
+  
+  if (!hasTwelfth && !hasDiploma) {
+    e.twelfthDoc = 'Either Twelfth certificate or Diploma is required'
+  }
 
-  return errors
+  // If other document is uploaded, document type should be selected
+  if ((d.otherDoc || d.otherDocUrl) && !d.otherDocType) {
+    e.otherDocType = 'Please select document type'
+  }
+
+  return e
 }
 
 // ── Step-to-validator map ─────────────────────────────────────────────────────

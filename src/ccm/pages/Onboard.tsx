@@ -92,7 +92,8 @@ const validate = (stepId: string, data: CCMFormData) => {
   }
 
   if (stepId === 'education-documents') {
-    if (!data.tenthDoc && !data.tenthDocUrl)   errs.tenthDoc   = 'Tenth certificate is required'
+    if (!data.tenthDoc && !data.tenthDocUrl)   errs.tenthDoc   = '10th/SSLC/SSC certificate is required'
+    if (!data.twelfthDoc && !data.twelfthDocUrl)   errs.twelfthDoc   = '12th/HSC/Intermediate certificate is required'
 
   return errs
 }
