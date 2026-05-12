@@ -25,6 +25,8 @@ const safeJson = async (res: Response): Promise<any | null> => {
   try { return await res.json(); } catch { return null; }
 };
 
+
+
 // ───────────────────────────────────────────────────────────────────────────
 
 export default function CCMSignUpForm() {
@@ -57,7 +59,62 @@ export default function CCMSignUpForm() {
     setState(prev => ({ ...prev, [field]: value }));
     setErrors(prev => ({ ...prev, [field]: "" }));
   };
+// ── Utility: validate email — returns error string or null ──────────────────
+const validateEmail = (raw: string): string | null => {
+  const email = raw.trim();
 
+  if (!email) return "Email is required";
+  if (email.length > 254) return "Email address is too long";
+  if (/\s/.test(email)) return "Email cannot contain spaces";
+
+  // Must have exactly one @
+  const atCount = (email.match(/@/g) ?? []).length;
+  if (atCount !== 1) return "Email must contain exactly one @";
+
+  const [local, domain] = email.split("@");
+
+  // ── Local part ──────────────────────────────────────────────────────────
+  if (!local) return "Email is missing a username";
+  if (local.length > 64) return "Email username is too long";
+  if (local.startsWith(".") || local.endsWith(".")) return "Email username cannot start or end with a dot";
+  if (local.includes("..")) return "Email username cannot have consecutive dots";
+  // Only allow RFC 5321 safe characters in the local part
+  if (!/^[a-zA-Z0-9._%+\-!#$&'*/=?^`{|}~]+$/.test(local)) return "Email username contains invalid characters";
+
+  // ── Domain part ─────────────────────────────────────────────────────────
+  if (!domain) return "Email is missing a domain";
+  if (domain.length > 253) return "Email domain is too long";
+  if (domain.startsWith(".") || domain.endsWith(".")) return "Invalid domain format";
+  if (domain.startsWith("-") || domain.endsWith("-")) return "Domain cannot start or end with a hyphen";
+  if (domain.includes("..")) return "Domain cannot contain consecutive dots";
+
+  // Domain must have at least one dot (e.g., example.com)
+  if (!domain.includes(".")) return "Domain must include an extension (e.g. .com)";
+
+  // Each domain label must be valid
+  const labels = domain.split(".");
+  for (const label of labels) {
+    if (label.length === 0) return "Domain has an empty segment";
+    if (label.length > 63) return "Domain segment is too long";
+    if (!/^[a-zA-Z0-9-]+$/.test(label)) return "Domain contains invalid characters";
+    if (label.startsWith("-") || label.endsWith("-")) return "Domain segment cannot start or end with a hyphen";
+  }
+
+  // TLD must be at least 2 alpha characters
+  const tld = labels[labels.length - 1];
+  if (!/^[a-zA-Z]{2,}$/.test(tld)) return "Invalid domain extension (e.g. .com, .in, .org)";
+
+  // ── Block-listed disposable domains ─────────────────────────────────────
+  const blocked = new Set([
+    "tempmail.com", "10minutemail.com", "fakeemail.com",
+    "mailinator.com", "guerrillamail.com", "throwaway.email",
+    "yopmail.com", "trashmail.com", "sharklasers.com",
+    "dispostable.com", "maildrop.cc", "spam4.me",
+  ]);
+  if (blocked.has(domain.toLowerCase())) return "Temporary or disposable email addresses are not allowed";
+
+  return null; // ✅ valid
+};
   // ── Client-side validation ────────────────────────────────────────────────
   const validateForm = (): boolean => {
     const e = { firstName: "", lastName: "", phone: "", email: "", password: "", terms: "" };
@@ -81,9 +138,12 @@ export default function CCMSignUpForm() {
       e.phone = "Enter a valid 10-digit mobile number"; ok = false;
     }
 
-    if (state.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email)) {
-      e.email = "Enter a valid email address"; ok = false;
-    }
+    const error = validateEmail(state.email);
+
+if (error) {
+  e.email = error;
+  ok = false;
+}
 
     if (!state.password) {
       e.password = "Password is required"; ok = false;
@@ -371,9 +431,9 @@ export default function CCMSignUpForm() {
                 <Checkbox className="w-5 h-5 mt-0.5" checked={isChecked} onChange={setIsChecked} />
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   I agree to the{" "}
-                  <span className="text-gray-800 dark:text-white/90">Terms & Conditions</span>
+                  <span className="text-gray-800 dark:text-white/90"><a href="https://www.mytelth.com/terms-and-conditions">Terms & Conditions</a></span>
                   {" "}and{" "}
-                  <span className="text-gray-800 dark:text-white">Privacy Policy</span>
+                  <span className="text-gray-800 dark:text-white"><a href="https://www.mytelth.com/privacy-policies">Privacy Policy</a></span>
                 </p>
               </div>
               {errors.terms && <p className="mt-1 text-xs text-red-500">{errors.terms}</p>}
