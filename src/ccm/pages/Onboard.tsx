@@ -73,7 +73,6 @@ const validate = (stepId: string, data: CCMFormData) => {
     if (!data.language) errs.language = 'Language required'
     if (!data.gender) errs.gender = 'Gender required'
     if (!data.bloodGroup) errs.bloodGroup = 'Blood group required'
-    // Contact fields now validated here too
     const digits = (data.mobile || '').replace('+91', '').replace(/\D/g, '')
     if (!/^\d{10}$/.test(digits)) errs.mobile = 'Enter valid 10-digit mobile'
     if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) errs.email = 'Enter valid email'
@@ -86,17 +85,18 @@ const validate = (stepId: string, data: CCMFormData) => {
   }
 
   if (stepId === 'personal-documents') {
-    if (!data.aadharFront && !data.aadharFrontUrl) errs.aadharFront = 'Aadhar front required'   // pass if URL already uploaded
+    if (!data.aadharFront && !data.aadharFrontUrl) errs.aadharFront = 'Aadhar front required'
     if (!data.aadharBack && !data.aadharBackUrl) errs.aadharBack = 'Aadhar back required'
     if (!data.pan && !data.panUrl) errs.pan = 'PAN card required'
   }
 
   if (stepId === 'education-documents') {
-    if (!data.tenthDoc && !data.tenthDocUrl)   errs.tenthDoc   = '10th/SSLC/SSC certificate is required'
+    if (!data.tenthDoc && !data.tenthDocUrl) errs.tenthDoc = '10th/SSLC/SSC certificate is required'
+  }
 
-  return errs
+  return errs   // ← now runs for every step, not just education-documents
 }
-}
+
 export default function CCMOnboard() {
   const navigate = useNavigate()
   const location = useLocation()
