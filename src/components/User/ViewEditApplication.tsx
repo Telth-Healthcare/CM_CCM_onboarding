@@ -16,13 +16,13 @@ import {
 } from "lucide-react";
 import {
   contactApi,
-  getAllUsers,
   getApplicationByIdApi,
   getSHGUserByIdApi,
   updateApplicationStatusApi,
   documentVerifyApi,
   updateUserApplicationApi,
   updateUsersApi,
+  getRoleUsers,
 } from "../../api";
 import { getUserRole } from "../../config/constants";
 import PageMeta from "../../shared/components/common/PageMeta";
@@ -219,33 +219,44 @@ const ViewEditApplication: React.FC = () => {
   };
 
   const fetchUsers = async () => {
-    try {
-      const response = await getAllUsers();
-      const usersArray: any[] = Array.isArray(response?.results ?? response)
-        ? (response?.results ?? response)
-        : [];
-      const trainersList: Trainer[] = [];
-      const financiersList: Financier[] = [];
-      usersArray.forEach((item: any) => {
-        if (!item?.roles) return;
-        const roles: string[] = Array.isArray(item.roles) ? item.roles : [];
-        const fullName =
-          `${item.first_name || ""} ${item.last_name || ""}`.trim();
-        if (roles.includes("trainer"))
-          trainersList.push({
-            value: item.id,
-            label: fullName || `Trainer ${item.id}`,
-          });
-        if (roles.includes("financier"))
-          financiersList.push({
-            id: item.id,
-            name: fullName || `Financier ${item.id}`,
-          });
-      });
-      setTrainers(trainersList);
-      setFinanciers(financiersList);
-    } catch (_) {}
-  };
+  try {
+    const [trainersResponse, financiersResponse] = await Promise.all([
+      getRoleUsers("roles__name__in", "trainer"),
+      getRoleUsers("roles__name__in", "financier"),
+    ]);
+
+    const trainersArray = Array.isArray(
+      trainersResponse?.data?.results ?? trainersResponse
+    )
+      ? (trainersResponse?.data?.results ?? trainersResponse)
+      : [];
+
+    const financiersArray = Array.isArray(
+      financiersResponse?.data?.results ?? financiersResponse
+    )
+      ? (financiersResponse?.data?.results ?? financiersResponse)
+      : [];
+
+    const trainersList: Trainer[] = trainersArray.map((item: any) => ({
+      value: item.id,
+      label:
+        `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
+        `Trainer ${item.id}`,
+    }));
+
+    const financiersList: Financier[] = financiersArray.map((item: any) => ({
+      id: item.id,
+      name:
+        `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
+        `Financier ${item.id}`,
+    }));
+
+    setTrainers(trainersList);
+    setFinanciers(financiersList);
+  } catch (error) {
+    console.error("Failed to fetch users:", error);
+  }
+};
 
   const handlePersonalSave = async () => {
     if (!shgUserData) return;
@@ -379,9 +390,7 @@ const ViewEditApplication: React.FC = () => {
       await updateApplicationStatusApi(parseInt(id!), {
         assigned_trainer: processingForm.assigned_trainer || null,
         assigned_financier:
-          processingForm.assigned_financier === "self"
-            ? parsed?.id
-            : processingForm.assigned_financier || null,
+          processingForm.assigned_financier || null,
         public_notes: processingForm.public_notes,
         private_notes: processingForm.private_notes,
         payment_status: processingForm.payment_status,
@@ -1164,7 +1173,6 @@ const ViewEditApplication: React.FC = () => {
                         className={inputCls}
                       >
                         <option value="">Select Financier</option>
-                        <option value="self">Self</option>
                         {financiers.map((f) => (
                           <option key={f.id} value={f.id}>
                             {f.name}
