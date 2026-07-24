@@ -12,12 +12,7 @@ import {
   createGroupEnrollApi,
   updateEnrollApi,
 } from "../../../api";
-import {
-  PencilIcon,
-  Users,
-  User,
-  Eye,
-} from "lucide-react";
+import { PencilIcon, Users, User, Eye } from "lucide-react";
 import PageMeta from "../../common/PageMeta";
 import { RightSideModal } from "../../mui/RightSideModal";
 import Button from "../../ui/button/Button";
@@ -215,7 +210,7 @@ const enrollmentsReducer = (
         isAddModalOpen: false,
         viewingEnrollment: null,
         selectedEnrollment: action.payload,
-        selectedCourse: action.payload.course,
+        selectedCourse: action.payload.course_details?.id ?? "",
         selectedStudents: [],
         selectedGroup: "",
         errors: {},
