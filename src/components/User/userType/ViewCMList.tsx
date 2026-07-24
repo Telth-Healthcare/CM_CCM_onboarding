@@ -11,14 +11,14 @@ import {
   getRoleUsers,
   updateUsersApi,
   requestPasswordApi,
-  PasswordRequestRequest,
   resendInvitationApi,
 } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import { getUserRole } from "../../../config/constants";
 import CCMOnboard from "../UserOnboardProcess/Onboard";
-import { PencilIcon, PlusIcon, MailCheck, MailWarning, X } from "lucide-react";
+import {  PlusIcon, X } from "lucide-react";
+import RowActionDropdown, { RowAction } from "../../mui/RowActionDropdown";
 
 interface User {
   id: number;
@@ -257,7 +257,7 @@ const ViewCMList = () => {
   const confirmSendEmail = async () => {
     if (!emailToSend) return;
 
-    const request: PasswordRequestRequest = { email: emailToSend };
+    const request = { email: emailToSend };
 
     try {
       setSendingEmail(true);
@@ -319,34 +319,25 @@ const ViewCMList = () => {
           if (!hasPartnerId) {
             return null;
           }
-
-          return (
-            <div className="flex items-center gap-2">
-              <span title="Edit User">
-                <PencilIcon
-                  size={14}
-                  onClick={() => handleEdit(partnerId, row.original)}
-                  className="cursor-pointer text-blue-600 hover:text-blue-800 transition-all"
-                />
-              </span>
-              <span title="Reset Password">
-                <MailCheck
-                  size={14}
-                  onClick={() => handleResetPassword(userEmail)}
-                  className="cursor-pointer text-green-600 hover:text-green-800 transition-all"
-                />
-              </span>
-              {!inviteAccepted && userEmail && (
-                <span title="Resend Invitation">
-                  <MailWarning
-                    size={14}
-                    onClick={() => handleResendInvitation(userEmail)}
-                    className="cursor-pointer text-yellow-600 hover:text-yellow-800 transition-all"
-                  />
-                </span>
-              )}
-            </div>
-          );
+          const rowActions: RowAction[] = [
+            {
+              label: "Edit User",
+              onClick: () => handleEdit(partnerId, row.original),
+            },
+            {
+              label: "Reset Password",
+              onClick: () => handleResetPassword(userEmail),
+            },
+            ...(!inviteAccepted && userEmail
+              ? [
+                  {
+                    label: "Resend Invitation",
+                    onClick: () => handleResendInvitation(userEmail),
+                  },
+                ]
+              : []),
+          ];
+          return <RowActionDropdown actions={rowActions} />;
         },
       },
       {

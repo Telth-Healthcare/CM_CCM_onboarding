@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import {
   MRT_ColumnFiltersState,
   type MRT_ColumnDef,
+  type MRT_Row,
 } from "material-react-table";
 import { getApplicationsApi, updateApplicationStatusApi } from "../../api";
-import { PencilIcon } from "../../icons";
 import CommonTable from "../mui/MuiTable";
 import { getUserRole } from "../../config/constants";
+import RowActionDropdown, { RowAction } from "../mui/RowActionDropdown";
 
 interface Application {
   assigned_incubator: null | number | string;
@@ -38,16 +39,16 @@ const statusOptions = [
 ];
 
 const Applications = () => {
-  const navigate  = useNavigate();
-  const userRole  = getUserRole("admin") ?? "";
+  const navigate = useNavigate();
+  const userRole = getUserRole("admin") ?? "";
 
-  const [applications,   setApplications]   = useState<Application[]>([]);
-  const [loading,        setLoading]         = useState(true);
-  const [totalCount,     setTotalCount]      = useState(0);
-  const [nextUrl,        setNextUrl]         = useState<string | null>(null);
-  const [prevUrl,        setPrevUrl]         = useState<string | null>(null);
-  const [columnFilters,  setColumnFilters]   = useState<MRT_ColumnFiltersState>([]);
-  const [pagination,     setPagination]      = useState({ pageIndex: 0, pageSize: 10 });
+  const [applications,  setApplications]  = useState<Application[]>([]);
+  const [loading,       setLoading]        = useState(true);
+  const [totalCount,    setTotalCount]     = useState(0);
+  const [nextUrl,       setNextUrl]        = useState<string | null>(null);
+  const [prevUrl,       setPrevUrl]        = useState<string | null>(null);
+  const [columnFilters, setColumnFilters]  = useState<MRT_ColumnFiltersState>([]);
+  const [pagination,    setPagination]     = useState({ pageIndex: 0, pageSize: 10 });
 
   const canEditPaymentStatus = useMemo(() =>
     ["super_admin", "admin", "financier"].includes(userRole),
@@ -56,7 +57,6 @@ const Applications = () => {
   const fetchApplications = useCallback(async (page = 1) => {
     try {
       setLoading(true);
-      // Only sending the page number
       const response = await getApplicationsApi({ page });
       setApplications(Array.isArray(response.results) ? response.results : []);
       setTotalCount(response?.count    || 0);
@@ -78,18 +78,15 @@ const Applications = () => {
 
   const handleNext = () => {
     if (!nextUrl || loading) return;
-    const newIndex = pagination.pageIndex + 1;
-    setPagination((prev) => ({ ...prev, pageIndex: newIndex }));
+    setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex + 1 }));
   };
 
   const handlePrev = () => {
     if (!prevUrl || loading) return;
-    const newIndex = pagination.pageIndex - 1;
-    setPagination((prev) => ({ ...prev, pageIndex: newIndex }));
+    setPagination((prev) => ({ ...prev, pageIndex: prev.pageIndex - 1 }));
   };
 
   const handleRefresh = useCallback(() => {
-    // Reset to first page and fetch data
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     fetchApplications(1);
   }, [fetchApplications]);
@@ -101,20 +98,36 @@ const Applications = () => {
     navigate(`/applications/edit/${row.id}`);
   }, [navigate, userRole]);
 
-  const rowActionsList = useMemo(() => {
-    const allActions = [
-      {
-        label: "Edit",
-        roles: ["super_admin", "admin", "financier", "trainer"],
-        className: "text-blue-700 hover:text-blue-900 dark:text-blue-600",
-        icon: <PencilIcon className="w-4 h-4" />,
-        onClick: handleEdit,
-      },
-    ];
-    return allActions.filter((a) => a.roles.includes(userRole));
-  }, [handleEdit, userRole]);
-
   const columns = useMemo<MRT_ColumnDef<Application>[]>(() => [
+    {
+      id: "row_actions",
+      header: "Actions",
+      size: 120,
+      enableColumnFilter: false,
+      enableSorting: false,
+      Cell: ({ row }: { row: MRT_Row<Application> }) => {
+        const app = row.original;
+
+        const actions: RowAction[] = [
+          // Edit — available to all roles
+          ...( ["super_admin", "admin", "financier", "trainer"].includes(userRole)
+            ? [{ label: "Edit", onClick: () => handleEdit(app) }]
+            : []
+          ),
+
+          // Add more role-gated actions here, e.g.:
+          // ...( ["super_admin"].includes(userRole)
+          //   ? [{ label: "Delete", onClick: () => handleDelete(app.id), className: "text-red-600 dark:text-red-400" }]
+          //   : []
+          // ),
+        ];
+
+        if (actions.length === 0) return null;
+        return <RowActionDropdown actions={actions} />;
+      },
+    },
+
+    // ─── Data columns (unchanged) ────────────────────────────────────────────
     {
       accessorFn: (row) => row?.reference_number ?? "-",
       id: "reference_number",
@@ -159,8 +172,8 @@ const Applications = () => {
             status === "cleared"
               ? "bg-green-50 text-green-700 dark:bg-green-500/20 dark:text-green-400"
               : status === "failed"
-                ? "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400"
-                : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
+              ? "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+              : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400"
           }`}>
             {status}
           </span>
@@ -182,10 +195,7 @@ const Applications = () => {
       size: 150,
       enableColumnFilter: false,
     },
-  ], [canEditPaymentStatus]);
-
-  // Calculate display info
-  const pageIndex    = pagination.pageIndex;
+  ], [userRole, handleEdit, canEditPaymentStatus]);
 
   return (
     <div className="p-3">
@@ -207,19 +217,14 @@ const Applications = () => {
           totalCount={totalCount}
           enableRowSelection={false}
           onPaginationChange={setPagination}
-          toolbarActions={[{
-            label: "Refresh",
-            onClick: handleRefresh, // Use the new refresh handler
-          }]}
-          rowActions={rowActionsList}
+          toolbarActions={[{ label: "Refresh", onClick: handleRefresh }]}
+          dropdownLabel="Options"
           columnFilters={columnFilters}
           onColumnFiltersChange={setColumnFilters}
         />
 
-        {/* Custom Pagination Bar */}
+        {/* Pagination */}
         <div className="flex flex-col sm:flex-row items-center justify-end gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-
-          {/* Prev / Next buttons */}
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrev}
@@ -229,7 +234,7 @@ const Applications = () => {
               ← Previous
             </button>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              Page <span className="font-semibold">{pageIndex + 1}</span>
+              Page <span className="font-semibold">{pagination.pageIndex + 1}</span>
             </span>
             <button
               onClick={handleNext}

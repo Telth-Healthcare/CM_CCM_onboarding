@@ -1,5 +1,5 @@
+import { PasswordRequest } from "./auth.api";
 import { client } from "./client"
-import { PasswordRequestRequest } from "./auth.api";
 
 
 interface invitationReseponse {
@@ -61,7 +61,7 @@ export const sendInvitationApi = (userData: SendInvitationRequestArray) => {
         .then(res => res.data);
 }
 
-export const resendInvitationApi = (userData: PasswordRequestRequest) => {
+export const resendInvitationApi = (userData: PasswordRequest) => {
     return client.post("accounts/invite/resend/", userData)
         .then(res => res.data);
 }

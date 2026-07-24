@@ -1106,9 +1106,6 @@ const ViewEditApplication: React.FC = () => {
             )}
           </div>
         )}
-        <div className="col-span-12 xl:col-span-4 mt-5">
-          <ActivityLogs applicationId={Number(id)} />
-        </div>
 
         {currentStep === 2 && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-theme-sm">
@@ -1274,6 +1271,9 @@ const ViewEditApplication: React.FC = () => {
             </form>
           </div>
         )}
+        <div className="col-span-12 xl:col-span-4 mt-5">
+          <ActivityLogs applicationId={Number(id)} />
+        </div>
       </div>
     </>
   );

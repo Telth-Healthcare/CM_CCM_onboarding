@@ -8,7 +8,7 @@ import { signinApi } from "../../api";
 import { setToken } from "../../config/constants";
 import { toast } from "react-toastify";
 import { handleAxiosError } from "../../utils/handleAxiosError";
-import { PasswordResetModal } from "./PasswordResetModal";
+// import { PasswordResetModal } from "./PasswordResetModal";
 
 // Simple Spinner Component
 const Spinner = () => (
@@ -50,7 +50,7 @@ export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isClearing, setIsClearing] = useState(true);
-  const [passwordResetModalOpen, setPasswordResetModalOpen] = useState(false);
+  // const [passwordResetModalOpen, setPasswordResetModalOpen] = useState(false);
 
   const [state, setState] = useState<FormState>({
     phone: "",
@@ -161,9 +161,9 @@ export default function SignInForm() {
     }
   };
 
-    const handlePwdRequest = () => {
-    setPasswordResetModalOpen(true);
-  };
+  //   const handlePwdRequest = () => {
+  //   setPasswordResetModalOpen(true);
+  // };
 
   return (
     <div className="flex flex-col flex-1">
@@ -245,12 +245,12 @@ export default function SignInForm() {
                     </p>
                   )}
                 </div>
-                <div
+                {/* <div
                   onClick={handlePwdRequest}
                   className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400 cursor-pointer"
                 >
                   Forgot password?
-                </div>
+                </div>*/}
                 {/* Sign In Button with Loading Animation */}
                 <Button
                   className="w-full text-white"
@@ -271,10 +271,11 @@ export default function SignInForm() {
           </div>
         </div>
       </div>
-        <PasswordResetModal
+      {/*  <PasswordResetModal
         isOpen={passwordResetModalOpen}
         onClose={() => setPasswordResetModalOpen(false)}
       />
+      */}
     </div>
   );
 }

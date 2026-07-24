@@ -37,11 +37,11 @@ export interface AuthResponse {
   meta: AuthMeta;
 }
 
-export interface PasswordRequestRequest {
+export interface PasswordRequest {
   email: string;
 }
 
-export interface PasswordResetRequest {
+export interface PasswordReset {
   password: string;
   key: string;
 }
@@ -54,14 +54,14 @@ export const signoutApi = (): Promise<void> =>
   client.delete("_allauth/app/v1/auth/session").then((res) => res.data);
 
 export const requestPasswordApi = (
-  payload: PasswordRequestRequest,
+  payload: PasswordRequest,
 ): Promise<void> =>
   client
     .post("_allauth/app/v1/auth/password/request", payload)
     .then((r) => r.data);
 
 export const resetPasswordApi = (
-  payload: PasswordResetRequest,
+  payload: PasswordReset,
 ): Promise<AuthResponse> =>
   client
     .post("_allauth/app/v1/auth/password/reset", payload)

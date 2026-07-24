@@ -26,7 +26,7 @@ interface Course {
   description?: string;
   created_at?: string;
   created_by?: number;
-  trainer_name?: string;
+  aurthor?: string;
   duration?: string;
   status?: string;
   subjects?: Subject[];
@@ -159,7 +159,7 @@ const ViewCourseDetails: React.FC<ViewCourseDetailsProps> = ({
               Trainer
             </p>
             <p className="text-sm font-medium text-gray-900 dark:text-white">
-              {course.trainer_name || "-"}
+              {course.aurthor || "-"}
             </p>
           </div>
           <div>

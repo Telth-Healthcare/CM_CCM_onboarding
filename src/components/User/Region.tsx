@@ -16,7 +16,8 @@ import CommonTable from "../mui/MuiTable";
 import { RightSideModal } from "../mui/RightSideModal";
 import Button from "../ui/button/Button";
 import { getUserRole } from "../../config/constants";
-import { PencilIcon, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import RowActionDropdown, { RowAction } from "../mui/RowActionDropdown";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -475,7 +476,7 @@ const Region = () => {
       editPincodeInput === "" &&
       editPincodes.length > 0
     ) {
-      setEditPincodes((prev) => prev.slice(0, -1)); 
+      setEditPincodes((prev) => prev.slice(0, -1));
     }
   };
 
@@ -527,23 +528,19 @@ const Region = () => {
         header: "Actions",
         size: 80,
         enableColumnFilter: false,
-        Cell: ({ row }) => (
-          <div className="flex items-center justify-between">
-            {/* <span>{row.index + 1}</span> */}
-            <div className="flex items-center gap-2">
-              <PencilIcon
-                size={14}
-                onClick={() => handleEditRegion(row.original)}
-                className="cursor-pointer text-blue-600 hover:text-blue-800 transition-all"
-              />
-              <Trash2
-                size={14}
-                onClick={() => handleDeleteRegion(row.original)} 
-                className="cursor-pointer text-red-600 hover:text-red-800 transition-all"
-              />
-            </div>
-          </div>
-        ),
+        Cell: ({ row }) => {
+          const rowActions: RowAction[] = [
+            {
+              label: "Edit",
+              onClick: () => handleEditRegion(row.original),
+            },
+            {
+              label: "Delete",
+              onClick: () => handleDeleteRegion(row.original),
+            },
+          ];
+          return <RowActionDropdown actions={rowActions} />;
+        },
       },
       {
         accessorKey: "name",

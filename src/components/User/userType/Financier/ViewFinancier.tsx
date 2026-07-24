@@ -6,24 +6,21 @@ import {
   MRT_ColumnFiltersState,
 } from "material-react-table";
 import { toast } from "react-toastify";
-import PageMeta from "../../common/PageMeta";
+import PageMeta from "../../../common/PageMeta";
 import {
   getRoleUsers,
   sendInvitationApi,
-  SendInvitationRequest,
   updateUsersApi,
   requestPasswordApi,
-  PasswordRequestRequest,
   resendInvitationApi,
-} from "../../../api";
-import { handleAxiosError } from "../../../utils/handleAxiosError";
-import CommonTable from "../../mui/MuiTable";
-import { getUserRole } from "../../../config/constants";
-import { RightSideModal } from "../../mui/RightSideModal";
-import Input from "../../form/input/InputField";
-import Label from "../../form/Label";
-import Button from "../../ui/button/Button";
-import { MailCheck, MailWarning, X } from "lucide-react";
+} from "../../../../api";
+import { handleAxiosError } from "../../../../utils/handleAxiosError";
+import CommonTable from "../../../mui/MuiTable";
+import { getUserRole } from "../../../../config/constants";
+import { RightSideModal } from "../../../mui/RightSideModal";
+import {  X } from "lucide-react";
+import FinancierForm, { FinancierFormPayload } from "./FinancierForm";
+import RowActionDropdown, { RowAction } from "../../../mui/RowActionDropdown";
 
 interface User {
   id: number;
@@ -50,19 +47,7 @@ interface ToolbarAction {
   icon?: React.ReactNode;
 }
 
-type OptionType = {
-  value: string;
-  label: string;
-};
-
-interface NewUserForm {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  role: string;
-  mnpUser: string;
-}
+type OptionType = { value: string; label: string };
 
 interface EditingState {
   userId: number;
@@ -70,7 +55,7 @@ interface EditingState {
   isApproved?: boolean;
 }
 
-// Confirm Modal Component
+// ─── Confirm Modal ────────────────────────────────────────────────────────────
 interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -91,7 +76,6 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   message = "Are you sure you want to send a password reset email to",
 }) => {
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -109,8 +93,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </div>
         <div className="p-4">
           <p className="text-gray-700 dark:text-gray-300">
-            {message}{" "}
-            <span className="font-semibold">{email}</span>?
+            {message} <span className="font-semibold">{email}</span>?
           </p>
         </div>
         <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
@@ -134,15 +117,13 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   );
 };
 
-const ViewTrainer: React.FC = () => {
+// ─── Main Component ───────────────────────────────────────────────────────────
+const ViewFinancier: React.FC = () => {
   const userRole = getUserRole("admin");
   const [users, setUsers] = useState<User[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [roleList, setRoleList] = useState<OptionType[]>([]);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -152,10 +133,8 @@ const ViewTrainer: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
-
   const [editingStatus, setEditingStatus] = useState<EditingState | null>(null);
 
-  // State for confirm modal
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [emailToSend, setEmailToSend] = useState<string>("");
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -169,55 +148,22 @@ const ViewTrainer: React.FC = () => {
     message: "Are you sure you want to send a password reset email to",
   });
 
-  const [formData, setFormData] = useState<NewUserForm>({
-    first_name: "",
-    last_name: "",
-    email: "",
-    phone: "",
-    role: "",
-    mnpUser: "",
-  });
-
-  // Field-specific error messages
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof NewUserForm, string>>
-  >({});
-
-  // Check user roles
-  const isSuperAdmin: boolean = userRole === "super_admin";
-  const isAdmin: boolean = userRole === "admin";
-  const canAddUsers: boolean = isSuperAdmin || isAdmin;
-  const canEditApproval: boolean = isSuperAdmin || isAdmin;
-  const canEditStatus: boolean = isSuperAdmin || isAdmin;
-
-  // Reset form and errors when modal closes
-  useEffect(() => {
-    if (!isAddModalOpen) {
-      setFormData({
-        first_name: "",
-        last_name: "",
-        email: "",
-        phone: "",
-        role: "",
-        mnpUser: "",
-      });
-      setErrors({});
-    }
-  }, [isAddModalOpen]);
+  const isSuperAdmin = userRole === "super_admin";
+  const isAdmin = userRole === "admin";
+  const canAddUsers = isSuperAdmin || isAdmin;
+  const canEditApproval = isSuperAdmin || isAdmin;
+  const canEditStatus = isSuperAdmin || isAdmin;
 
   useEffect(() => {
     fetchUsers(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchUsers = async (page: number = 1) => {
+  const fetchUsers = async (page: number = 1): Promise<void> => {
     setColumnFilters([]);
     try {
       setLoading(true);
-      const response = await getRoleUsers("roles__name__in", "trainer", page);
+      const response = await getRoleUsers("roles__name__in", "financier", page);
       const adminRole = await getRoleUsers("roles__name__in", "admin");
-
-      // Transform admin role data to OptionType format
       const adminData = adminRole?.data?.results || adminRole || [];
       const formattedAdminList: OptionType[] = adminData.map((admin: any) => ({
         value: admin.id?.toString() || "",
@@ -226,7 +172,6 @@ const ViewTrainer: React.FC = () => {
           admin.email ||
           "Unnamed",
       }));
-
       const data = response?.data;
       setUsers(data?.results || []);
       setRoleList(formattedAdminList);
@@ -235,8 +180,7 @@ const ViewTrainer: React.FC = () => {
       setHasPrev(!!data?.previous);
       setCurrentPage(page);
     } catch (error) {
-      const errorMessage = handleAxiosError(error, "Failed to fetch users");
-      toast.error(errorMessage);
+      toast.error(handleAxiosError(error, "Failed to fetch users"));
       setUsers([]);
       setTotalCount(0);
     } finally {
@@ -252,13 +196,9 @@ const ViewTrainer: React.FC = () => {
       toast.error("You don't have permission to edit user status");
       return;
     }
-
     try {
       setLoading(true);
-      const response = await updateUsersApi(userId, {
-        is_active: newStatus,
-      });
-
+      const response = await updateUsersApi(userId, { is_active: newStatus });
       if (response) {
         toast.success(
           `User ${newStatus ? "activated" : "deactivated"} successfully`,
@@ -266,18 +206,13 @@ const ViewTrainer: React.FC = () => {
         await fetchUsers(currentPage);
       }
     } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        "Failed to update user status",
-      );
-      toast.error(errorMessage);
+      toast.error(handleAxiosError(error, "Failed to update user status"));
     } finally {
       setLoading(false);
       setEditingStatus(null);
     }
   };
 
-  // Handle password reset
   const handleResetPassword = (userEmail: string | null) => {
     if (!userEmail) {
       toast.error("User does not have an email address");
@@ -292,7 +227,6 @@ const ViewTrainer: React.FC = () => {
     setConfirmModalOpen(true);
   };
 
-  // Handle resend invitation
   const handleResendInvitation = (userEmail: string | null) => {
     if (!userEmail) {
       toast.error("User does not have an email address");
@@ -307,33 +241,31 @@ const ViewTrainer: React.FC = () => {
     setConfirmModalOpen(true);
   };
 
-  // Confirm send email based on type
   const confirmSendEmail = async () => {
     if (!emailToSend) return;
-
-    const request: PasswordRequestRequest = { email: emailToSend };
-
+    const request = { email: emailToSend };
     try {
       setSendingEmail(true);
-
       if (modalConfig.type === "reset") {
         await requestPasswordApi(request);
-        toast.success(`Password reset email sent successfully to ${emailToSend}`);
+        toast.success(
+          `Password reset email sent successfully to ${emailToSend}`,
+        );
       } else {
         await resendInvitationApi(request);
         toast.success(`Invitation email resent successfully to ${emailToSend}`);
       }
-
       setConfirmModalOpen(false);
       setEmailToSend("");
     } catch (error) {
-      const errorMessage = handleAxiosError(
-        error,
-        modalConfig.type === "reset"
-          ? "Failed to send password reset email"
-          : "Failed to resend invitation email"
+      toast.error(
+        handleAxiosError(
+          error,
+          modalConfig.type === "reset"
+            ? "Failed to send password reset email"
+            : "Failed to resend invitation email",
+        ),
       );
-      toast.error(errorMessage);
     } finally {
       setSendingEmail(false);
     }
@@ -343,97 +275,46 @@ const ViewTrainer: React.FC = () => {
     if (!hasNext || loading) return;
     fetchUsers(currentPage + 1);
   };
-
   const handlePrev = () => {
     if (!hasPrev || loading) return;
     fetchUsers(currentPage - 1);
   };
+  const handleAddUser = () => setIsAddModalOpen(true);
+  const handleCloseModal = () => setIsAddModalOpen(false);
 
-  const handleAddUser = (): void => setIsAddModalOpen(true);
-  const handleCloseModal = (): void => setIsAddModalOpen(false);
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ): void => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: undefined }));
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: Partial<Record<keyof NewUserForm, string>> = {};
-
-    // Check required fields
-    if (!formData.first_name?.trim()) {
-      newErrors.first_name = "First name is required";
-    }
-
-    if (!formData.last_name?.trim()) {
-      newErrors.last_name = "Last name is required";
-    }
-
-    if (!formData.email?.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
-    }
-
-    if (!formData.phone?.trim()) {
-      newErrors.phone = "Phone number is required";
-    } else if (!/^[0-9]{10}$/.test(formData.phone)) {
-      newErrors.phone = "Please enter a valid 10-digit phone number";
-    }
-
-    // Check MNP User - only for non-admin users
-    if (!isAdmin && !formData.mnpUser?.trim()) {
-      newErrors.mnpUser = "Please select a MNP User";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
+  const handleSubmit = async (data: FinancierFormPayload): Promise<void> => {
     setSubmitting(true);
     const adminUser = JSON.parse(localStorage.getItem("admin_user") || "{}");
-
     try {
-      // Calculate manager ID safely
       let managerId: number;
       if (isAdmin) {
         managerId = adminUser.id;
       } else {
-        // Ensure mnpUser exists and is a valid string before parsing
-        if (!formData.mnpUser) {
+        if (!data.mnpUser) {
           toast.error("MNP User is required");
-          setSubmitting(false);
           return;
         }
-        managerId = parseInt(formData.mnpUser);
+        managerId = parseInt(data.mnpUser, 10);
         if (isNaN(managerId)) {
           toast.error("Invalid MNP User selected");
-          setSubmitting(false);
           return;
         }
       }
-
-      const payload: SendInvitationRequest = {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        phone: `+91${formData.phone}`,
-        roles: ["trainer"],
-        manager: managerId,
-      };
-
-      await sendInvitationApi([payload]);
+      await sendInvitationApi([
+        {
+          first_name: data.first_name.trim(),
+          last_name: data.last_name.trim(),
+          email: data.email.trim(),
+          phone: `+91${data.phone}`,
+          roles: ["financier"],
+          manager: managerId,
+        },
+      ]);
       toast.success("User invitation sent successfully");
       handleCloseModal();
       fetchUsers(currentPage);
-    } catch (_) {
+    } catch (error) {
+      toast.error(handleAxiosError(error, "Failed to send user invitation"));
     } finally {
       setSubmitting(false);
     }
@@ -444,43 +325,37 @@ const ViewTrainer: React.FC = () => {
       {
         id: "actions",
         header: "Actions",
-        size: 150,
+        size: 120,
         enableColumnFilter: false,
         enableSorting: false,
         Cell: ({ row }: { row: MRT_Row<User> }) => {
           const userEmail = row.original.email;
           const inviteAccepted = row.original.invite_accepted;
 
-          return (
-            <div className="flex items-center gap-2">
-              <span title="Reset Password">
-                <MailCheck
-                  size={14}
-                  onClick={() => handleResetPassword(userEmail)}
-                  className="cursor-pointer text-green-600 hover:text-green-800 transition-all"
-                />
-              </span>
-              {!inviteAccepted && userEmail && (
-                <span title="Resend Invitation">
-                  <MailWarning
-                    size={14}
-                    onClick={() => handleResendInvitation(userEmail)}
-                    className="cursor-pointer text-yellow-600 hover:text-yellow-800 transition-all"
-                  />
-                </span>
-              )}
-            </div>
-          );
+          const rowActions: RowAction[] = [
+            {
+              label: "Reset Password",
+              onClick: () => handleResetPassword(userEmail),
+            },
+            ...(!inviteAccepted && userEmail
+              ? [
+                  {
+                    label: "Resend Invitation",
+                    onClick: () => handleResendInvitation(userEmail),
+                  },
+                ]
+              : []),
+          ];
+
+          return <RowActionDropdown actions={rowActions} />;
         },
       },
       {
         accessorKey: "first_name",
         header: "First Name",
         size: 120,
-        Cell: ({ cell }: { cell: MRT_Cell<User> }) => {
-          const value = cell.getValue() as string | null;
-          return value || "-";
-        },
+        Cell: ({ cell }: { cell: MRT_Cell<User> }) =>
+          (cell.getValue() as string | null) || "-",
         filterVariant: "text",
         enableColumnFilter: true,
       },
@@ -488,10 +363,8 @@ const ViewTrainer: React.FC = () => {
         accessorKey: "last_name",
         header: "Last Name",
         size: 120,
-        Cell: ({ cell }: { cell: MRT_Cell<User> }) => {
-          const value = cell.getValue() as string | null;
-          return value || "-";
-        },
+        Cell: ({ cell }: { cell: MRT_Cell<User> }) =>
+          (cell.getValue() as string | null) || "-",
         filterVariant: "text",
         enableColumnFilter: true,
       },
@@ -506,10 +379,8 @@ const ViewTrainer: React.FC = () => {
         accessorKey: "email",
         header: "Email",
         size: 200,
-        Cell: ({ cell }: { cell: MRT_Cell<User> }) => {
-          const value = cell.getValue() as string | null;
-          return value || "-";
-        },
+        Cell: ({ cell }: { cell: MRT_Cell<User> }) =>
+          (cell.getValue() as string | null) || "-",
         filterVariant: "text",
         enableColumnFilter: true,
       },
@@ -517,10 +388,8 @@ const ViewTrainer: React.FC = () => {
         accessorKey: "region_name",
         header: "Region",
         size: 200,
-        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) => {
-          const value = cell.getValue() as string | null;
-          return value || "-";
-        },
+        Cell: ({ cell }: { cell: MRT_Cell<User, unknown> }) =>
+          (cell.getValue() as string | null) || "-",
         filterVariant: "text",
         enableColumnFilter: true,
       },
@@ -543,19 +412,17 @@ const ViewTrainer: React.FC = () => {
           const userId = row.original.id;
           const isActive = row.original.is_active;
           const isEditing = editingStatus?.userId === userId;
-
           if (isEditing) {
             return (
               <div className="flex items-center gap-2">
                 <select
                   value={editingStatus?.isActive ? "active" : "inactive"}
-                  onChange={(e) => {
-                    const newValue = e.target.value === "active";
+                  onChange={(e) =>
                     setEditingStatus({
                       userId,
-                      isActive: newValue,
-                    });
-                  }}
+                      isActive: e.target.value === "active",
+                    })
+                  }
                   className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white"
                   autoFocus
                 >
@@ -606,7 +473,6 @@ const ViewTrainer: React.FC = () => {
               </div>
             );
           }
-
           return (
             <div className="flex items-center gap-2">
               <span
@@ -693,7 +559,7 @@ const ViewTrainer: React.FC = () => {
     ...(canAddUsers
       ? [
           {
-            label: "Add Trainer",
+            label: "Add Financier",
             onClick: handleAddUser,
             icon: (
               <svg
@@ -742,11 +608,11 @@ const ViewTrainer: React.FC = () => {
       />
       <div className="mb-6">
         <h1 className="font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-          Trainer Management
+          Financier Management
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {isSuperAdmin
-            ? "Manage and create all users Trainer"
+            ? "Manage and create all users Financier"
             : "View all users in the system"}
         </p>
         {!loading && (
@@ -769,27 +635,24 @@ const ViewTrainer: React.FC = () => {
           columnFilters={columnFilters}
           onColumnFiltersChange={setColumnFilters}
         />
-        {/* Custom Pagination Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-end gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrev}
-              disabled={!hasPrev || loading}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              ← Previous
-            </button>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              Page <span className="font-semibold">{currentPage}</span>
-            </span>
-            <button
-              onClick={handleNext}
-              disabled={!hasNext || loading}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Next →
-            </button>
-          </div>
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handlePrev}
+            disabled={!hasPrev || loading}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            ← Previous
+          </button>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Page <span className="font-semibold">{currentPage}</span>
+          </span>
+          <button
+            onClick={handleNext}
+            disabled={!hasNext || loading}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next →
+          </button>
         </div>
       </div>
 
@@ -797,164 +660,25 @@ const ViewTrainer: React.FC = () => {
         <RightSideModal
           isOpen={isAddModalOpen}
           onClose={handleCloseModal}
-          showCloseButton={true}
+          showCloseButton
           width=" "
         >
-          <div className="p-6">
+          <div className="p-3">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90 mb-4">
-              Add New Trainer
+              Add New Financier
             </h2>
-            <form onSubmit={handleSubmit} noValidate>
-              <div className="space-y-4">
-                {/* First Name */}
-                <div>
-                  <Label>
-                    First Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="text"
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                    placeholder="Enter first name"
-                    error={!!errors.first_name}
-                  />
-                  {errors.first_name && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {errors.first_name}
-                    </p>
-                  )}
-                </div>
-
-                {/* Last Name */}
-                <div>
-                  <Label>
-                    Last Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="text"
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                    placeholder="Enter last name"
-                    className="w-full"
-                    error={!!errors.last_name}
-                  />
-                  {errors.last_name && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {errors.last_name}
-                    </p>
-                  )}
-                </div>
-
-                {/* Email */}
-                <div>
-                  <Label>
-                    Email <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Enter email address"
-                    className="w-full"
-                    error={!!errors.email}
-                  />
-                  {errors.email && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {errors.email}
-                    </p>
-                  )}
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <Label>
-                    Phone <span className="text-red-500">*</span>
-                  </Label>
-                  <div
-                    className={`flex items-center border rounded-lg overflow-hidden ${
-                      errors.phone
-                        ? "border-red-500 dark:border-red-500"
-                        : "border-gray-300 dark:border-gray-700"
-                    }`}
-                  >
-                    <span className="px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium border-r border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 select-none">
-                      +91
-                    </span>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="Enter phone number"
-                      className="flex-1 px-3 py-2 text-sm h-11 outline-none bg-white dark:bg-gray-900 dark:text-white"
-                    />
-                  </div>
-                  {errors.phone && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {errors.phone}
-                    </p>
-                  )}
-                </div>
-
-                {/* MNP User Selection */}
-                {!isAdmin && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      MNP User <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="mnpUser"
-                      value={formData.mnpUser}
-                      onChange={handleInputChange}
-                      required={!isAdmin}
-                      className={`w-full px-3 py-2 border ${
-                        errors.mnpUser
-                          ? "border-red-500 dark:border-red-500"
-                          : "border-gray-300 dark:border-gray-600"
-                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-white`}
-                    >
-                      <option value="" disabled>
-                        Select a MNP User
-                      </option>
-                      {roleList.map((admin) => (
-                        <option key={admin.value} value={admin.value}>
-                          {admin.label}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.mnpUser && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                        {errors.mnpUser}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Form Actions */}
-              <div className="mt-6 flex justify-end space-x-3">
-                <Button
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  disabled={submitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
-                >
-                  {submitting ? "Creating..." : "Create Trainer"}
-                </Button>
-              </div>
-            </form>
+            <FinancierForm
+              key={String(isAddModalOpen)}
+              isAdmin={isAdmin}
+              roleList={roleList}
+              onSubmit={handleSubmit}
+              onCancel={handleCloseModal}
+              submitting={submitting}
+            />
           </div>
         </RightSideModal>
       )}
 
-      {/* Confirm Modal */}
       <ConfirmModal
         isOpen={confirmModalOpen}
         onClose={() => {
@@ -971,4 +695,4 @@ const ViewTrainer: React.FC = () => {
   );
 };
 
-export default ViewTrainer;
+export default ViewFinancier;

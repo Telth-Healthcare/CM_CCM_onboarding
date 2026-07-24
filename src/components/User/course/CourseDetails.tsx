@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { toast } from "react-toastify";
 import {
   type MRT_ColumnDef,
+  type MRT_Row,
   MRT_ColumnFiltersState,
 } from "material-react-table";
 import { getAllCourseApi, deleteCourseApi } from "../../../api";
@@ -9,12 +10,12 @@ import { handleAxiosError } from "../../../utils/handleAxiosError";
 import CommonTable from "../../mui/MuiTable";
 import { Modal } from "../../ui/modal";
 import Button from "../../ui/button/Button";
-import { EyeIcon, TrashIcon, PencilIcon, PlusIcon } from "lucide-react";
+import { TrashIcon } from "lucide-react";
 import ViewCourseDetails from "./ViewCourseDetails";
 import EditCourse from "./EditCourse";
 import CreateCourse from "./CreateCourse";
+import RowActionDropdown, { RowAction } from "../../mui/RowActionDropdown";
 
-// Match exact backend response shape
 interface Material {
   id: number;
   title: string;
@@ -48,18 +49,16 @@ interface Course {
 type ViewType = "view" | "edit" | "create" | null;
 
 const CourseDetails = () => {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
-    [],
-  );
+  const [courses, setCourses]           = useState<Course[]>([]);
+  const [loading, setLoading]           = useState(false);
+  const [pagination, setPagination]     = useState({ pageIndex: 0, pageSize: 10 });
+  const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>([]);
 
-  const [currentView, setCurrentView] = useState<ViewType>(null);
+  const [currentView, setCurrentView]       = useState<ViewType>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: number } | null>(null);
+  const [itemToDelete, setItemToDelete]       = useState<{ id: number } | null>(null);
 
   useEffect(() => {
     if (!currentView) fetchAllData();
@@ -69,7 +68,6 @@ const CourseDetails = () => {
     setLoading(true);
     try {
       const response = await getAllCourseApi();
-      // Backend returns array with subjects + materials nested
       const list: Course[] = Array.isArray(response)
         ? response
         : response?.results || response?.data?.results || response?.data || [];
@@ -81,19 +79,16 @@ const CourseDetails = () => {
     }
   };
 
-  // ── View: just pass the row directly ──────────────────────────────────
   const handleView = (course: Course) => {
     setSelectedCourse(course);
     setCurrentView("view");
   };
 
-  // ── Edit: just pass the row directly ─────────────────────────────────
   const handleEdit = (course: Course) => {
     setSelectedCourse(course);
     setCurrentView("edit");
   };
 
-  // ── Delete ────────────────────────────────────────────────────────────
   const confirmDelete = (id: number) => {
     setItemToDelete({ id });
     setDeleteModalOpen(true);
@@ -129,6 +124,37 @@ const CourseDetails = () => {
   // ── Table columns ─────────────────────────────────────────────────────
   const courseColumns = useMemo<MRT_ColumnDef<Course>[]>(
     () => [
+      // ─── Row action dropdown ───────────────────────────────────────────
+      {
+        id: "row_actions",
+        header: "Actions",
+        size: 120,
+        enableColumnFilter: false,
+        enableSorting: false,
+        Cell: ({ row }: { row: MRT_Row<Course> }) => {
+          const course = row.original;
+
+          const actions: RowAction[] = [
+            {
+              label: "View",
+              onClick: () => handleView(course),
+            },
+            {
+              label: "Edit",
+              onClick: () => handleEdit(course),
+            },
+            {
+              label: "Delete",
+              onClick: () => confirmDelete(course.id),
+              className: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10",
+            },
+          ];
+
+          return <RowActionDropdown actions={actions} />;
+        },
+      },
+
+      // ─── Data columns ──────────────────────────────────────────────────
       {
         accessorKey: "id",
         header: "S.No",
@@ -161,32 +187,9 @@ const CourseDetails = () => {
     [],
   );
 
-  const rowActions = [
-    {
-      label: "View",
-      icon: <EyeIcon className="w-4 h-4 text-blue-500" />,
-      onClick: (row: Course) => handleView(row),
-    },
-    {
-      label: "Edit",
-      icon: <PencilIcon className="w-4 h-4 text-green-500" />,
-      onClick: (row: Course) => handleEdit(row),
-    },
-    {
-      label: "Delete",
-      icon: <TrashIcon className="w-4 h-4 text-red-500" />,
-      onClick: (row: Course) => confirmDelete(row.id),
-      className: "text-red-600",
-    },
-  ];
-
   const toolbarActions = [
-    {
-      label: "Create Course",
-      onClick: () => setCurrentView("create"),
-      icon: <PlusIcon className="w-4 h-4" />,
-    },
-    { label: "Refresh", onClick: fetchAllData },
+    { label: "Create Course", onClick: () => setCurrentView("create") },
+    { label: "Refresh",       onClick: fetchAllData },
   ];
 
   // ── Render views ──────────────────────────────────────────────────────
@@ -245,7 +248,7 @@ const CourseDetails = () => {
           enableRowSelection={false}
           enableColumnFilters={true}
           toolbarActions={toolbarActions}
-          rowActions={rowActions}
+          dropdownLabel="Course Actions"
         />
       </div>
 
@@ -263,8 +266,7 @@ const CourseDetails = () => {
             Confirm Delete
           </h2>
           <p className="mt-2 text-center text-gray-500 dark:text-gray-400">
-            Are you sure you want to delete this course? This action cannot be
-            undone.
+            Are you sure you want to delete this course? This action cannot be undone.
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Button

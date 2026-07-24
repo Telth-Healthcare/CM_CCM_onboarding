@@ -5,9 +5,9 @@ import {
   type MRT_PaginationState,
   type MRT_RowData,
 } from "material-react-table";
+import type { OnChangeFn } from "@tanstack/react-table";
 import { MRT_Localization_EN } from "material-react-table/locales/en";
 import { useTheme } from "../../context/ThemeContext";
-import type { OnChangeFn } from "@tanstack/react-table";
 
 interface TableAction {
   label: string;
@@ -39,8 +39,10 @@ interface CommonTableProps<T extends MRT_RowData> {
   enableColumnFilterModes?: boolean;
   columnFilters?: MRT_ColumnFiltersState;
   onColumnFiltersChange?: OnChangeFn<MRT_ColumnFiltersState>;
+  dropdownLabel?: string;
 }
 
+// ─── CommonTable ──────────────────────────────────────────────────────────────
 const CommonTable = <T extends MRT_RowData>({
   columns,
   data,
@@ -125,7 +127,9 @@ const CommonTable = <T extends MRT_RowData>({
               },
             },
             scrollbarWidth: "thin",
-            scrollbarColor: isDarkMode ? "#344054 #1D2939" : "#98A2B3 #F2F4F7",
+            scrollbarColor: isDarkMode
+              ? "#344054 #1D2939"
+              : "#98A2B3 #F2F4F7",
           },
         }}
         muiTableProps={{

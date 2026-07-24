@@ -6,13 +6,12 @@ import {
   MRT_ColumnFiltersState,
 } from "material-react-table";
 import { toast } from "react-toastify";
-import { MailCheck, MailWarning, PencilIcon, X } from "lucide-react";
+import {  X } from "lucide-react";
 import PageMeta from "../../common/PageMeta";
 import {
   getRoleUsers,
   updateUsersApi,
   requestPasswordApi,
-  PasswordRequestRequest,
   resendInvitationApi,
 } from "../../../api";
 import { handleAxiosError } from "../../../utils/handleAxiosError";
@@ -20,6 +19,7 @@ import CommonTable from "../../mui/MuiTable";
 import { getUserRole } from "../../../config/constants";
 import { PlusIcon } from "../../../icons";
 import CCMOnboard from "../UserOnboardProcess/Onboard";
+import RowActionDropdown, { RowAction } from "../../mui/RowActionDropdown";
 
 interface User {
   id: number;
@@ -89,8 +89,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </div>
         <div className="p-4">
           <p className="text-gray-700 dark:text-gray-300">
-            {message}{" "}
-            <span className="font-semibold">{email}</span>?
+            {message} <span className="font-semibold">{email}</span>?
           </p>
         </div>
         <div className="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
@@ -256,27 +255,29 @@ const ViewCCMList = () => {
   const confirmSendEmail = async () => {
     if (!emailToSend) return;
 
-    const request: PasswordRequestRequest = { email: emailToSend };
+    const request = { email: emailToSend };
 
     try {
       setSendingEmail(true);
-      
+
       if (modalConfig.type === "reset") {
         await requestPasswordApi(request);
-        toast.success(`Password reset email sent successfully to ${emailToSend}`);
+        toast.success(
+          `Password reset email sent successfully to ${emailToSend}`,
+        );
       } else {
         await resendInvitationApi(request);
         toast.success(`Invitation email resent successfully to ${emailToSend}`);
       }
-      
+
       setConfirmModalOpen(false);
       setEmailToSend("");
     } catch (error) {
       const errorMessage = handleAxiosError(
         error,
-        modalConfig.type === "reset" 
+        modalConfig.type === "reset"
           ? "Failed to send password reset email"
-          : "Failed to resend invitation email"
+          : "Failed to resend invitation email",
       );
       toast.error(errorMessage);
     } finally {
@@ -318,34 +319,25 @@ const ViewCCMList = () => {
           if (!hasPartnerId) {
             return null;
           }
-
-          return (
-            <div className="flex items-center gap-2">
-              <span title="Edit User">
-                <PencilIcon
-                  size={14}
-                  onClick={() => handleEdit(partnerId, row.original)}
-                  className="cursor-pointer text-blue-600 hover:text-blue-800 transition-all"
-                />
-              </span>
-              <span title="Reset Password">
-                <MailCheck
-                  size={14}
-                  onClick={() => handleResetPassword(userEmail)}
-                  className="cursor-pointer text-green-600 hover:text-green-800 transition-all"
-                />
-              </span>
-              {!inviteAccepted && userEmail && (
-                <span title="Resend Invitation">
-                  <MailWarning
-                    size={14}
-                    onClick={() => handleResendInvitation(userEmail)}
-                    className="cursor-pointer text-yellow-600 hover:text-yellow-800 transition-all"
-                  />
-                </span>
-              )}
-            </div>
-          );
+          const rowActions: RowAction[] = [
+            {
+              label: "Edit User",
+              onClick: () => handleEdit(partnerId, row.original),
+            },
+            {
+              label: "Reset Password",
+              onClick: () => handleResetPassword(userEmail),
+            },
+            ...(!inviteAccepted && userEmail
+              ? [
+                  {
+                    label: "Resend Invitation",
+                    onClick: () => handleResendInvitation(userEmail),
+                  },
+                ]
+              : []),
+          ];
+          return <RowActionDropdown actions={rowActions} />;
         },
       },
       {

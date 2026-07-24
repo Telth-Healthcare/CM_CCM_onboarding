@@ -29,7 +29,6 @@ const GENDER_OPTIONS = [
   { value: 'male',           label: 'male' },
   { value: 'female',         label: 'female' },
   { value: 'other',          label: 'other' },
-  { value: 'prefer_not_say', label: 'prefer not to say' },
 ]
 
 const BLOOD_GROUP_OPTIONS = [
