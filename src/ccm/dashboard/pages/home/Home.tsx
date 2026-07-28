@@ -15,6 +15,8 @@ export interface AppData {
   assigned_financier: string | null;  // add this
   trainer_details:string;
   financier_details:string;
+   public_notes?: string;
+  private_notes?: string;
   created_at: string;
   updated_at: string;
 }

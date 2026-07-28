@@ -129,7 +129,7 @@ export const getEnrollApi = () => {
 }
 
 export const updateEnrollApi = (enrollId: number, payload: any) => {
-  return client.patch(`trainer/app/course-enrollments/${enrollId}`, payload)
+  return client.patch(`trainer/app/course-enrollments/${enrollId}/`, payload)
   .then(res => res.data)
 }
 

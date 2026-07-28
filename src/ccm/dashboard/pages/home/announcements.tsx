@@ -103,6 +103,7 @@ function StatusCard({ app }: { app: AppData }) {
         ? <span className="text-xs font-semibold text-green-600">{String(app.financier_details)}</span>
         : <span className="text-xs text-gray-400 italic">Not yet assigned</span>,
     },
+    
   ];
 
   return (
@@ -147,6 +148,34 @@ function buildAnnouncements(app: AppData | null): Announcement[] {
   };
   if (statusMessages[app.status]) {
     list.push({ id: "app-status", type: "personal", ...statusMessages[app.status], from: "System", time: updatedDate, read: app.status === "approved", tag: "Application" });
+  }
+   
+  // Public Notes — only if present
+  if (app.public_notes?.trim()) {
+    list.push({
+      id: "public-notes",
+      type: "personal",
+      title: "Public Notes",
+      body: app.public_notes,
+      from: "Admin",
+      time: updatedDate,
+      read: false,
+      tag: "General",
+    });
+  }
+
+  // Private Notes — only if present
+  if (app.private_notes?.trim()) {
+    list.push({
+      id: "private-notes",
+      type: "personal",
+      title: "Private Notes",
+      body: app.private_notes,
+      from: "Admin",
+      time: updatedDate,
+      read: false,
+      tag: "General",
+    });
   }
 
   // Payment pending
