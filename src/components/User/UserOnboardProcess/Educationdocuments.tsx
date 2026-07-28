@@ -75,7 +75,7 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
 
       {/* Other Document */}
       <div className="mb-4">
-        <SectionCard title="Other Document" optional>
+        <SectionCard title="Resume" optional>
           <FormGrid>
             <FieldWrapper label="Document Type">
               <Select

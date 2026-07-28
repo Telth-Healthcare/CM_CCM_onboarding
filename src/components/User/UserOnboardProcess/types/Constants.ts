@@ -101,7 +101,7 @@ export const ID_DOCUMENT_FIELDS = [
 ] as const
 
 // ── Limits ────────────────────────────────────────────────────────────────────
-export const MAX_FILE_SIZE_MB = 1
+export const MAX_FILE_SIZE_MB = 5
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 // ── DOB bounds (age 18–80) ────────────────────────────────────────────────────

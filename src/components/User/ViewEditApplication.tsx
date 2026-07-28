@@ -512,22 +512,23 @@ const ViewEditApplication: React.FC = () => {
                       Personal Details
                     </h2>
                     {canEdit && (
-                      <button
-                        onClick={() => setIsEditingPersonal((v) => !v)}
-                        className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 rounded-lg hover:bg-brand-100 dark:bg-brand-500/20 dark:text-brand-400 flex-shrink-0"
-                      >
-                        {isEditingPersonal ? (
-                          <>
-                            <XIcon className="w-3.5 h-3.5" />
-                            Cancel
-                          </>
-                        ) : (
-                          <>
-                            <PencilIcon className="w-3.5 h-3.5" />
-                            Edit
-                          </>
-                        )}
-                      </button>
+                      <></>
+                      // <button
+                      //   onClick={() => setIsEditingPersonal((v) => !v)}
+                      //   className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 rounded-lg hover:bg-brand-100 dark:bg-brand-500/20 dark:text-brand-400 flex-shrink-0"
+                      // >
+                      //   {isEditingPersonal ? (
+                      //     <>
+                      //       <XIcon className="w-3.5 h-3.5" />
+                      //       Cancel
+                      //     </>
+                      //   ) : (
+                      //     <>
+                      //       <PencilIcon className="w-3.5 h-3.5" />
+                      //       Edit
+                      //     </>
+                      //   )}
+                      // </button>
                     )}
                   </div>
 
@@ -1004,7 +1005,6 @@ const ViewEditApplication: React.FC = () => {
                           </span>
                         )}
                       </div>
-
                       {/* Auto-built editable textarea */}
                       <textarea
                         value={processingForm.public_notes}

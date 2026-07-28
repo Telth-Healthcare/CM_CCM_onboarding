@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
-import flatpickr from "flatpickr";
-import "flatpickr/dist/themes/light.css";
+import { CalenderIcon } from "../../icons";
 
 interface ApplicationData {
   id: number;
@@ -18,68 +17,47 @@ interface ChartData {
 }
 
 interface StatisticsChartProps {
-  dateRange: ApplicationData[]; // Changed from any to specific type
+  dateRange: ApplicationData[];
 }
 
 export default function StatisticsChart({ dateRange }: StatisticsChartProps) {
-  const datePickerRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState<ChartData>({
     applications: [],
     payments: [],
     categories: []
   });
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
-  // Get month name helper
-  const getMonthName = (date: Date): string => {
-    return date.toLocaleDateString('en-US', { month: 'long' });
+  // Get available years from data
+  const getAvailableYears = (): number[] => {
+    if (!dateRange || dateRange.length === 0) {
+      return [new Date().getFullYear()];
+    }
+    
+    const years = dateRange.map(app => new Date(app.created_at).getFullYear());
+    const uniqueYears = [...new Set(years)];
+    return uniqueYears.sort((a, b) => b - a); // Most recent first
   };
 
-  // Initialize date picker for month selection
-  useEffect(() => {
-    if (!datePickerRef.current) return;
+  // Get all months (always show all 12 months)
+  const getAllMonths = (): { value: number; label: string }[] => {
+    return Array.from({ length: 12 }, (_, i) => ({
+      value: i,
+      label: new Date(2024, i, 1).toLocaleDateString('en-US', { month: 'long' })
+    }));
+  };
 
-    const fp = flatpickr(datePickerRef.current, {
-      mode: "single",
-      static: true,
-      monthSelectorType: "dropdown",
-      dateFormat: "F Y",
-      defaultDate: selectedDate,
-      onChange: (selectedDates) => {
-        if (selectedDates.length > 0) {
-          setSelectedDate(selectedDates[0]);
-        }
-      },
-      onReady: (_, __, instance) => {
-        instance.config.enableTime = false;
-        instance.config.noCalendar = false;
-      }
-    });
+  // Get month name helper
+  const getMonthName = (month: number): string => {
+    return new Date(2024, month, 1).toLocaleDateString('en-US', { month: 'long' });
+  };
 
-    return () => {
-      if (!Array.isArray(fp)) {
-        fp.destroy();
-      }
-    };
-  }, []);
-
-  // Update input display when date changes
-  useEffect(() => {
-    if (datePickerRef.current) {
-      const formattedDate = selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      datePickerRef.current.value = formattedDate;
-    }
-  }, [selectedDate]);
-
-  // Process data when dateRange or selectedDate changes
+  // Process data when dateRange or selected month/year changes
   useEffect(() => {
     if (dateRange && dateRange.length > 0) {
       setLoading(true);
-      
-      // Filter applications for the selected month and year
-      const selectedYear = selectedDate.getFullYear();
-      const selectedMonth = selectedDate.getMonth();
       
       const filteredApplications = dateRange.filter(app => {
         const appDate = new Date(app.created_at);
@@ -91,7 +69,6 @@ export default function StatisticsChart({ dateRange }: StatisticsChartProps) {
       setChartData(processedData);
       setLoading(false);
     } else {
-      // Handle case when no data is available
       setChartData({
         applications: [],
         payments: [],
@@ -99,30 +76,26 @@ export default function StatisticsChart({ dateRange }: StatisticsChartProps) {
       });
       setLoading(false);
     }
-  }, [dateRange, selectedDate]);
+  }, [dateRange, selectedMonth, selectedYear]);
 
   const processMonthlyData = (applications: ApplicationData[], year: number, month: number): ChartData => {
-    // Get number of days in the month
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     
     const categories: string[] = [];
     const applicationsByDay: number[] = new Array(daysInMonth).fill(0);
     const paymentsByDay: number[] = new Array(daysInMonth).fill(0);
 
-    // Generate day categories (1, 2, 3, ...)
     for (let day = 1; day <= daysInMonth; day++) {
       categories.push(day.toString());
     }
 
-    // Count applications by day
     applications.forEach(app => {
       const createdDate = new Date(app.created_at);
-      const day = createdDate.getDate() - 1; // 0-based index
+      const day = createdDate.getDate() - 1;
       
       if (day >= 0 && day < daysInMonth) {
         applicationsByDay[day]++;
         
-        // Count paid applications
         if (app.payment_status === 'completed' || app.payment_status === 'paid') {
           paymentsByDay[day]++;
         }
@@ -261,16 +234,15 @@ export default function StatisticsChart({ dateRange }: StatisticsChartProps) {
     },
   ];
 
-  // Calculate totals
   const totalApplications = chartData.applications.reduce((a, b) => a + b, 0);
   const totalPayments = chartData.payments.reduce((a, b) => a + b, 0);
   const conversionRate = totalApplications > 0 
     ? ((totalPayments / totalApplications) * 100).toFixed(1) 
     : "0";
 
-  // Get current month name
-  const currentMonthName = getMonthName(selectedDate);
-  const currentYear = selectedDate.getFullYear();
+  const currentMonthName = getMonthName(selectedMonth);
+  const availableYears = getAvailableYears();
+  const allMonths = getAllMonths();
 
   if (loading) {
     return (
@@ -289,7 +261,7 @@ export default function StatisticsChart({ dateRange }: StatisticsChartProps) {
       <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
         <div className="w-full">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            CM Applications Statistics - {currentMonthName} {currentYear}
+            CM Applications Statistics - {currentMonthName} {selectedYear}
           </h3>
           <div className="flex flex-wrap gap-4 mt-2">
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -303,17 +275,40 @@ export default function StatisticsChart({ dateRange }: StatisticsChartProps) {
             </p>
           </div>
         </div>
-        {/* Uncomment if you want to add date picker back */}
-        {/* <div className="flex items-center gap-3 sm:justify-end">
-          <div className="relative inline-flex items-center">
-            <CalenderIcon className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:left-3 lg:top-1/2 lg:translate-x-0 lg:-translate-y-1/2 size-5 text-gray-500 dark:text-gray-400 pointer-events-none z-10" />
-            <input
-              ref={datePickerRef}
-              className="h-10 w-10 lg:w-48 lg:h-auto lg:pl-10 lg:pr-3 lg:py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 cursor-pointer"
-              placeholder="Select month"
-            />
+        
+        {/* Month and Year Dropdowns */}
+        <div className="flex items-center gap-3 sm:justify-end">
+          <div className="flex gap-2">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 cursor-pointer focus:ring-2 focus:ring-blue-500"
+            >
+              {allMonths.map((month) => (
+                <option key={month.value} value={month.value}>
+                  {month.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="h-10 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 cursor-pointer focus:ring-2 focus:ring-blue-500"
+            >
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+              {availableYears.length === 0 && (
+                <option value={new Date().getFullYear()}>
+                  {new Date().getFullYear()}
+                </option>
+              )}
+            </select>
           </div>
-        </div> */}
+        </div>
       </div>
 
       <div className="max-w-full overflow-x-auto custom-scrollbar">
@@ -323,7 +318,7 @@ export default function StatisticsChart({ dateRange }: StatisticsChartProps) {
             series={series} 
             type="area" 
             height={310} 
-            key={`${currentYear}-${selectedDate.getMonth()}`}
+            key={`${selectedYear}-${selectedMonth}`}
           />
         </div>
       </div>
@@ -331,7 +326,7 @@ export default function StatisticsChart({ dateRange }: StatisticsChartProps) {
       {totalApplications === 0 && (
         <div className="text-center py-8">
           <p className="text-gray-500 dark:text-gray-400">
-            No applications found for {currentMonthName} {currentYear}
+            No applications found for {currentMonthName} {selectedYear}
           </p>
         </div>
       )}

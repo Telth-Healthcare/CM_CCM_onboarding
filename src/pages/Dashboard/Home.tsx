@@ -10,15 +10,16 @@ export default function Home() {
   const [dateRange, setDateRange] = useState([]);
   const [region, setRegion] = useState<number | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = async (month?: string) => {
     try {
-      const response = await dashboardApi();
-      setUser(response?.total_users);
-      setApplications(response?.total_applications);
-      setDateRange(response?.applications);
-      setRegion(response?.users_with_no_region);
+      const response = await dashboardApi(month);
+
+      setUser(response.total_users);
+      setApplications(response.total_applications);
+      setDateRange(response.applications);
+      setRegion(response.users_with_no_region);
     } catch (error) {
-      console.error("Error fetching dashboard metrics:", error);
+      console.error(error);
     }
   };
 
@@ -44,7 +45,7 @@ export default function Home() {
         {/* Row 2 — Chart (left) + Activity Log (right) */}
         <div className="grid grid-cols-12 gap-4 md:gap-6">
           <div className="col-span-12 xl:col-span-8">
-            <StatisticsChart dateRange={dateRange} />
+            <StatisticsChart dateRange={dateRange} onMonthChange={fetchData} />
           </div>
         </div>
       </div>

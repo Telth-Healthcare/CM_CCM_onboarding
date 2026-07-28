@@ -18,10 +18,13 @@ export interface SendInvitationRequest {
   manager?: number;
 }
 
-export const dashboardApi = () => {
-    return client.get("admin/dashboard/")
-        .then(res => res.data);
-}
+export const dashboardApi = (month?: string) => {
+  return client
+    .get("admin/dashboard/", {
+      params: month ? { month } : {},
+    })
+    .then((res) => res.data);
+};
 
 export const getAllUsers = () => {
     return client.get("accounts/users/")
