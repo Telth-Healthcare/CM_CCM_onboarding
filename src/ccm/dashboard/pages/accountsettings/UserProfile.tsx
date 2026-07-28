@@ -146,7 +146,7 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-7xl">
       {/* Heading */}
       <div>
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">My Profile</h1>
