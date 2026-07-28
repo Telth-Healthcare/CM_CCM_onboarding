@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
-import { CalenderIcon } from "../../icons";
+// import { CalenderIcon } from "../../icons";
 
 interface ApplicationData {
   id: number;

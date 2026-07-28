@@ -3,9 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   ArrowLeftIcon,
-  PencilIcon,
   SaveIcon,
-  XIcon,
   ChevronRight,
   ChevronLeft,
   CheckCircle,
@@ -153,8 +151,8 @@ const ViewEditApplication: React.FC = () => {
 
   const userRole = getUserRole("admin");
   const canEdit = userRole === "admin" || userRole === "super_admin";
-  const userData = localStorage.getItem("admin_user") || null;
-  const parsed = JSON.parse(userData ?? "{}");
+  // const userData = localStorage.getItem("admin_user") || null;
+  // const parsed = JSON.parse(userData ?? "{}");
 
   useEffect(() => {
     if (id) {
