@@ -73,6 +73,16 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
   diplomaDoc:        useRef<HTMLInputElement>(null),   
   otherDoc:   useRef<HTMLInputElement>(null),
   }
+ const JOB_ROLES = [
+  { value: 'Assistant Care Manager (Junior)', label: 'Assistant Care Manager (Junior)' },
+  { value: 'Associate Care Manager (Mid-Level)', label: 'Associate Care Manager (Mid-Level)' },
+  { value: 'Care Manager (Collaborative Care)', label: 'Care Manager (Collaborative Care)' },
+  { value: 'Senior Care Manager (Community Care)', label: 'Senior Care Manager (Community Care)' },
+  { value: 'Collaborative Care (Junior) Physician', label: 'Collaborative Care (Junior) Physician' },
+  { value: 'Collaborative Care (Senior) Physician', label: 'Collaborative Care (Senior) Physician' },
+  { value: 'Collaborative Care Consultant Physician', label: 'Collaborative Care Consultant Physician' },
+  { value: 'Others', label: 'Others' },
+]
 
   const handleDrag = (e: React.DragEvent, field: string, entering: boolean) => {
     e.preventDefault(); e.stopPropagation()
@@ -108,6 +118,7 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
     const existingUrl = formData[urlField] as string | null
     const isDragOn    = dragActive[field]
     const sizeError   = sizeErrors[field]
+    
 
     return (
       <>
@@ -325,7 +336,23 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
             </div>
           </div>
         </div>
-
+          {/* Applying For */}
+<div className="border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+  <h3 className="font-semibold text-gray-800 dark:text-white mb-4">
+    Applying For <span className="text-red-500">*</span>
+  </h3>
+  <Label>
+    Select Role <span className="text-red-500">*</span>
+  </Label>
+  <Select
+    value={formData.role_apply_for}
+    onChange={(value) => updateFormData('role_apply_for', value)}
+    options={JOB_ROLES}
+    placeholder="Select the role you're applying for"
+    error={!!errors?.role_apply_for}
+    hint={errors?.role_apply_for}
+  />
+</div>
       </div>
     </div>
   )

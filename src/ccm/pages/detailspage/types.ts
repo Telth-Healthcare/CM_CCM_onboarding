@@ -53,6 +53,7 @@ diplomaDocUrl:        string | null
 otherDoc:             File | null
 otherDocUrl:          string | null
 otherDocType:         string        // ← add this
+role_apply_for:       string | null       // ← add this
 
 }
 

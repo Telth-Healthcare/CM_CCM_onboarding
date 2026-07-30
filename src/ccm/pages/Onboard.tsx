@@ -38,18 +38,19 @@ const INITIAL_FORM: CCMFormData = {
   id: undefined,
   firstName: '', lastName: '', dob: '',
   language: '', maritalStatus: '', gender: '', bloodGroup: '',
-  mobile: '+91', email: '',                // contact fields stay in formData
+  mobile: '+91', email: '',
   addressLine1: '', addressLine2: '', city: '', state: '', zipcode: '', country: 'IN',
   aadharFront: null, aadharBack: null, pan: null,
   aadharFrontUrl: null, aadharBackUrl: null, panUrl: null,
   bachelorDocUrl: null, masterDocUrl: null, experienceCertDocUrl: null,
-bachelorDegreeType: '', bachelorDoc: null,
-masterDegreeType: '', masterDoc: null,
-experienceCertType: '', experienceCertDoc: null,
-tenthDoc: null,    tenthDocUrl: null,     // 10th cert
-twelfthDoc: null,  twelfthDocUrl: null,   // 12th cert
-diplomaDoc: null,  diplomaDocUrl: null,   // diploma
-otherDocType: '',  otherDoc: null,  otherDocUrl: null,  // other doc
+  bachelorDegreeType: '', bachelorDoc: null,
+  masterDegreeType: '', masterDoc: null,
+  experienceCertType: '', experienceCertDoc: null,
+  tenthDoc: null, tenthDocUrl: null,
+  twelfthDoc: null, twelfthDocUrl: null,
+  diplomaDoc: null, diplomaDocUrl: null,
+  otherDocType: '', otherDoc: null, otherDocUrl: null,
+  role_apply_for: null,   // ← add this
 }
 
 // ── Validation per step ───────────────────────────────────────────────────────
@@ -92,6 +93,8 @@ const validate = (stepId: string, data: CCMFormData) => {
 
   if (stepId === 'education-documents') {
     if (!data.tenthDoc && !data.tenthDocUrl) errs.tenthDoc = '10th/SSLC/SSC certificate is required'
+    if (!data.role_apply_for) errs.role_apply_for = 'Please select the role you are applying for'
+
   }
 
   return errs   // ← now runs for every step, not just education-documents
@@ -267,6 +270,7 @@ otherDocUrl:          docs['other']                  ?? prev.otherDocUrl,
       state: rest.state,
       pincode: rest.zipcode,        // backend = pincode
       country: rest.country,
+      role_apply_for: rest.role_apply_for,
       user: currentUser?.id,
     }
 
@@ -335,6 +339,7 @@ if (formData.diplomaDoc && !formData.diplomaDocUrl)
   uploads.push({ file: formData.diplomaDoc, type: 'diploma', urlField: 'diplomaDocUrl', isReplace: replacedDocs.has('diploma') })
 if (formData.otherDoc && !formData.otherDocUrl)
   uploads.push({ file: formData.otherDoc, type: 'other', urlField: 'otherDocUrl', isReplace: replacedDocs.has('other') })
+
     }
 
     if (uploads.length === 0) return true  // nothing to upload — skip
