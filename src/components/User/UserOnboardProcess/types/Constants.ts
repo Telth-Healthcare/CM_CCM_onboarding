@@ -42,6 +42,17 @@ export const MARITAL_STATUS_OPTIONS = [
   { value: 'widowed',  label: 'Widowed' },
 ]
 
+export const ROLE_OPTIONS = [
+  { value: 'assistant_care_manager_junior', label: 'Assistant Care Manager (Junior)' },
+  { value: 'associate_care_manager_mid_level', label: 'Associate Care Manager (Mid-Level)' },
+  { value: 'care_manager_collaborative_care', label: 'Care Manager (Collaborative Care)' },
+  { value: 'senior_care_manager_community_care', label: 'Senior Care Manager (Community Care)' },
+  { value: 'collaborative_care_junior_physician', label: 'Collaborative Care (Junior) Physician' },
+  { value: 'collaborative_care_senior_physician', label: 'Collaborative Care (Senior) Physician' },
+  { value: 'collaborative_care_consultant_physician', label: 'Collaborative Care Consultant Physician' },
+  { value: 'others', label: 'Others' },
+]
+
 export const GENDER_OPTIONS = [
   { value: 'male',           label: 'Male' },
   { value: 'female',         label: 'Female' },
@@ -120,6 +131,7 @@ export const INITIAL_FORM_DATA = {
   addressLine1: '', addressLine2: '', city: '', state: '', zipcode: '', country: 'IN',
   aadharFront: null, aadharBack: null, pan: null,
   aadharFrontUrl: null, aadharBackUrl: null, panUrl: null,
+  role_apply_for: '',  // ← Add this line
   // Education
   qualLevel: '', qualStream: '', qualSub: '',
   educationType: '',

@@ -85,9 +85,9 @@ const validateEducationDocuments = (d: CCMFormData): FormErrors => {
   }
 
   // If other document is uploaded, document type should be selected
-  if ((d.otherDoc || d.otherDocUrl) && !d.otherDocType) {
-    e.otherDocType = 'Please select document type'
-  }
+  // if ((d.otherDoc || d.otherDocUrl) && !d.otherDocType) {
+  //   e.otherDocType = 'Please select document type'
+  // }
 
   return e
 }

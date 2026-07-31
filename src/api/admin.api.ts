@@ -16,6 +16,7 @@ export interface SendInvitationRequest {
   region?: string;
   roles: string[];
   manager?: number;
+  role_apply_for?: string;
 }
 
 export const dashboardApi = (month?: string) => {

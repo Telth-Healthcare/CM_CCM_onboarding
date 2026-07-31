@@ -10,6 +10,7 @@ import {
   GENDER_OPTIONS,
   LANGUAGE_OPTIONS,
   MARITAL_STATUS_OPTIONS,
+  ROLE_OPTIONS,
 } from "./types/Constants";
 import Select from "../../form/Select";
 import { StepProps } from "./types/Types";
@@ -50,7 +51,47 @@ const PersonalInfo: React.FC<StepProps> = ({
           error={!!errors?.lastName}
         />
       </FieldWrapper>
+      {/* Mobile Number - Editable */}
+      <FieldWrapper label="Mobile Number" required hint={errors?.mobile}>
+        <div className="flex">
+          <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 dark:border-gray-600 rounded-l-lg bg-gray-100 dark:bg-gray-800 text-gray-500 text-sm select-none">
+            +91
+          </span>
 
+          <input
+            type="tel"
+            id="mobile"
+            name="mobile"
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+              updateFormData("mobile", value);
+            }}
+            value={(formData.mobile ?? "").replace(/^\+91/, "")}
+            placeholder="Enter 10-digit mobile number"
+            className={`w-full px-4 py-2.5 text-sm border border-l-0 rounded-r-lg focus:outline-none focus:ring-2 ${
+              errors?.mobile
+                ? "border-red-500 focus:ring-red-300"
+                : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+            } dark:bg-gray-900 dark:text-white`}
+          />
+        </div>
+      </FieldWrapper>
+
+      {/* Email - Editable */}
+      <FieldWrapper label="Email Address" required hint={errors?.email}>
+        <Input
+          type="email"
+          id="email"
+          name="email"
+          value={formData.email}
+          onChange={(e) => updateFormData("email", e.target.value)}
+          placeholder="Enter your email address"
+          error={!!errors?.email}
+        />
+        <p className="mt-1 text-xs text-gray-400">
+          We'll send important updates to this email
+        </p>
+      </FieldWrapper>
       <FieldWrapper label="Date of Birth" required hint={errors?.dob}>
         <Input
           type="date"
@@ -63,7 +104,29 @@ const PersonalInfo: React.FC<StepProps> = ({
           error={!!errors?.dob}
         />
       </FieldWrapper>
-
+      {localStorage.getItem("admin_role") === "super_admin" && (
+        <FieldWrapper label="MNP User" required hint={errors?.manager}>
+          <select
+            name="manager"
+            value={formData.manager || ""}
+            onChange={(e) => updateFormData("manager", e.target.value)}
+            className={`w-full px-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${
+              errors?.manager
+                ? "border-red-500 focus:ring-red-300"
+                : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+            } dark:bg-gray-900 dark:text-white`}
+          >
+            <option value="" disabled>
+              Select a MNP User
+            </option>
+            {roleList.map((admin: any) => (
+              <option key={admin.value} value={admin.value}>
+                {admin.label}
+              </option>
+            ))}
+          </select>
+        </FieldWrapper>
+      )}
       <FieldWrapper label="Language" required hint={errors?.language}>
         <Select
           value={formData.language}
@@ -117,72 +180,14 @@ const PersonalInfo: React.FC<StepProps> = ({
           placeholder="Select Marital Status"
         />
       </FieldWrapper>
-
-      {/* Mobile Number - Editable */}
-      <FieldWrapper label="Mobile Number" required hint={errors?.mobile}>
-        <div className="flex">
-          <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 dark:border-gray-600 rounded-l-lg bg-gray-100 dark:bg-gray-800 text-gray-500 text-sm select-none">
-            +91
-          </span>
-
-          <input
-            type="tel"
-            id="mobile"
-            name="mobile"
-            onChange={(e) => {
-              const value = e.target.value.replace(/\D/g, "").slice(0, 10);
-              updateFormData("mobile", value);
-            }}
-            value={(formData.mobile ?? "").replace(/^\+91/, "")}
-            placeholder="Enter 10-digit mobile number"
-            className={`w-full px-4 py-2.5 text-sm border border-l-0 rounded-r-lg focus:outline-none focus:ring-2 ${
-              errors?.mobile
-                ? "border-red-500 focus:ring-red-300"
-                : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
-            } dark:bg-gray-900 dark:text-white`}
-          />
-        </div>
-      </FieldWrapper>
-
-      {/* Email - Editable */}
-      <FieldWrapper label="Email Address" required hint={errors?.email}>
-        <Input
-          type="email"
-          id="email"
-          name="email"
-          value={formData.email}
-          onChange={(e) => updateFormData("email", e.target.value)}
-          placeholder="Enter your email address"
-          error={!!errors?.email}
+       <FieldWrapper label="Apply For Role">
+        <Select
+          value={formData.role_apply_for}
+          onChange={(val) => updateFormData("role_apply_for", val)}
+          options={ROLE_OPTIONS}
+          placeholder="Select Role"
         />
-        <p className="mt-1 text-xs text-gray-400">
-          We'll send important updates to this email
-        </p>
       </FieldWrapper>
-
-      {localStorage.getItem("admin_role") === "super_admin" && (
-        <FieldWrapper label="MNP User" required hint={errors?.manager}>
-          <select
-            name="manager"
-            value={formData.manager || ""}
-            onChange={(e) => updateFormData("manager", e.target.value)}
-            className={`w-full px-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${
-              errors?.manager
-                ? "border-red-500 focus:ring-red-300"
-                : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
-            } dark:bg-gray-900 dark:text-white`}
-          >
-            <option value="" disabled>
-              Select a MNP User
-            </option>
-            {roleList.map((admin: any) => (
-              <option key={admin.value} value={admin.value}>
-                {admin.label}
-              </option>
-            ))}
-          </select>
-        </FieldWrapper>
-      )}
     </FormGrid>
   </div>
 );

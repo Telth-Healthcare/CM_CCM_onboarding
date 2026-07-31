@@ -19,8 +19,8 @@ export interface OnboardProps {
   targetUserId?: number;
   useRouting?: boolean;
   onDone?: () => void;
+  actions?:string;
   roleFilter?: string;
-  initialData?: any;
 }
 
 const Spinner = ({ className = "" }: { className?: string }) => (
@@ -144,7 +144,7 @@ const SuccessScreen = ({
         Application Submitted!
       </h2>
       <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
-        The CCM onboarding application has been received.
+        The Onboarding application has been submitted successfully.
       </p>
       <div className="bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
         <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
@@ -195,8 +195,8 @@ export default function CCMOnboard({
   targetUserId,
   useRouting = true,
   roleFilter,
+  actions,
   onDone,
-  initialData,
 }: OnboardProps) {
   const navigate = useNavigate();
   const [roleList, setRoleList] = useState<OptionType[]>([]);
@@ -303,10 +303,10 @@ export default function CCMOnboard({
               </svg>
             </button>
             <span className="font-semibold text-gray-800 dark:text-white text-sm">
-              {roleFilter === "ccm" ? "CCM" : "CM"} Onboarding
+               Onboarding Application
             </span>{" "}
             {targetUserId && (
-              <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
+              <span className="text-xs text-gray-400 bg-gray-200 dark:bg-gray-800 px-2 py-0.5 rounded">
                 User #{targetUserId}
               </span>
             )}
@@ -373,7 +373,7 @@ export default function CCMOnboard({
 
             {isPreview ? (
               <>
-                {!initialData?.application_id ? (
+                {actions === "create" ? (
                   <button
                     onClick={handleSubmit}
                     disabled={saving}

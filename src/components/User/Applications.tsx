@@ -27,6 +27,7 @@ interface Application {
   financier_details?: string;
   documents?: Array<{ document_type: string; file: string }>;
   user?: number;
+  role_apply_for?: string;
 }
 
 const statusOptions = [
@@ -139,6 +140,13 @@ const Applications = () => {
       accessorFn: (row) => row?.user_details ?? "-",
       id: "user_details",
       header: "Name",
+      size: 150,
+      filterVariant: "text",
+    },
+    {
+      accessorFn: (row) => row?.role_apply_for ?? "-",
+      id: "role_apply_for",
+      header: "Role Applied For",
       size: 150,
       filterVariant: "text",
     },

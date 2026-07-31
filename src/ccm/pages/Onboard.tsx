@@ -1,258 +1,321 @@
 // src/ccm/pages/Onboard.tsx
-import { useState, useCallback, useEffect } from 'react'
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import { useState, useCallback, useEffect } from "react";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import { toast } from "react-toastify";
 
-import PersonalInfo from './detailspage/PersonalInfo'       // includes mobile + email fields
-import AddressInfo from './detailspage/AddressInfo'
-import PersonalDocuments from './detailspage/PersonalDocuments'
-import EducationDocuments from './detailspage/EducationDocuments'
-import Preview from './detailspage/Preview'
-import { CCMFormData } from './detailspage/types'
+import PersonalInfo from "./detailspage/PersonalInfo"; // includes mobile + email fields
+import AddressInfo from "./detailspage/AddressInfo";
+import PersonalDocuments from "./detailspage/PersonalDocuments";
+import EducationDocuments from "./detailspage/EducationDocuments";
+import Preview from "./detailspage/Preview";
+import { CCMFormData } from "./detailspage/types";
 import {
   createApplicationApi,
   updateApplicationApi,
   submitApplicationApi,
   getApplicationApi,
   uploadDocumentApi,
-} from '../../api/ccm/ccmonboard.api'
-import { handleAxiosError } from '../../utils/handleAxiosError'
+} from "../../api/ccm/ccmonboard.api";
+import { handleAxiosError } from "../../utils/handleAxiosError";
 
 // ── Steps (contact-info removed — mobile & email now inside personal-info) ───
 const STEPS = [
-  { id: 'personal-info', name: 'Personal Info', step: 1 },
-  { id: 'address-info', name: 'Address', step: 2 },
-  { id: 'personal-documents', name: 'ID Documents', step: 3 },
-  { id: 'education-documents', name: 'Education', step: 4 },
-  { id: 'preview', name: 'Preview', step: 5 },
-]
+  { id: "personal-info", name: "Personal Info", step: 1 },
+  { id: "address-info", name: "Address", step: 2 },
+  { id: "personal-documents", name: "ID Documents", step: 3 },
+  { id: "education-documents", name: "Education", step: 4 },
+  { id: "preview", name: "Preview", step: 5 },
+];
 
 // Per-user draft key — prevents two users on same browser conflicting
 const getDraftKey = () => {
-  const ccmUser = JSON.parse(localStorage.getItem('ccm_user') || 'null')
-  const currentUser = ccmUser?.user ?? ccmUser
-  return currentUser?.id ? `ccm_draft_pk_${currentUser.id}` : 'ccm_draft_pk'
-}
+  const ccmUser = JSON.parse(localStorage.getItem("ccm_user") || "null");
+  const currentUser = ccmUser?.user ?? ccmUser;
+  return currentUser?.id ? `ccm_draft_pk_${currentUser.id}` : "ccm_draft_pk";
+};
 
 const INITIAL_FORM: CCMFormData = {
   id: undefined,
-  firstName: '', lastName: '', dob: '',
-  language: '', maritalStatus: '', gender: '', bloodGroup: '',
-  mobile: '+91', email: '',
-  addressLine1: '', addressLine2: '', city: '', state: '', zipcode: '', country: 'IN',
-  aadharFront: null, aadharBack: null, pan: null,
-  aadharFrontUrl: null, aadharBackUrl: null, panUrl: null,
-  bachelorDocUrl: null, masterDocUrl: null, experienceCertDocUrl: null,
-  bachelorDegreeType: '', bachelorDoc: null,
-  masterDegreeType: '', masterDoc: null,
-  experienceCertType: '', experienceCertDoc: null,
-  tenthDoc: null, tenthDocUrl: null,
-  twelfthDoc: null, twelfthDocUrl: null,
-  diplomaDoc: null, diplomaDocUrl: null,
-  otherDocType: '', otherDoc: null, otherDocUrl: null,
-  role_apply_for: null,   // ← add this
-}
+  firstName: "",
+  lastName: "",
+  dob: "",
+  language: "",
+  maritalStatus: "",
+  gender: "",
+  bloodGroup: "",
+  mobile: "+91",
+  email: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  zipcode: "",
+  country: "IN",
+  aadharFront: null,
+  aadharBack: null,
+  pan: null,
+  aadharFrontUrl: null,
+  aadharBackUrl: null,
+  panUrl: null,
+  bachelorDocUrl: null,
+  masterDocUrl: null,
+  experienceCertDocUrl: null,
+  bachelorDegreeType: "",
+  bachelorDoc: null,
+  masterDegreeType: "",
+  masterDoc: null,
+  experienceCertType: "",
+  experienceCertDoc: null,
+  tenthDoc: null,
+  tenthDocUrl: null,
+  twelfthDoc: null,
+  twelfthDocUrl: null,
+  diplomaDoc: null,
+  diplomaDocUrl: null,
+  otherDocType: "",
+  otherDoc: null,
+  otherDocUrl: null,
+  role_apply_for: null, // ← add this
+};
 
 // ── Validation per step ───────────────────────────────────────────────────────
 const validate = (stepId: string, data: CCMFormData) => {
-  const errs: Partial<Record<keyof CCMFormData, string>> = {}
+  const errs: Partial<Record<keyof CCMFormData, string>> = {};
 
-  if (stepId === 'personal-info') {
-    if (!data.firstName.trim()) errs.firstName = 'First name required'
-    if (!data.lastName.trim()) errs.lastName = 'Last name required'
+  if (stepId === "personal-info") {
+    if (!data.firstName.trim()) errs.firstName = "First name required";
+    if (!data.lastName.trim()) errs.lastName = "Last name required";
     if (!data.dob) {
-      errs.dob = 'Date of birth required'
+      errs.dob = "Date of birth required";
     } else {
-      const today = new Date()
-      const birth = new Date(data.dob)
-      let age = today.getFullYear() - birth.getFullYear()
-      const md = today.getMonth() - birth.getMonth()
-      if (md < 0 || (md === 0 && today.getDate() < birth.getDate())) age--
-      if (age < 18) errs.dob = 'Must be at least 18 years old'
-      else if (age > 80) errs.dob = 'Must be 70 years old or younger'
+      const today = new Date();
+      const birth = new Date(data.dob);
+      let age = today.getFullYear() - birth.getFullYear();
+      const md = today.getMonth() - birth.getMonth();
+      if (md < 0 || (md === 0 && today.getDate() < birth.getDate())) age--;
+      if (age < 18) errs.dob = "Must be at least 18 years old";
+      else if (age > 80) errs.dob = "Must be 70 years old or younger";
     }
-    if (!data.language) errs.language = 'Language required'
-    if (!data.gender) errs.gender = 'Gender required'
-    if (!data.bloodGroup) errs.bloodGroup = 'Blood group required'
-    const digits = (data.mobile || '').replace('+91', '').replace(/\D/g, '')
-    if (!/^\d{10}$/.test(digits)) errs.mobile = 'Enter valid 10-digit mobile'
-    if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) errs.email = 'Enter valid email'
+    if (!data.language) errs.language = "Language required";
+    if (!data.gender) errs.gender = "Gender required";
+    if (!data.bloodGroup) errs.bloodGroup = "Blood group required";
+    const digits = (data.mobile || "").replace("+91", "").replace(/\D/g, "");
+    if (!/^\d{10}$/.test(digits)) errs.mobile = "Enter valid 10-digit mobile";
+    if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email))
+      errs.email = "Enter valid email";
   }
 
-  if (stepId === 'address-info') {
-    if (!data.city.trim()) errs.city = 'City required'
-    if (!data.state) errs.state = 'State required'
-    if (!/^\d{4,10}$/.test(data.zipcode)) errs.zipcode = 'Enter valid zipcode'
+  if (stepId === "address-info") {
+    if (!data.city.trim()) errs.city = "City required";
+    if (!data.state) errs.state = "State required";
+    if (!/^\d{4,10}$/.test(data.zipcode)) errs.zipcode = "Enter valid zipcode";
   }
 
-  if (stepId === 'personal-documents') {
-    if (!data.aadharFront && !data.aadharFrontUrl) errs.aadharFront = 'Aadhar front required'
-    if (!data.aadharBack && !data.aadharBackUrl) errs.aadharBack = 'Aadhar back required'
-    if (!data.pan && !data.panUrl) errs.pan = 'PAN card required'
+  if (stepId === "personal-documents") {
+    if (!data.aadharFront && !data.aadharFrontUrl)
+      errs.aadharFront = "Aadhar front required";
+    if (!data.aadharBack && !data.aadharBackUrl)
+      errs.aadharBack = "Aadhar back required";
+    if (!data.pan && !data.panUrl) errs.pan = "PAN card required";
   }
 
-  if (stepId === 'education-documents') {
-    if (!data.tenthDoc && !data.tenthDocUrl) errs.tenthDoc = '10th/SSLC/SSC certificate is required'
-    if (!data.role_apply_for) errs.role_apply_for = 'Please select the role you are applying for'
-
+  if (stepId === "education-documents") {
+    if (!data.tenthDoc && !data.tenthDocUrl)
+      errs.tenthDoc = "10th/SSLC/SSC certificate is required";
+    if (!data.role_apply_for)
+      errs.role_apply_for = "Please select the role you are applying for";
   }
 
-  return errs   // ← now runs for every step, not just education-documents
-}
+  return errs; // ← now runs for every step, not just education-documents
+};
 
 export default function CCMOnboard() {
-  const navigate = useNavigate()
-  const location = useLocation()
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const currentId = location.pathname.split('/').pop() ?? 'personal-info'
-  const currentIndex = Math.max(STEPS.findIndex(s => s.id === currentId), 0)
-  const isFirst = currentIndex === 0
-  const isPreview = currentId === 'preview'
+  const currentId = location.pathname.split("/").pop() ?? "personal-info";
+  const currentIndex = Math.max(
+    STEPS.findIndex((s) => s.id === currentId),
+    0,
+  );
+  const isFirst = currentIndex === 0;
+  const isPreview = currentId === "preview";
 
-  const [formData, setFormData] = useState<CCMFormData>(INITIAL_FORM)
-  const [errors, setErrors] = useState<Partial<Record<keyof CCMFormData, string>>>({})
-  const [saving, setSaving] = useState(false)
-  const [appId, setAppId] = useState<number | null>(null)
-  const [refNumber, setRefNumber] = useState('')
-  const [replacedDocs, setReplacedDocs] = useState<Set<string>>(new Set())
+  const [formData, setFormData] = useState<CCMFormData>(INITIAL_FORM);
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof CCMFormData, string>>
+  >({});
+  const [saving, setSaving] = useState(false);
+  const [appId, setAppId] = useState<number | null>(null);
+  const [refNumber, setRefNumber] = useState("");
+  const [replacedDocs, setReplacedDocs] = useState<Set<string>>(new Set());
   const updateFormData = useCallback((field: keyof CCMFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    setErrors(prev => ({ ...prev, [field]: undefined }))
-  }, [])
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  }, []);
   // add this state near the other states
-  const [uploading, setUploading] = useState(false)
+  const [uploading, setUploading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-
 
   // ── On mount: pre-fill from localStorage + fetch existing draft ───────────
   // ── On mount: pre-fill from localStorage + fetch existing draft ───────────
   // ── Helper: find first incomplete step from draft data ────────────────────
-const getResumeStep = (data: any, docs: Record<string, string>): string => {
-  const hasPersonal =
-    data.user?.first_name &&
-    data.user?.last_name  &&
-    data.dob              &&
-    data.gender           &&
-    data.blood_group      &&
-    data.language         &&
-    data.user?.phone      &&
-    data.user?.email
+  const getResumeStep = (data: any, docs: Record<string, string>): string => {
+    const hasPersonal =
+      data.user?.first_name &&
+      data.user?.last_name &&
+      data.dob &&
+      data.gender &&
+      data.blood_group &&
+      data.language &&
+      data.user?.phone &&
+      data.user?.email;
 
-  if (!hasPersonal) return 'personal-info'
+    if (!hasPersonal) return "personal-info";
 
-  const hasAddress =
-    data.address_line_1 &&
-    data.district       &&
-    data.state          &&
-    data.pincode
+    const hasAddress =
+      data.address_line_1 && data.district && data.state && data.pincode;
 
-  if (!hasAddress) return 'address-info'
+    if (!hasAddress) return "address-info";
 
-  const hasDocs =
-    docs['aadhar_front'] &&
-    docs['aadhar_back']  &&
-    docs['pan']
+    const hasDocs = docs["aadhar_front"] && docs["aadhar_back"] && docs["pan"];
 
-  if (!hasDocs) return 'personal-documents'
+    if (!hasDocs) return "personal-documents";
 
-  if (!docs['bachelor_certificate']) return 'education-documents'
+    if (!docs["bachelor_certificate"]) return "education-documents";
 
-  return 'preview'
-}
+    return "preview";
+  };
   // remove: const [loading, setLoading] = useState(true)  ← delete this line
-// keep only: const [isInitialized, setIsInitialized] = useState(false)
+  // keep only: const [isInitialized, setIsInitialized] = useState(false)
 
-useEffect(() => {
-  const ccmUser     = JSON.parse(localStorage.getItem('ccm_user') || 'null')
-  const currentUser = ccmUser?.user ?? ccmUser
-  const savedPk     = localStorage.getItem(getDraftKey())
+  useEffect(() => {
+    const ccmUser = JSON.parse(localStorage.getItem("ccm_user") || "null");
+    const currentUser = ccmUser?.user ?? ccmUser;
+    const savedPk = localStorage.getItem(getDraftKey());
 
-  if (!savedPk) {
-    // New user — prefill from signup data, show form immediately
-    if (currentUser) {
-      setFormData(prev => ({
-        ...prev,
-        firstName: currentUser.first_name ?? prev.firstName,
-        lastName:  currentUser.last_name  ?? prev.lastName,
-        email:     currentUser.email      ?? prev.email,
-        mobile:    currentUser.phone      ?? prev.mobile,
-      }))
-    }
-    setIsInitialized(true)  // ungate — no draft to fetch
-    return
-  }
-
-  const pk = parseInt(savedPk)
-  setAppId(pk)
-
-  getApplicationApi(pk)
-    .then(data => {
-      if (data.is_submitted) {
-        toast.info('Your application is already submitted!')
-        navigate('/ccm-dashboard', { replace: true })
-        return
+    if (!savedPk) {
+      // New user — prefill from signup data, show form immediately
+      if (currentUser) {
+        setFormData((prev) => ({
+          ...prev,
+          firstName: currentUser.first_name ?? prev.firstName,
+          lastName: currentUser.last_name ?? prev.lastName,
+          email: currentUser.email ?? prev.email,
+          mobile: currentUser.phone ?? prev.mobile,
+        }));
       }
+      setIsInitialized(true); // ungate — no draft to fetch
+      return;
+    }
 
-      const docs: Record<string, string> = {}
-      data.documents?.forEach((d: any) => { docs[d.document_type] = d.file })
+    const pk = parseInt(savedPk);
+    setAppId(pk);
 
-      // Single merge — draft > ccm_user > prev
-      setFormData(prev => ({
-        ...prev,
-        firstName:     data.user?.first_name   ?? currentUser?.first_name ?? prev.firstName,
-        lastName:      data.user?.last_name    ?? currentUser?.last_name  ?? prev.lastName,
-        mobile:        data.user?.phone        ?? currentUser?.phone      ?? prev.mobile,
-        email:         data.user?.email        ?? currentUser?.email      ?? prev.email,
-        dob:           data.dob                ?? prev.dob,
-        gender:        ['male','female','other','prefer_not_say'].find(
-                         v => v.toLowerCase() === (data.gender ?? '').toLowerCase()
-                       ) ?? prev.gender,
-        bloodGroup:    ['A+','A-','B+','B-','AB+','AB-','O+','O-'].find(
-                         v => v.toLowerCase() === (data.blood_group ?? '').toLowerCase()
-                       ) ?? prev.bloodGroup,
-        language:      ['english','hindi','tamil','telugu','kannada','malayalam','marathi','bengali','gujarati','punjabi'].find(
-                         v => v.toLowerCase() === (data.language ?? '').toLowerCase()
-                       ) ?? prev.language,
-        maritalStatus: ['single','married','divorced','widowed'].find(
-                         v => v.toLowerCase() === (data.marital_status ?? '').toLowerCase()
-                       ) ?? prev.maritalStatus,
-        addressLine1:  data.address_line_1 ?? prev.addressLine1,
-        addressLine2:  data.address_line_2 ?? prev.addressLine2,
-        city:          data.district       ?? prev.city,
-        state:         data.state          ?? prev.state,
-        zipcode:       data.pincode       ?? prev.zipcode,
-        country:       data.country        ?? prev.country,
-        aadharFrontUrl:       docs['aadhar_front']           ?? prev.aadharFrontUrl,
-        aadharBackUrl:        docs['aadhar_back']            ?? prev.aadharBackUrl,
-        panUrl:               docs['pan']                    ?? prev.panUrl,
-       bachelorDocUrl:       docs['bachelor_certificate']   ?? prev.bachelorDocUrl,
-masterDocUrl:         docs['master_certificate']     ?? prev.masterDocUrl,
-experienceCertDocUrl: docs['experience_certificate'] ?? prev.experienceCertDocUrl,
-tenthDocUrl:          docs['tenth_certificate']      ?? prev.tenthDocUrl,
-twelfthDocUrl:        docs['twelfth_certificate']    ?? prev.twelfthDocUrl,
-diplomaDocUrl:        docs['diploma']                ?? prev.diplomaDocUrl,
-otherDocUrl:          docs['other']                  ?? prev.otherDocUrl,
-      }))
+    getApplicationApi(pk)
+      .then((data) => {
+        if (data.is_submitted) {
+          toast.info("Your application is already submitted!");
+          navigate("/ccm-dashboard", { replace: true });
+          return;
+        }
 
-      // Smart resume — goes to first incomplete step, not blindly address-info
-      const resumeStep = getResumeStep(data, docs)
-      navigate(`/ccmonboard/${resumeStep}`, { replace: true })
-    })
-    .catch(() => {
-      localStorage.removeItem(getDraftKey())
-      toast.error('Could not restore draft. Starting fresh.')
-    })
-    .finally(() => {
-      setIsInitialized(true)  // always ungate — even on error
-    })
-}, [])
+        const docs: Record<string, string> = {};
+        data.documents?.forEach((d: any) => {
+          docs[d.document_type] = d.file;
+        });
+
+        // Single merge — draft > ccm_user > prev
+        setFormData((prev) => ({
+          ...prev,
+          firstName:
+            data.user?.first_name ?? currentUser?.first_name ?? prev.firstName,
+          lastName:
+            data.user?.last_name ?? currentUser?.last_name ?? prev.lastName,
+          mobile: data.user?.phone ?? currentUser?.phone ?? prev.mobile,
+          email: data.user?.email ?? currentUser?.email ?? prev.email,
+          dob: data.dob ?? prev.dob,
+          gender:
+            ["male", "female", "other", "prefer_not_say"].find(
+              (v) => v.toLowerCase() === (data.gender ?? "").toLowerCase(),
+            ) ?? prev.gender,
+          bloodGroup:
+            ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].find(
+              (v) => v.toLowerCase() === (data.blood_group ?? "").toLowerCase(),
+            ) ?? prev.bloodGroup,
+          language:
+            [
+              "english",
+              "hindi",
+              "tamil",
+              "telugu",
+              "kannada",
+              "malayalam",
+              "marathi",
+              "bengali",
+              "gujarati",
+              "punjabi",
+            ].find(
+              (v) => v.toLowerCase() === (data.language ?? "").toLowerCase(),
+            ) ?? prev.language,
+          maritalStatus:
+            ["single", "married", "divorced", "widowed"].find(
+              (v) =>
+                v.toLowerCase() === (data.marital_status ?? "").toLowerCase(),
+            ) ?? prev.maritalStatus,
+          addressLine1: data.address_line_1 ?? prev.addressLine1,
+          addressLine2: data.address_line_2 ?? prev.addressLine2,
+          city: data.district ?? prev.city,
+          state: data.state ?? prev.state,
+          zipcode: data.pincode ?? prev.zipcode,
+          country: data.country ?? prev.country,
+          aadharFrontUrl: docs["aadhar_front"] ?? prev.aadharFrontUrl,
+          aadharBackUrl: docs["aadhar_back"] ?? prev.aadharBackUrl,
+          panUrl: docs["pan"] ?? prev.panUrl,
+          bachelorDocUrl: docs["bachelor_certificate"] ?? prev.bachelorDocUrl,
+          masterDocUrl: docs["master_certificate"] ?? prev.masterDocUrl,
+          experienceCertDocUrl:
+            docs["experience_certificate"] ?? prev.experienceCertDocUrl,
+          tenthDocUrl: docs["tenth_certificate"] ?? prev.tenthDocUrl,
+          twelfthDocUrl: docs["twelfth_certificate"] ?? prev.twelfthDocUrl,
+          diplomaDocUrl: docs["diploma"] ?? prev.diplomaDocUrl,
+          otherDocUrl: docs["other"] ?? prev.otherDocUrl,
+        }));
+
+        // Smart resume — goes to first incomplete step, not blindly address-info
+        const resumeStep = getResumeStep(data, docs);
+        navigate(`/ccmonboard/${resumeStep}`, { replace: true });
+      })
+      .catch(() => {
+        localStorage.removeItem(getDraftKey());
+        toast.error("Could not restore draft. Starting fresh.");
+      })
+      .finally(() => {
+        setIsInitialized(true); // always ungate — even on error
+      });
+  }, []);
 
   // ── Save: POST first time, PATCH after ────────────────────────────────────
   const saveProgress = async (data: CCMFormData): Promise<number | null> => {
-    const { aadharFront, aadharBack, pan, bachelorDoc, masterDoc, experienceCertDoc, id, ...rest } = data
+    const {
+      aadharFront,
+      aadharBack,
+      pan,
+      bachelorDoc,
+      masterDoc,
+      experienceCertDoc,
+      id,
+      ...rest
+    } = data;
 
-    const ccmUser = JSON.parse(localStorage.getItem('ccm_user') || 'null')
-    const currentUser = ccmUser?.user ?? ccmUser
+    const ccmUser = JSON.parse(localStorage.getItem("ccm_user") || "null");
+    const currentUser = ccmUser?.user ?? ccmUser;
 
     const cleanPayload: Record<string, any> = {
       first_name: rest.firstName,
@@ -264,185 +327,249 @@ otherDocUrl:          docs['other']                  ?? prev.otherDocUrl,
       marital_status: rest.maritalStatus,
       mobile: rest.mobile,
       email: rest.email,
-      address_line_1: rest.addressLine1,   // backend key
-      address_line_2: rest.addressLine2,   // backend key
-      district: rest.city,           // backend = district
+      address_line_1: rest.addressLine1, // backend key
+      address_line_2: rest.addressLine2, // backend key
+      district: rest.city, // backend = district
       state: rest.state,
-      pincode: rest.zipcode,        // backend = pincode
+      pincode: rest.zipcode, // backend = pincode
       country: rest.country,
       role_apply_for: rest.role_apply_for,
       user: currentUser?.id,
-    }
+    };
 
     // Strip empty values (keep user always)
-    Object.keys(cleanPayload).forEach(k => {
-      const val = cleanPayload[k]
-      if (k !== 'user' && (val === undefined || val === null || val === '')) {
-        delete cleanPayload[k]
+    Object.keys(cleanPayload).forEach((k) => {
+      const val = cleanPayload[k];
+      if (k !== "user" && (val === undefined || val === null || val === "")) {
+        delete cleanPayload[k];
       }
-    })
+    });
 
-    setSaving(true)
+    setSaving(true);
     try {
-      const existingPkStr = localStorage.getItem(getDraftKey())
-      const existingPk = existingPkStr ? parseInt(existingPkStr) : null
+      const existingPkStr = localStorage.getItem(getDraftKey());
+      const existingPk = existingPkStr ? parseInt(existingPkStr) : null;
 
       if (!existingPk) {
-        const res = await createApplicationApi(cleanPayload)    // POST
-        const pk: number = res.id ?? res.pk
-        setAppId(pk)
-        localStorage.setItem(getDraftKey(), String(pk))         // write before navigate
-        return pk
+        const res = await createApplicationApi(cleanPayload); // POST
+        const pk: number = res.id ?? res.pk;
+        setAppId(pk);
+        localStorage.setItem(getDraftKey(), String(pk)); // write before navigate
+        return pk;
       } else {
-        await updateApplicationApi(existingPk, cleanPayload)    // PATCH
-        setAppId(existingPk)
-        return existingPk
+        await updateApplicationApi(existingPk, cleanPayload); // PATCH
+        setAppId(existingPk);
+        return existingPk;
       }
     } catch (err: any) {
       if (err?.response?.status === 401) {
-        toast.error('Session expired. Please sign in again.')
-        navigate('/ccm-auth/signin', { replace: true })
+        toast.error("Session expired. Please sign in again.");
+        navigate("/ccm-auth/signin", { replace: true });
       } else {
-        toast.error(handleAxiosError(err))
+        toast.error(handleAxiosError(err));
       }
-      return null
+      return null;
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   // ── Upload documents for current step ─────────────────────────────────────
   const uploadDocuments = async (pk: number) => {
-    const uploads: { file: File; type: string; urlField: keyof CCMFormData; isReplace?: boolean }[] = []
+    const uploads: {
+      file: File;
+      type: string;
+      urlField: keyof CCMFormData;
+      isReplace?: boolean;
+    }[] = [];
 
-    if (currentId === 'personal-documents') {
+    if (currentId === "personal-documents") {
       if (formData.aadharFront && !formData.aadharFrontUrl)
-        uploads.push({ file: formData.aadharFront, type: 'aadhar_front', urlField: 'aadharFrontUrl' })
+        uploads.push({
+          file: formData.aadharFront,
+          type: "aadhar_front",
+          urlField: "aadharFrontUrl",
+        });
       if (formData.aadharBack && !formData.aadharBackUrl)
-        uploads.push({ file: formData.aadharBack, type: 'aadhar_back', urlField: 'aadharBackUrl' })
+        uploads.push({
+          file: formData.aadharBack,
+          type: "aadhar_back",
+          urlField: "aadharBackUrl",
+        });
       if (formData.pan && !formData.panUrl)
-        uploads.push({ file: formData.pan, type: 'pan', urlField: 'panUrl' })
+        uploads.push({ file: formData.pan, type: "pan", urlField: "panUrl" });
     }
 
-    if (currentId === 'education-documents') {
+    if (currentId === "education-documents") {
       if (formData.bachelorDoc && !formData.bachelorDocUrl)
-        uploads.push({ file: formData.bachelorDoc, type: 'bachelor_certificate', urlField: 'bachelorDocUrl', isReplace: replacedDocs.has('bachelor_certificate') })
+        uploads.push({
+          file: formData.bachelorDoc,
+          type: "bachelor_certificate",
+          urlField: "bachelorDocUrl",
+          isReplace: replacedDocs.has("bachelor_certificate"),
+        });
       if (formData.masterDoc && !formData.masterDocUrl)
-        uploads.push({ file: formData.masterDoc, type: 'master_certificate', urlField: 'masterDocUrl', isReplace: replacedDocs.has('master_certificate') })
+        uploads.push({
+          file: formData.masterDoc,
+          type: "master_certificate",
+          urlField: "masterDocUrl",
+          isReplace: replacedDocs.has("master_certificate"),
+        });
       if (formData.experienceCertDoc && !formData.experienceCertDocUrl)
-        uploads.push({ file: formData.experienceCertDoc, type: 'experience_certificate', urlField: 'experienceCertDocUrl', isReplace: replacedDocs.has('experience_certificate') })
+        uploads.push({
+          file: formData.experienceCertDoc,
+          type: "experience_certificate",
+          urlField: "experienceCertDocUrl",
+          isReplace: replacedDocs.has("experience_certificate"),
+        });
       if (formData.tenthDoc && !formData.tenthDocUrl)
-  uploads.push({ file: formData.tenthDoc, type: 'tenth_certificate', urlField: 'tenthDocUrl', isReplace: replacedDocs.has('tenth_certificate') })
-if (formData.twelfthDoc && !formData.twelfthDocUrl)
-  uploads.push({ file: formData.twelfthDoc, type: 'twelfth_certificate', urlField: 'twelfthDocUrl', isReplace: replacedDocs.has('twelfth_certificate') })
-if (formData.diplomaDoc && !formData.diplomaDocUrl)
-  uploads.push({ file: formData.diplomaDoc, type: 'diploma', urlField: 'diplomaDocUrl', isReplace: replacedDocs.has('diploma') })
-if (formData.otherDoc && !formData.otherDocUrl)
-  uploads.push({ file: formData.otherDoc, type: 'other', urlField: 'otherDocUrl', isReplace: replacedDocs.has('other') })
-
+        uploads.push({
+          file: formData.tenthDoc,
+          type: "tenth_certificate",
+          urlField: "tenthDocUrl",
+          isReplace: replacedDocs.has("tenth_certificate"),
+        });
+      if (formData.twelfthDoc && !formData.twelfthDocUrl)
+        uploads.push({
+          file: formData.twelfthDoc,
+          type: "twelfth_certificate",
+          urlField: "twelfthDocUrl",
+          isReplace: replacedDocs.has("twelfth_certificate"),
+        });
+      if (formData.diplomaDoc && !formData.diplomaDocUrl)
+        uploads.push({
+          file: formData.diplomaDoc,
+          type: "diploma",
+          urlField: "diplomaDocUrl",
+          isReplace: replacedDocs.has("diploma"),
+        });
+      if (formData.otherDoc && !formData.otherDocUrl)
+        uploads.push({
+          file: formData.otherDoc,
+          type: "other",
+          urlField: "otherDocUrl",
+          isReplace: replacedDocs.has("other"),
+        });
     }
 
-    if (uploads.length === 0) return true  // nothing to upload — skip
+    if (uploads.length === 0) return true; // nothing to upload — skip
 
-    setUploading(true)  // uploading starts — button switches to "Uploading…"
+    setUploading(true); // uploading starts — button switches to "Uploading…"
     try {
       const results = await Promise.allSettled(
-        uploads.map(u => uploadDocumentApi(u.file, u.type, pk))
-      )
+        uploads.map((u) => uploadDocumentApi(u.file, u.type, pk)),
+      );
 
-      const failed: string[] = []
+      const failed: string[] = [];
 
       results.forEach((result, i) => {
-        if (result.status === 'fulfilled') {
-          const url = result.value?.file ?? result.value?.url ?? result.value?.data?.file ?? null
+        if (result.status === "fulfilled") {
+          const url =
+            result.value?.file ??
+            result.value?.url ??
+            result.value?.data?.file ??
+            null;
           if (url) {
-            updateFormData(uploads[i].urlField, url)
-            setReplacedDocs(prev => {
-              const next = new Set(prev)
-              next.delete(uploads[i].type)
-              return next
-            })
+            updateFormData(uploads[i].urlField, url);
+            setReplacedDocs((prev) => {
+              const next = new Set(prev);
+              next.delete(uploads[i].type);
+              return next;
+            });
           }
         } else {
-          failed.push(uploads[i].type.replace(/_/g, ' '))
+          failed.push(uploads[i].type.replace(/_/g, " "));
         }
-      })
+      });
 
       if (failed.length > 0) {
-        toast.error(`Failed to upload: ${failed.join(', ')}. Please try again.`)
-        return false  // block navigation — stay on step
+        toast.error(
+          `Failed to upload: ${failed.join(", ")}. Please try again.`,
+        );
+        return false; // block navigation — stay on step
       }
 
-      return true
+      return true;
     } finally {
-      setUploading(false)  // always reset — even if some failed
+      setUploading(false); // always reset — even if some failed
     }
-  }
+  };
 
   const handleReplace = (urlField: keyof CCMFormData, docType: string) => {
-    updateFormData(urlField, null)           // clear URL as before
-    setReplacedDocs(prev => new Set(prev).add(docType))  // mark as replace not new
-  }
+    updateFormData(urlField, null); // clear URL as before
+    setReplacedDocs((prev) => new Set(prev).add(docType)); // mark as replace not new
+  };
 
   // ── Next: validate → save → upload → navigate ────────────────────────────
- const handleNext = async () => {
-  const errs = validate(currentId, formData) ?? {}
-  if (Object.keys(errs).length) { setErrors(errs); return }
-  setErrors({})
+  const handleNext = async () => {
+    const errs = validate(currentId, formData) ?? {};
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
+    setErrors({});
 
-  const pk = await saveProgress(formData)   // saving=true → false here
-  if (pk === null) return
+    const pk = await saveProgress(formData); // saving=true → false here
+    if (pk === null) return;
 
-  setSaving(true)                           // re-raise for upload phase
-  const docsOk = await uploadDocuments(pk) // uploading=true inside, but header now also shows saving
-  setSaving(false)                          // drop after upload done
-  if (!docsOk) return
+    setSaving(true); // re-raise for upload phase
+    const docsOk = await uploadDocuments(pk); // uploading=true inside, but header now also shows saving
+    setSaving(false); // drop after upload done
+    if (!docsOk) return;
 
-  navigate(`/ccmonboard/${STEPS[currentIndex + 1].id}`)
-}
+    navigate(`/ccmonboard/${STEPS[currentIndex + 1].id}`);
+  };
 
   // ── Prev ──────────────────────────────────────────────────────────────────
   const handlePrev = () => {
-    if (!isFirst) navigate(`/ccmonboard/${STEPS[currentIndex - 1].id}`)
-  }
+    if (!isFirst) navigate(`/ccmonboard/${STEPS[currentIndex - 1].id}`);
+  };
 
   // ── Submit ────────────────────────────────────────────────────────────────
-const handleSubmit = async () => {
-  const ccmUser     = JSON.parse(localStorage.getItem('ccm_user') || 'null')
-  const currentUser = ccmUser?.user ?? ccmUser
-  const userId      = currentUser?.id
+  const handleSubmit = async () => {
+    const ccmUser = JSON.parse(localStorage.getItem("ccm_user") || "null");
+    const currentUser = ccmUser?.user ?? ccmUser;
+    const userId = currentUser?.id;
 
-  if (!userId) { toast.error('User not found. Please sign in again.'); return }
-
-  setSaving(true)
-  try {
-    const response  = await submitApplicationApi(userId)
-
-    const appId     = response?.id  ?? null   // 15 — application id for status calls
-    const shgId     = response?.shg ?? null   // 17 — profile/shg id, already in draft key
-    const reference = response?.reference_number ?? null
-
-    if (appId) {
-      localStorage.setItem(`ccm_app_pk_${userId}`, String(appId))   // dashboard status key
-    }
-    if (shgId) {
-      localStorage.setItem(`ccm_draft_pk_${userId}`, String(shgId)) // keep draft key intact
+    if (!userId) {
+      toast.error("User not found. Please sign in again.");
+      return;
     }
 
-    if (reference) {
-      setRefNumber(reference)
-    } else {
-      toast.success('Application submitted!')
-      navigate('/ccm-dashboard')
-    }
-  } catch (err) {
-    toast.error(handleAxiosError(err))
-  } finally {
-    setSaving(false)
-  }
-}
+    setSaving(true);
+    try {
+      const response = await submitApplicationApi(userId);
 
-  const stepProps = { formData, updateFormData, errors, onReplace: handleReplace }
+      const appId = response?.id ?? null; // 15 — application id for status calls
+      const shgId = response?.shg ?? null; // 17 — profile/shg id, already in draft key
+      const reference = response?.reference_number ?? null;
+
+      if (appId) {
+        localStorage.setItem(`ccm_app_pk_${userId}`, String(appId)); // dashboard status key
+      }
+      if (shgId) {
+        localStorage.setItem(`ccm_draft_pk_${userId}`, String(shgId)); // keep draft key intact
+      }
+
+      if (reference) {
+        setRefNumber(reference);
+      } else {
+        toast.success("Application submitted!");
+        navigate("/ccm-dashboard");
+      }
+    } catch (err) {
+      toast.error(handleAxiosError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const stepProps = {
+    formData,
+    updateFormData,
+    errors,
+    onReplace: handleReplace,
+  };
 
   // ── Success screen ─────────────────────────────────────────────────────────
   if (refNumber) {
@@ -450,36 +577,57 @@ const handleSubmit = async () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-6">
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg p-10 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-8 h-8 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Application Submitted!</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">Your CM onboarding application has been received.</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Application Submitted!
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
+            Your CM onboarding application has been received.
+          </p>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-4">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Reference Number</p>
-            <p className="text-3xl font-bold text-brand-600 tracking-widest">{refNumber}</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+              Reference Number
+            </p>
+            <p className="text-3xl font-bold text-brand-600 tracking-widest">
+              {refNumber}
+            </p>
           </div>
-          <button onClick={() => navigate('/ccm-dashboard')}
-            className="px-6 py-2.5 bg-brand-500 text-white rounded-lg hover:bg-brand-600 text-sm font-medium">
+          <button
+            onClick={() => navigate("/ccm-dashboard")}
+            className="px-6 py-2.5 bg-brand-500 text-white rounded-lg hover:bg-brand-600 text-sm font-medium"
+          >
             Go to Dashboard
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   // ── Main layout ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
-
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm">
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-sm font-bold">C</span>
             </div>
-            <span className="font-semibold text-gray-800 dark:text-white text-sm">CM Onboarding</span>
+            <span className="font-semibold text-gray-800 dark:text-white text-sm">
+              CM Onboardingssssssssssssssssssssssss
+            </span>
           </div>
           <div className="flex items-center gap-3">
             {appId && !saving && (
@@ -502,56 +650,93 @@ const handleSubmit = async () => {
             <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 dark:bg-gray-700" />
             <div
               className="absolute top-4 left-4 h-0.5 bg-brand-600 transition-all duration-500"
-              style={{ width: currentIndex === 0 ? '0%' : `${(currentIndex / (STEPS.length - 1)) * 100}%` }}
+              style={{
+                width:
+                  currentIndex === 0
+                    ? "0%"
+                    : `${(currentIndex / (STEPS.length - 1)) * 100}%`,
+              }}
             />
             {STEPS.map((step, idx) => {
-              const done = idx < currentIndex
-              const active = idx === currentIndex
+              const done = idx < currentIndex;
+              const active = idx === currentIndex;
               return (
-                <div key={step.id} className="relative z-10 flex flex-col items-center flex-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all
-                    ${done ? 'bg-brand-600 border-brand-600 text-white'
-                      : active ? 'bg-white dark:bg-gray-900 border-brand-600 text-brand-600'
-                        : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-400'}`}
+                <div
+                  key={step.id}
+                  className="relative z-10 flex flex-col items-center flex-1"
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all
+                    ${
+                      done
+                        ? "bg-brand-600 border-brand-600 text-white"
+                        : active
+                          ? "bg-white dark:bg-gray-900 border-brand-600 text-brand-600"
+                          : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-400"
+                    }`}
                   >
-                    {done
-                      ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    {done ? (
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
-                      : step.step}
+                    ) : (
+                      step.step
+                    )}
                   </div>
-                  <span className={`mt-1.5 text-center hidden sm:block text-[10px]
-                    ${active ? 'text-brand-600 font-semibold' : done ? 'text-gray-500' : 'text-gray-400'}`}
-                    style={{ maxWidth: 60 }}>
+                  <span
+                    className={`mt-1.5 text-center hidden sm:block text-[10px]
+                    ${active ? "text-brand-600 font-semibold" : done ? "text-gray-500" : "text-gray-400"}`}
+                    style={{ maxWidth: 60 }}
+                  >
                     {step.name}
                   </span>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
       </header>
 
-     <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
-  <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 sm:p-8">
-
-    {!isInitialized ? ( // Changed from loading to isInitialized
-  <div className="flex items-center justify-center py-20">
-    <span className="w-6 h-6 border-2 border-gray-200 border-t-brand-600 rounded-full animate-spin" />
-  </div>
-) : (
-      <Routes>
-        <Route index element={<Navigate to="personal-info" replace />} />
-        <Route path="personal-info"       element={<PersonalInfo       {...stepProps} />} />
-        <Route path="address-info"        element={<AddressInfo        {...stepProps} />} />
-        <Route path="personal-documents"  element={<PersonalDocuments  {...stepProps} />} />
-        <Route path="education-documents" element={<EducationDocuments {...stepProps} />} />
-        <Route path="preview"             element={<Preview            {...stepProps} />} />
-      </Routes>
-    )}
-
-  </div>
-</main>
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 sm:p-8">
+          {!isInitialized ? ( // Changed from loading to isInitialized
+            <div className="flex items-center justify-center py-20">
+              <span className="w-6 h-6 border-2 border-gray-200 border-t-brand-600 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <Routes>
+              <Route index element={<Navigate to="personal-info" replace />} />
+              <Route
+                path="personal-info"
+                element={<PersonalInfo {...stepProps} />}
+              />
+              <Route
+                path="address-info"
+                element={<AddressInfo {...stepProps} />}
+              />
+              <Route
+                path="personal-documents"
+                element={<PersonalDocuments {...stepProps} />}
+              />
+              <Route
+                path="education-documents"
+                element={<EducationDocuments {...stepProps} />}
+              />
+              <Route path="preview" element={<Preview {...stepProps} />} />
+            </Routes>
+          )}
+        </div>
+      </main>
 
       <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 z-30">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -559,12 +744,25 @@ const handleSubmit = async () => {
             Step {currentIndex + 1} of {STEPS.length}
           </span>
           <div className="flex items-center gap-3 ml-auto">
-            <button onClick={handlePrev} disabled={isFirst}
+            <button
+              onClick={handlePrev}
+              disabled={isFirst}
               className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600
                 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900
-                hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
               Previous
             </button>
@@ -579,28 +777,55 @@ const handleSubmit = async () => {
             */}
 
             {isPreview ? (
-              <button onClick={handleSubmit} disabled={saving}
+              <button
+                onClick={handleSubmit}
+                disabled={saving}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-green-600 text-sm font-medium text-white
-                  hover:bg-green-700 disabled:opacity-50 transition-colors">
-                {saving
-                  ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Submitting…</>
-                  : 'Submit Application'}
+                  hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {saving ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  "Submit Application"
+                )}
               </button>
             ) : (
               <button
                 onClick={handleNext}
-                disabled={saving || uploading}  // locked during both save and upload
+                disabled={saving || uploading} // locked during both save and upload
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-brand-600 text-sm font-medium text-white
     hover:bg-brand-700 disabled:opacity-50 transition-colors"
               >
                 {saving ? (
-                  <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Saving…</>
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    Saving…
+                  </>
                 ) : uploading ? (
-                  <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Uploading…</>
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    Uploading…
+                  </>
                 ) : (
-                  <>Next <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg></>
+                  <>
+                    Next{" "}
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </>
                 )}
               </button>
             )}
@@ -608,5 +833,5 @@ const handleSubmit = async () => {
         </div>
       </footer>
     </div>
-  )
+  );
 }

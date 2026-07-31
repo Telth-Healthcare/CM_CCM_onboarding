@@ -12,6 +12,7 @@ export interface CCMFormData {
   gender: string
   bloodGroup: string
   manager: string
+  role_apply_for: string
 
   // Step 2 — Contact
   mobile: string

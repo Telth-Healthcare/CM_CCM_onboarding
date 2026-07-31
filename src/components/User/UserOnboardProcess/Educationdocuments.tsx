@@ -6,7 +6,7 @@ import {
   MASTER_DEGREE_OPTIONS,
   EXPERIENCE_CERT_OPTIONS,
   MAX_FILE_SIZE_MB,
-  OTHER_DOC_OPTIONS,
+  // OTHER_DOC_OPTIONS,
 } from './types/Constants'
 import { FieldWrapper, FileUploadZone, FormGrid, SectionCard, StepHeader } from './Index'
 import Select from '../../form/Select'
@@ -77,14 +77,14 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
       <div className="mb-4">
         <SectionCard title="Resume" optional>
           <FormGrid>
-            <FieldWrapper label="Document Type">
+            {/* <FieldWrapper label="Document Type">
               <Select
                 value={formData.otherDocType}
                 onChange={val => updateFormData('otherDocType', val)}
                 options={OTHER_DOC_OPTIONS}
                 placeholder="Select Document Type"
               />
-            </FieldWrapper>
+            </FieldWrapper> */}
             <FieldWrapper label="Upload Document">
               <FileUploadZone 
                 field="otherDoc" 

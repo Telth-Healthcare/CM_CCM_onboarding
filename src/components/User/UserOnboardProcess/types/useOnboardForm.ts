@@ -43,7 +43,7 @@ const getResumeStep = (data: any, docs: Record<string, string>): string => {
 };
 
 export const useOnboardForm = (
-  currentId: string, 
+  currentId: string,
   currentIndex: number,
   targetUserId?: number,
   useRouting = true,
@@ -91,6 +91,7 @@ export const useOnboardForm = (
       ...prev,
       firstName: record.user?.first_name ?? prev.firstName,
       lastName: record.user?.last_name ?? prev.lastName,
+      role_apply_for: record.role_apply_for ?? prev.role_apply_for,
       mobile: (() => {
         const phone = record.user?.phone;
         if (!phone) return prev.mobile;
@@ -103,7 +104,10 @@ export const useOnboardForm = (
       dob: record.dob ?? prev.dob,
       gender: record.gender ?? prev.gender,
       bloodGroup: record.blood_group ?? prev.bloodGroup,
-      manager: record.user?.manager_name != null ? String(record.manager) : prev.manager,
+      manager:
+        record.user?.manager_name != null
+          ? String(record.manager)
+          : prev.manager,
       language: record.language ?? prev.language,
       maritalStatus: record.marital_status ?? prev.maritalStatus,
       addressLine1: record.address_line_1 ?? prev.addressLine1,
@@ -115,10 +119,10 @@ export const useOnboardForm = (
       aadharFrontUrl: docs["aadhar_front"] ?? prev.aadharFrontUrl,
       aadharBackUrl: docs["aadhar_back"] ?? prev.aadharBackUrl,
       panUrl: docs["pan"] ?? prev.panUrl,
-      tenthDocUrl:    docs['tenth_certificate']   ?? prev.tenthDocUrl,
-twelfthDocUrl:  docs['twelfth_certificate'] ?? prev.twelfthDocUrl,
-diplomaDocUrl:  docs['diploma']             ?? prev.diplomaDocUrl,
-otherDocUrl:    docs['other']               ?? prev.otherDocUrl,
+      tenthDocUrl: docs["tenth_certificate"] ?? prev.tenthDocUrl,
+      twelfthDocUrl: docs["twelfth_certificate"] ?? prev.twelfthDocUrl,
+      diplomaDocUrl: docs["diploma"] ?? prev.diplomaDocUrl,
+      otherDocUrl: docs["other"] ?? prev.otherDocUrl,
       bachelorDegreeType:
         record.bachelor_degree_type ?? prev.bachelorDegreeType,
       bachelorDocUrl: docs["bachelor_certificate"] ?? prev.bachelorDocUrl,
@@ -178,8 +182,7 @@ otherDocUrl:    docs['other']               ?? prev.otherDocUrl,
             const docs = hydrateFromApi(record, pk);
             applyResumeStep(getResumeStep(record, docs));
           })
-          .catch(() => {
-          })
+          .catch(() => {})
           .finally(() => setIsInitialized(true));
       }
       return;
@@ -225,6 +228,7 @@ otherDocUrl:    docs['other']               ?? prev.otherDocUrl,
         last_name: formData.lastName,
         email: formData.email,
         phone: `+91${formData.mobile}`,
+        role_apply_for: formData.role_apply_for,
         roles: [roleFilter || "-"],
         ...(formData.manager ? { manager: Number(formData.manager) } : {}),
       };
@@ -245,6 +249,7 @@ otherDocUrl:    docs['other']               ?? prev.otherDocUrl,
       dob: formData.dob,
       gender: formData.gender,
       blood_group: formData.bloodGroup,
+      role_apply_for: formData.role_apply_for,
       language: formData.language,
       marital_status: formData.maritalStatus,
       mobile: formData.mobile?.replace(/^\+91/, ""),
@@ -315,14 +320,30 @@ otherDocUrl:    docs['other']               ?? prev.otherDocUrl,
 
     if (currentStepId === "education-documents") {
       if (formData.tenthDoc && !formData.tenthDocUrl)
-   if (formData.tenthDoc && !formData.tenthDocUrl)
-        tasks.push({ file: formData.tenthDoc,   type: "tenth_certificate",   urlField: "tenthDocUrl" });
+        if (formData.tenthDoc && !formData.tenthDocUrl)
+          tasks.push({
+            file: formData.tenthDoc,
+            type: "tenth_certificate",
+            urlField: "tenthDocUrl",
+          });
       if (formData.twelfthDoc && !formData.twelfthDocUrl)
-        tasks.push({ file: formData.twelfthDoc, type: "twelfth_certificate", urlField: "twelfthDocUrl" });
+        tasks.push({
+          file: formData.twelfthDoc,
+          type: "twelfth_certificate",
+          urlField: "twelfthDocUrl",
+        });
       if (formData.diplomaDoc && !formData.diplomaDocUrl)
-        tasks.push({ file: formData.diplomaDoc, type: "diploma",             urlField: "diplomaDocUrl" });
+        tasks.push({
+          file: formData.diplomaDoc,
+          type: "diploma",
+          urlField: "diplomaDocUrl",
+        });
       if (formData.otherDoc && !formData.otherDocUrl)
-        tasks.push({ file: formData.otherDoc,   type: "other",               urlField: "otherDocUrl" });
+        tasks.push({
+          file: formData.otherDoc,
+          type: "other",
+          urlField: "otherDocUrl",
+        });
       if (formData.bachelorDoc && !formData.bachelorDocUrl)
         tasks.push({
           file: formData.bachelorDoc,

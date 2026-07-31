@@ -6,7 +6,7 @@ import {
   MRT_ColumnFiltersState,
 } from "material-react-table";
 import { toast } from "react-toastify";
-import {  X } from "lucide-react";
+import { X } from "lucide-react";
 import PageMeta from "../../common/PageMeta";
 import {
   getRoleUsers,
@@ -377,6 +377,13 @@ const ViewCCMList = () => {
           const value = cell.getValue() as string | null;
           return value || "-";
         },
+        filterVariant: "text",
+        enableColumnFilter: true,
+      },
+      {
+        accessorKey: "role_apply_for",
+        header: "Role",
+        size: 250,
         filterVariant: "text",
         enableColumnFilter: true,
       },

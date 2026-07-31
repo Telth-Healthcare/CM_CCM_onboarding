@@ -381,6 +381,13 @@ const ViewCMList = () => {
         enableColumnFilter: true,
       },
       {
+        accessorKey: "role_apply_for",
+        header: "Role",
+        size: 250,
+        filterVariant: "text",
+        enableColumnFilter: true,
+      },
+      {
         accessorKey: "region_name",
         header: "Region",
         size: 200,
@@ -599,7 +606,8 @@ const ViewCMList = () => {
         targetUserId={selectedUserId ?? undefined}
         onDone={handleOnboardDone}
         roleFilter="cm"
-        initialData={editingDetail}
+        actions = {currentView === "create" ? "create" : "edit"}
+        // initialData={editingDetail}
       />
     );
   }
