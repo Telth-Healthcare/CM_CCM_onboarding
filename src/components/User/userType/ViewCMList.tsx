@@ -155,7 +155,6 @@ const ViewCMList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
-  const [editingDetail, setEditingDetail] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUsers(1);
@@ -285,9 +284,8 @@ const ViewCMList = () => {
     }
   };
 
-  const handleEdit = (userId: number, user: User) => {
+  const handleEdit = (userId: number, _user: User) => {
     setSelectedUserId(userId);
-    setEditingDetail(user);
     setCurrentView("edit");
   };
 
@@ -607,7 +605,6 @@ const ViewCMList = () => {
         onDone={handleOnboardDone}
         roleFilter="cm"
         actions = {currentView === "create" ? "create" : "edit"}
-        // initialData={editingDetail}
       />
     );
   }

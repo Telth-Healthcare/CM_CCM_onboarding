@@ -345,7 +345,7 @@ const EducationDocuments: React.FC<StepProps> = ({ formData, updateFormData, err
     Select Role <span className="text-red-500">*</span>
   </Label>
   <Select
-    value={formData.role_apply_for}
+    value={formData.role_apply_for ?? undefined}
     onChange={(value) => updateFormData('role_apply_for', value)}
     options={JOB_ROLES}
     placeholder="Select the role you're applying for"

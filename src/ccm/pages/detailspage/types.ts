@@ -44,7 +44,8 @@ export interface CCMFormData {
   experienceCertDoc:    File | null
   experienceCertDocUrl: string | null
 
-  tenthDoc:             File | null   // 10th certificate upload
+
+tenthDoc:             File | null   // 10th certificate upload
 tenthDocUrl:          string | null
 twelfthDoc:           File | null   // 12th certificate upload
 twelfthDocUrl:        string | null
@@ -53,7 +54,7 @@ diplomaDocUrl:        string | null
 otherDoc:             File | null
 otherDocUrl:          string | null
 otherDocType:         string        // ← add this
-role_apply_for:       string | null       // ← add this
+role_apply_for:       string | null       // ← add this 
 
 }
 

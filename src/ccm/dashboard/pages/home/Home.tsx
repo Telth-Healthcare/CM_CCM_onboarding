@@ -6,10 +6,18 @@ import Analytics     from "./analytics";
 import Tuts          from "./tuts";
 import { getApplicationStatusApi } from "../../../../api/ccm/ccmonboard.api";
 
+export interface AppDocument {
+  id: number;
+  document_type: string;
+  file?: string;
+}
+
 export interface AppData {
   id: number;
   status: string;
   payment_status: string;
+  payment_type?: string;
+  payment_method?: string;
   reference_number: string;
   assigned_trainer: string | null;    // add this
   assigned_financier: string | null;  // add this
@@ -19,6 +27,7 @@ export interface AppData {
   private_notes?: string;
   created_at: string;
   updated_at: string;
+  documents: AppDocument[];
 }
 
 // ─── Widget wrapper ───────────────────────────────────────────────────────────

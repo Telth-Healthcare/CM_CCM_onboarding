@@ -132,7 +132,6 @@ const ViewCCMList = () => {
   const [currentView, setCurrentView] = useState<ViewType>(null);
 
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [editingDetail, setEditingDetail] = useState<User | null>(null);
   const [editingStatus, setEditingStatus] = useState<{
     userId: number;
     isActive: boolean;
@@ -290,9 +289,8 @@ const ViewCCMList = () => {
     setCurrentView("create");
   };
 
-  const handleEdit = (userId: number, user: User) => {
+  const handleEdit = (userId: number, _user: User) => {
     setSelectedUserId(userId);
-    setEditingDetail(user);
     setCurrentView("edit");
   };
 
@@ -606,7 +604,6 @@ const ViewCCMList = () => {
         targetUserId={selectedUserId ?? undefined}
         onDone={handleOnboardDone}
         roleFilter="ccm"
-        initialData={editingDetail}
       />
     );
   }

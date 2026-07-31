@@ -125,6 +125,7 @@ const Preview: React.FC<StepProps> = ({ formData }) => {
 
       {/* Step 5 — Education docs with View button */}
       <Section title="Education Documents">
+            <Row label="Applying For" value={val(formData.role_apply_for)} />
         <div className="flex flex-col sm:flex-row sm:items-center py-2.5 border-b border-gray-100">
           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-48 flex-shrink-0">Bachelor's Degree</span>
           <div className="flex flex-col gap-1 mt-0.5 sm:mt-0">
@@ -182,7 +183,7 @@ const Preview: React.FC<StepProps> = ({ formData }) => {
           </div>
         </div>
  <div className="flex flex-col sm:flex-row sm:items-center py-2.5">
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-48 flex-shrink-0">Other DocumentCert</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-48 flex-shrink-0">Resume</span>
           <div className="flex flex-col gap-1 mt-0.5 sm:mt-0">
             {formData.experienceCertType && (
               <span className="text-xs text-brand-600 font-medium">{formData.experienceCertType}</span>
